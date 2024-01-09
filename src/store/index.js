@@ -3,7 +3,7 @@ import { createStore } from 'vuex'
 export default createStore({
   state() {
     return {
-        // Array of selected images. Image objects that get selected get pushed here
+      // Array of selected images. Image objects that get selected get pushed here
       selectedImages: []
     }
   },
@@ -11,8 +11,8 @@ export default createStore({
     // This mutation changes the state of selectedImages
     // It should be dispatched when an image is selected/unselected
     toggleImageSelection(state, image) {
-        // By using the findIndex method, we check if there's an basefile_name from MockData that's the same 
-        // as the clicked image's basefilename
+      // By using the findIndex method, we check if there's an basefile_name from MockData that's the same 
+      // as the clicked image's basefilename
       const index = state.selectedImages.findIndex(img => img.basefile_name === image.basefile_name)
       // If it's in the selectedImages array, it will return a number greater than or equal to 0
       // so we splice it from the selectedImages array
@@ -22,11 +22,17 @@ export default createStore({
       } else {
         state.selectedImages.push(image)
       }
-    }
+    },
+    selectedImages(state, val) { state.selectedImages = val }
   },
   actions: {
+    // select a single image
     toggleImageSelection({ commit }, image) {
       commit('toggleImageSelection', image)
+    },
+    // pass a new array of selected images
+    setSelectedImages({ commit }, images) {
+      commit('selectedImages', images)
     }
   },
   getters: {
