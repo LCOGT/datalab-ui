@@ -1,7 +1,9 @@
 <script setup>
-import { defineProps, ref, defineEmits, onMounted } from 'vue'
+import { defineProps, ref, onMounted } from 'vue'
 import { useStore } from 'vuex'
 import { fetchApiCall, handleError } from '../../utils/api'
+// eslint-disable-next-line no-unused-vars
+import ImageAnalyzer from './ImageAnalyzer.vue'
 
 const props = defineProps({
 	data: {
@@ -16,10 +18,10 @@ const props = defineProps({
 	selectedImages: Array
 })
 
-const emit = defineEmits(['imageClicked'])
-
 let images = ref([])
 const store = useStore()
+const showAnalysisDialog = ref(false)
+const analysisImage = ref(null)
 
 const saveImages = (data) => {
 	const results = data.results
@@ -43,7 +45,15 @@ const isSelected = (image) => {
 }
 
 const onImageClick = (image) => {
-	emit('imageClicked', image)
+	const url = store.state.datalabArchiveApiUrl + 'frames/?' + image.basename + '-large'
+
+	function success(data){
+		console.log('LOG ~ file: ImageGrid.vue:51 ~ success ~ data:', data)
+		showAnalysisDialog.value = true
+		analysisImage.value = data
+	}
+
+	fetchApiCall({ url: url, method: 'GET', successCallback: success, failCallback: handleError })
 }
 
 onMounted(() => {
@@ -69,6 +79,10 @@ onMounted(() => {
         @click="onImageClick(image)"
       />
     </v-col>
+    <image-analyzer
+      v-model="showAnalysisDialog"
+      :image="analysisImage"
+    />
   </v-row>
 </template>
 

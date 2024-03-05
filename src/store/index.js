@@ -106,6 +106,7 @@ export default createStore({
 		// given an image basename, fetches the large res of that image
 		getLargeImageFromBasename: (state) => (imageBasename) => {
 			imageBasename = imageBasename.replace('-small', '')
+			console.log('LOG ~ imageBasename:', imageBasename)
 			const largeImage = state.largeImageCache.find(obj => obj.basename.replace('-large', '') == imageBasename)
 			if(largeImage){
 				return largeImage

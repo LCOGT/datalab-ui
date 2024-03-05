@@ -4,7 +4,7 @@ import { ref, defineProps, watch } from 'vue'
 import { useStore } from 'vuex'
 import { Carousel, Slide  } from 'vue3-carousel'
 import 'vue3-carousel/dist/carousel.css'
-import ImageAnalyzer from '../ImageAnalyzer.vue'
+import ImageAnalyzer from '../Global/ImageAnalyzer.vue'
 
 const props = defineProps({
 	data: {
