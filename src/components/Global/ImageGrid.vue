@@ -37,7 +37,7 @@ watch(() => props.images, () => {
   props.images.forEach(image => {
     if (image.basename && !(image.basename in imageDetails.value)) {
       imageDetails.value[image.basename] = ref('')
-      const url = image.thumbnail_url || ''
+      const url = image.thumbnail_url || image.smallThumbUrl || ''
       thumbnailsStore.cacheImage('small', configurationStore.archiveType, url, image.basename).then((cachedUrl) => {
         imageDetails.value[image.basename] = cachedUrl
       })

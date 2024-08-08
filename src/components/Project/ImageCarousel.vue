@@ -66,7 +66,7 @@ const handleThumbnailClick = (item, index) => {
 watch(currLargeImage, async (newValue) => {
   if (newValue){
     currLargeImage.value.largeCachedUrl = ref('')
-    thumbnailsStore.cacheImage('large', configurationStore.archiveType, '', newValue.basename).then((cachedUrl) => {
+    thumbnailsStore.cacheImage('large', configurationStore.archiveType, newValue.largeThumbUrl, newValue.basename).then((cachedUrl) => {
       currLargeImage.value.largeCachedUrl = cachedUrl
     })
   }
