@@ -62,7 +62,7 @@ watch(dateUnits, (newUnits) => {
 </script>
 
 <template>
-  <div class="project_bar">
+  <div class="column is-one-quarter">
     <v-card class="h-auto w-20 ma-1 project_card">
       <p class="project_header">
         PROJECTS

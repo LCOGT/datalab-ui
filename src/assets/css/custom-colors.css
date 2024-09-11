@@ -8,4 +8,9 @@
 	--grey-level3: #192026;
 	--grey-level4: #13181D;
 	--metal: var(--grey-level3);
+	--bulma-tabs-link-active-border-bottom-color : var(--blue);
+	--bulma-tabs-link-active-color: var(--blue);
+	--tan: var(--white);
+	--cancel: var(--red);
+	--light-blue: var(--blue);
 }

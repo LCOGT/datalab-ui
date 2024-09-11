@@ -4,6 +4,7 @@ import { useUserDataStore } from '@/stores/userData'
 import { useConfigurationStore } from './stores/configuration'
 import NavBar from './components/Global/NavBar.vue'
 import AlertToast from './components/Global/AlertToast.vue'
+import './assets/css/datalab_main.scss'
 
 const configurationStore = useConfigurationStore()
 const userDataStore = useUserDataStore()

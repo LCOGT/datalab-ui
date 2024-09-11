@@ -1,5 +1,8 @@
 @charset "utf-8";
 
+@import '~bulma/css/bulma.css';
+@import 'custom-colors.css';
+
 // Set your brand colors
 $blue: #00ADEF;
 $red: #EF4123;
@@ -9,6 +12,13 @@ $grey-level1: #3b4249;
 $grey-level2: #262e35;
 $grey-level3: #192026;
 $grey-level4: #13181D;
+
+:root {
+  /* Default global value */
+  --bulma-tabs-link-active-border-bottom-color : $blue;
+  --bulma-tabs-link-active-color: $blue;
+  --bulma-size-normal: 1.25rem;
+}
 
 // Import a Google Font
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,100..900;1,100..900&family=Unica+One&display=swap');
@@ -67,7 +77,6 @@ p {
 
 section {
     padding: 2rem;
-    margin-bottom: 2rem;
 }
 
 section.highlight {
@@ -80,4 +89,19 @@ nav {
     .navbar{
         min-height:2rem;
     }
+}
+
+.tabs {
+  li { 
+    a.router-link-active {
+      color: $blue;
+      border-bottom-color: $blue;
+      border-bottom-style: solid;
+      border-bottom-width: 2px;
+    }
+  }
+}
+
+.data_table {
+  font-size: var(--bulma-size-normal);
 }

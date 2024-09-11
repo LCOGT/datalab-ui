@@ -251,7 +251,7 @@ onMounted(() => {
 
 <template>
   <div
-    class="wrapper"
+    class="column is-two-thirds"
     :style="{ width: scaledWidth + 'px', height: scaledHeight + 'px' }"
   >
     <div

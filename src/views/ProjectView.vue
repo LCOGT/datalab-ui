@@ -177,13 +177,14 @@ onUnmounted(() => {
 
 <template>
   <!-- only load if config is loaded -->
+  <section>
   <div class="container">
+    <div class="columns">
     <ProjectBar
-      class="project-bar"
       :projects="userDataStore.proposals"
       @selected-project="filterImagesByProposalId"
     />
-    <div class="image-area">
+    <div class="column">
       <div
         v-if="isLoading"
         class="loading-indicator-container"
@@ -196,23 +197,7 @@ onUnmounted(() => {
         />
       </div>
       <div v-else>
-        <ImageCarousel
-          v-if="userDataStore.carouselGridToggle && selectedProjectImages.length"
-          :data="selectedProjectImages"
-        />
-        <ImageList
-          v-if="!userDataStore.carouselGridToggle && selectedProjectImages.length"
-          :data="selectedProjectImages"
-        />
-        <v-banner
-          v-if="!selectedProjectImages.length"
-          class="d-flex align-center justify-center mt-10"
-          icon="mdi-image-off"
-          color="warning"
-          text="This project has no images in the specified time period"
-        />
-      </div>
-      <div class="control-buttons">
+        <div class="control-buttons">
         <v-btn
           :disabled="noSelectedImages"
           class="unselect_images"
@@ -237,7 +222,24 @@ onUnmounted(() => {
           </template>
         </v-btn>
       </div>
+        <ImageCarousel
+          v-if="userDataStore.carouselGridToggle && selectedProjectImages.length"
+          :data="selectedProjectImages"
+        />
+        <ImageList
+          v-if="!userDataStore.carouselGridToggle && selectedProjectImages.length"
+          :data="selectedProjectImages"
+        />
+        <v-banner
+          v-if="!selectedProjectImages.length"
+          class="d-flex align-center justify-center mt-10"
+          icon="mdi-image-off"
+          color="warning"
+          text="This project has no images in the specified time period"
+        />
+      </div>
     </div>
+  </div>
   </div>
   <v-dialog
     v-model="isPopupVisible"
@@ -293,15 +295,10 @@ onUnmounted(() => {
       </div>
     </v-card>
   </v-dialog>
+  </section>  
 </template>
 <style scoped>
-.container{
-  margin: 0;
-  display: grid;
-  grid-template-columns: [col1-start] 1fr [col1-end col2-start] 80% [col2-end];
-  grid-template-rows: [row-start] 100% [row-end];
-  height: 94vh;
-}
+
 .project-bar{
   display: flex;
   grid-column-start: col1-start;
@@ -320,11 +317,6 @@ onUnmounted(() => {
   justify-content: center;
   align-items: center;
   height: 100%;
-}
-.control-buttons {
-  position: absolute;
-  bottom: 1rem;
-  right: 0;
 }
 .add_button {
   width: 17.3rem;

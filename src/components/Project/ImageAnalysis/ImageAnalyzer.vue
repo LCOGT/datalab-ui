@@ -78,13 +78,13 @@ function handleAnalysisOutput(response, action){
           @click="closeDialog()"
         />
       </v-toolbar>
-      <div class="analysis-content">
+      <div class="columns analysis-content">
         <image-viewer
           :image-src="image.largeCachedUrl"
           :catalog="catalog"
           @analysis-action="requestAnalysis"
         />
-        <div class="side-panel-container">
+        <div class="column is-one-third side-panel-container">
           <v-sheet class="side-panel">
             <h1>Details</h1>
             <p>Basename: {{ image.basename }}</p>

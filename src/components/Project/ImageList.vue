@@ -62,7 +62,6 @@ onMounted ( () => {
   font-family: 'Open Sans', sans-serif;
   letter-spacing: 0.05rem;
   color: var(--tan);
-  font-size: 1.4rem;
   background-color: var(--metal);
 }
 .list_image{
