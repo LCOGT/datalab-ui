@@ -8,6 +8,7 @@ import router from './router'
 import 'leaflet/dist/leaflet.css'
 
 import './assets/css/custom-colors.css'
+require('@/assets/css/datalab_main.scss')
 
 loadFonts()
 

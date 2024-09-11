@@ -63,7 +63,6 @@ function logOut() {
 </template>
 <style scoped>
   .nav-text {
-  color: var(--tan);
   font-weight: 600;
   font-size: 1rem;
   }

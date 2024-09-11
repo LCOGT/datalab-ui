@@ -1,0 +1,83 @@
+@charset "utf-8";
+
+// Set your brand colors
+$blue: #00ADEF;
+$red: #EF4123;
+$green: #A6CE39;
+$off-white: #fcfcfc;
+$grey-level1: #3b4249;
+$grey-level2: #262e35;
+$grey-level3: #192026;
+$grey-level4: #13181D;
+
+// Import a Google Font
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,100..900;1,100..900&family=Unica+One&display=swap');
+
+$font-stack: "Noto Sans", sans-serif;
+$font-headers: 'Unica One', sans-serif;
+
+#app {
+    flex: 1;
+    }
+
+html {
+  background-color: $grey-level3;
+}
+
+body {
+  font: 100% $font-stack;
+  color: $off-white;
+  background-color: $grey-level3;
+  display: flex;
+  min-height: 100vh;
+  flex-direction: column;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: $font-headers;
+  text-transform: uppercase;
+  color: $off-white;
+}
+
+
+footer.footer {
+    background-color: $grey-level4;
+}
+
+h1 {
+    font-size:3.5em;
+  }
+  h2 {
+    font-size:2.75em;
+}
+  h3 {
+    font-size:2.25em;
+  }
+  h4{
+    font-size:1.75em;
+  }
+  h5{
+    font-size: 1.125em;
+  }
+
+p {
+    font-size: 1.2rem;
+    color: $off-white;
+}
+
+section {
+    padding: 2rem;
+    margin-bottom: 2rem;
+}
+
+section.highlight {
+    background-color: $grey-level1;
+}
+
+nav {
+    background-color: $grey-level4;
+
+    .navbar{
+        min-height:2rem;
+    }
+}

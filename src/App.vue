@@ -45,13 +45,3 @@ watch(() => userDataStore.isColorblindMode, (newVal) => {
     <router-view />
   </template>
 </template>
-
-<style>
-body {
-  background-color: var(--dark-blue);
-}
-
-#app {
-  font-family: 'Open Sans', sans-serif;
-}
-</style>

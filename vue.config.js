@@ -6,5 +6,19 @@ module.exports = defineConfig({
 		vuetify: {
 			// https://github.com/vuetifyjs/vuetify-loader/tree/next/packages/vuetify-loader
 		}
+	},
+	css: {
+		loaderOptions: {
+		  scss: {
+			additionalData: `@import '~bulma';`
+		  }
+		}
+	  },
+	pages: {
+	index: {
+		// entry for the page
+		entry: 'src/main.js',
+		title: 'DataLab @ Photon Ranch',
+	},
 	}
 })

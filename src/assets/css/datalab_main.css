@@ -1,0 +1,29 @@
+@import url("https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,100..900;1,100..900&family=Unica+One&display=swap");
+#app {
+  flex: 1;
+}
+
+html {
+  background-color: --grey-level3;
+}
+
+body {
+  font: 100% "Noto Sans", sans-serif;
+  color: --off-white;
+  background-color: --grey-level3;
+  display: flex;
+  min-height: 100vh;
+  flex-direction: column;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: "Unica One", sans-serif;
+  text-transform: uppercase;
+  color: --off-white;
+}
+
+footer.footer {
+  background-color: --grey-level4;
+}
+
+/*# sourceMappingURL=datalab_main.css.map */

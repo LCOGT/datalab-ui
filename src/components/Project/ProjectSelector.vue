@@ -29,8 +29,7 @@ defineProps({
 <style scoped>
 .projects_title {
   letter-spacing: 0.1rem;
-  font-size: 1.5rem;
-  color: var(--tan);
+  font-size: 1rem;
   font-weight: 500; 
   background-color: var(--metal);
 }
@@ -38,7 +37,6 @@ defineProps({
   font-size: 1.3rem;
   font-weight: 500;
   text-align: left;
-  color: var(--tan);
 }
 
 @media (max-width: 1200px) {
