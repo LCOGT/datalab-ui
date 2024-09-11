@@ -84,7 +84,7 @@ function handleAnalysisOutput(response, action){
           :catalog="catalog"
           @analysis-action="requestAnalysis"
         />
-        <div class="column is-one-third side-panel-container">
+        <div class="column is-one-third">
           <v-sheet class="side-panel">
             <h1>Details</h1>
             <p>Basename: {{ image.basename }}</p>
@@ -106,7 +106,7 @@ function handleAnalysisOutput(response, action){
 </template>
 <style scoped>
 .analysis-sheet{
-  background-color: var(--dark-blue);
+  background-color: var(--grey-level3);
   font-family: 'Open Sans', sans-serif;
   text-transform: uppercase;
 }
@@ -125,7 +125,7 @@ function handleAnalysisOutput(response, action){
   flex-direction: column
 }
 .side-panel{
-  background-color: var(--dark-blue);
+  background-color: var(--grey-level3);
   color: var(--tan);
   margin-left: 10px;
   margin-bottom: 5%;
@@ -144,25 +144,7 @@ function handleAnalysisOutput(response, action){
 }
 }
 @media (max-width: 900px) {
-.analysis-sheet {
-  display: flex;
-  flex-direction: column;
-  overflow: hidden !important;
-}
-.analysis-content {
-  flex-direction: column;
-}
-.side-panel-container {
-  margin-left: 11%;
-  margin-top: 5%;
-  flex-direction: row;
-  height: 30%;
-}
-.side-panel {
-  width: 25%;
-  height: 50%;
-  margin: 0;
-}
+
 .line-plot {
   flex-grow: 1;
   height: 100%;

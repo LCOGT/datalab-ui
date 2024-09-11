@@ -22,6 +22,7 @@ const emit = defineEmits(['analysisAction'])
 const isLoading = ref(true)
 
 const imageContainer = ref(null)
+const imageviewercontainer = ref(null)
 let image = null
 let imageOverlay = null
 let imageBounds
@@ -30,10 +31,20 @@ let initialZoom = 1
 let lastDrawnLine = null
 let layerControl = null
 const imageWidth = ref(0)
+const imageWidthContainer = ref(0)
 const imageHeight = ref(0)
+// const scaledHeight = ref(0)
+const scaledWidth = ref(0)
 
-const scaledHeight = computed(() => imageHeight.value * 0.7)
-const scaledWidth = computed(() => imageWidth.value * 0.7)
+const scaledHeight = computed(() => {
+  return imageHeight.value * (scaledWidth.value / imageWidth.value)
+})
+// const scaledWidth = computed(() => imageWidth.value * 0.7)
+
+const setScaledSizes = () => {
+  console.log(imageviewercontainer.value.clientWidth)
+  scaledWidth.value = imageviewercontainer.value.clientWidth * 0.98
+}
 
 // loads image overlay and set bounds
 const loadImageOverlay = () => {
@@ -244,6 +255,7 @@ watch(() => props.catalog, () => {
 onMounted(() => {
   loadImageOverlay()
   leafletSetup()
+  setScaledSizes()
 })
 
 </script>
@@ -251,8 +263,8 @@ onMounted(() => {
 
 <template>
   <div
+    ref="imageviewercontainer"
     class="column is-two-thirds"
-    :style="{ width: scaledWidth + 'px', height: scaledHeight + 'px' }"
   >
     <div
       v-if="isLoading"
@@ -268,7 +280,7 @@ onMounted(() => {
     <div
       ref="imageContainer"
       class="leaflet-map-container"
-      :style="{ width: imageWidth + 'px', height: imageHeight + 'px' }"
+      :style="{ width: scaledWidth + 'px', height: scaledHeight + 'px' }"
     />
   </div>
 </template>
