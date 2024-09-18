@@ -31,7 +31,6 @@ let initialZoom = 1
 let lastDrawnLine = null
 let layerControl = null
 const imageWidth = ref(0)
-const imageWidthContainer = ref(0)
 const imageHeight = ref(0)
 // const scaledHeight = ref(0)
 const scaledWidth = ref(0)
