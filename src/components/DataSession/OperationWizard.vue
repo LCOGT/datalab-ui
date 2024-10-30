@@ -3,6 +3,7 @@ import { ref, onMounted, computed, defineEmits, defineProps} from 'vue'
 import { fetchApiCall, handleError } from '@/utils/api'
 import { calculateColumnSpan } from '@/utils/common'
 import ImageGrid from '../Global/ImageGrid'
+import ImageScalingGroup from '../Global/ImageScalingGroup'
 import { useConfigurationStore } from '@/stores/configuration'
 import { useAlertsStore } from '@/stores/alerts'
 
@@ -32,6 +33,13 @@ onMounted(async () => {
     selectOperation(Object.keys(availableOperations.value)[0])
   }
 })
+
+function updateScaling(imageName, zmin, zmax) {
+  // When input image scaling is updated, we set it inside the operation input object
+  // that will then be sent to the server when we add the operation
+  selectedOperationInput.value[imageName][0].zmin = zmin
+  selectedOperationInput.value[imageName][0].zmax = zmax
+}
 
 function selectOperation(name) {
   selectedOperation.value = name
@@ -77,8 +85,25 @@ const goForwardText = computed(() => {
   if (page.value == 'select') {
     return 'Configure Operation'
   }
-  else {
+  else if (page.value == 'configure'){
+    if (operationRequiresInputScaling.value) {
+      return 'Set Image Scaling'
+    }
+    else{
+      return 'Add Operation'
+    }
+  }
+  else{
     return 'Add Operation'
+  }
+})
+
+const disableGoForward = computed(() => {
+  if (page.value == 'select') {
+    return selectedOperation.value === ''
+  }
+  else{
+    return !isInputComplete.value
   }
 })
 
@@ -89,6 +114,25 @@ const wizardTitle = computed(() => {
   else {
     return 'Configure ' + selectedOperation.value + ' Operation'
   }
+})
+
+const isInputComplete = computed(() => {
+  for (const inputKey in selectedOperationInput.value) {
+    const input = selectedOperationInput.value[inputKey]
+    if ( input === undefined || input === null || input.length == 0) {
+      return false
+    }
+  }
+  return true
+})
+
+const operationRequiresInputScaling = computed(() => {
+  for (const inputKey in selectedOperationInputs.value) {
+    if (selectedOperationInputs.value[inputKey].include_custom_scale) {
+      return true
+    }
+  }
+  return false
 })
 
 function goForward() {
@@ -102,23 +146,38 @@ function goForward() {
     }
     page.value = 'configure'
   }
+  else if (page.value == 'configure'){
+    if (operationRequiresInputScaling.value) {
+      page.value = 'scaling'
+    }
+    else {
+      submitOperation()
+    }
+  }
   else {
-    let operationDefinition = {
-      'name': selectedOperation.value,
-      'input_data': {
-        ...selectedOperationInput.value
-      }
+    submitOperation()
+  }
+}
+
+function submitOperation() {
+  let operationDefinition = {
+    'name': selectedOperation.value,
+    'input_data': {
+      ...selectedOperationInput.value
     }
-    for (const inputKey in selectedImages.value) {
-      let input = []
-      const filter = selectedOperationInputs.value[inputKey].filter
-      selectedImages.value[inputKey].forEach(index => {
-        input.push(imagesWithFilter(filter)[index])
-      })
-      operationDefinition.input_data[inputKey] = input
-    }
-    emit('addOperation', operationDefinition)
-    emit('closeWizard')
+  }
+  emit('addOperation', operationDefinition)
+  emit('closeWizard')
+}
+
+function setOperationInputImages() {
+  for (const inputKey in selectedImages.value) {
+    let input = []
+    const filter = selectedOperationInputs.value[inputKey].filter
+    selectedImages.value[inputKey].forEach(index => {
+      input.push(imagesWithFilter(filter)[index])
+    })
+    selectedOperationInput.value[inputKey] = input
   }
 }
 
@@ -139,9 +198,11 @@ function selectImage(inputKey, imageIndex) {
 
   if (inputImages.includes(imageIndex)) {
     inputImages.splice(inputImages.indexOf(imageIndex), 1)
+    setOperationInputImages()
   }
   else if (!maxImages || inputImages.length < maxImages){
     inputImages.push(imageIndex)
+    setOperationInputImages()
   }
   else{
     alert.setAlert('warning', 'Maximum number of images selected')
@@ -231,6 +292,21 @@ function selectImage(inputKey, imageIndex) {
         </div>
       </v-card-text>
     </v-slide-y-reverse-transition>
+    <v-slide-y-reverse-transition hide-on-leave>
+    <v-card-text
+        v-show="page == 'scaling'"
+        class="wizard-card"
+      >
+        <div v-if="isInputComplete">
+          <image-scaling-group
+            :inputDescription="selectedOperationInputs"
+            :inputs="selectedOperationInput"
+            @update-scaling="updateScaling"
+          >
+          </image-scaling-group>
+        </div>
+      </v-card-text>
+    </v-slide-y-reverse-transition>
 
     <v-card-actions class="buttons-container">
       <v-spacer />
@@ -244,6 +320,7 @@ function selectImage(inputKey, imageIndex) {
       <v-btn
         variant="text"
         class="gofwd-btn"
+        :disabled="disableGoForward"
         @click="goForward"
       >
         {{ goForwardText }}
