@@ -3,6 +3,21 @@ const calculateColumnSpan = (imageCount, imagesPerRow) => {
   return totalColumns
 }
 
+function siteIDToName(siteID) {
+  const siteIDMap = {
+    'COJ': 'Siding Spring Observatory @ New South Wales',
+    'CPT': 'South African Astronomical Observatory @ Cape Town',
+    'TFN': 'Teide Observatory @ Tenerife',
+    'LSC': 'Cerro Tololo Inter-American Observatory @ Chile',
+    'ELP': 'McDonald Observatory @ University of Texas',
+    'OGG': 'Haleakala Observatory @ Maui',
+    'TLV': 'Wise Observatory @ Tel Aviv University',
+    'NGQ': 'Ali Observatory @ Tibet',
+  }
+
+  return siteIDMap[siteID?.toUpperCase()] || siteID
+}
+
 function initializeDate(dateString = 'none', defaultOffsetDays = 0) {
   /**
    * Initialize a date object from a string
@@ -15,4 +30,4 @@ function initializeDate(dateString = 'none', defaultOffsetDays = 0) {
   return isNaN(date.getTime()) ? new Date(Date.now() + defaultOffsetDays * 24 * 3600 * 1000) : date
 }
 
-export { calculateColumnSpan, initializeDate }
+export { calculateColumnSpan, siteIDToName, initializeDate }

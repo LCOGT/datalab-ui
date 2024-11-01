@@ -3,6 +3,7 @@ import { ref, computed, defineProps } from 'vue'
 import { useThumbnailsStore } from '@/stores/thumbnails'
 import { useAlertsStore } from '@/stores/alerts'
 import { useConfigurationStore } from '@/stores/configuration'
+import { siteIDToName } from '@/utils/common'
 import FilterBadge from '@/components/Global/FilterBadge.vue'
 import ImageAnalyzer from '../Project/ImageAnalysis/ImageAnalyzer.vue'
 
@@ -53,7 +54,7 @@ function select(tableSelectedImages){
 
 function launchAnalysis(image){
   try {
-    alertsStore.setAlert('loading', `Opening ${image?.basename} for analysis`)
+    alertsStore.setAlert('info', `Opening ${image?.basename} for analysis`)
     if (!image.largeCachedUrl) {
       image.largeCachedUrl = ref('')
       const url = image.large_url || image.largeThumbUrl || ''
@@ -93,6 +94,9 @@ function launchAnalysis(image){
     <template #[`header.data-table-select`] /> <!--Hides select all checkbox-->
     <template #[`item.observation_date`]="{ item }">
       <p>{{ new Date(item.observation_date).toLocaleString() }}</p>
+    </template>
+    <template #[`item.site_id`]="{ item }">
+      <p>{{ siteIDToName(item.site_id) }}</p>
     </template>
     <template #[`item.FILTER`]="{ item }">
       <filter-badge

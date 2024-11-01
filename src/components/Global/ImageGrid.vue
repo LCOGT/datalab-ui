@@ -45,7 +45,7 @@ const handleClick = (index) => {
 
 const handleDoubleClick = (image) => {
   clearTimeout(doubleClickTimer)
-  alertsStore.setAlert('loading', `Opening ${image?.basename} for analysis`)
+  alertsStore.setAlert('info', `Opening ${image?.basename} for analysis`)
   launchAnalysis(image)
 }
 

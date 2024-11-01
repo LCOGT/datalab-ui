@@ -8,7 +8,7 @@ import { defineStore } from 'pinia'
 export const useAlertsStore = defineStore('alerts', {
   state() {
     return{
-      alertType: 'default', // alert type to display ('success', 'error', 'warning', 'info', 'loading')
+      alertType: 'info', // alert type to display ('success', 'error', 'warning', 'info')
       alertText: 'default alert text', // text displayed in alert
       alertTimeStamp: '0' // timestamp of the last alert, used for watching in AlertToast.vue
     }

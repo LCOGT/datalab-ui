@@ -2,10 +2,12 @@
 import { ref } from 'vue'
 import { fetchApiCall } from '../../../utils/api'
 import { useConfigurationStore } from '@/stores/configuration'
+import { useAlertsStore } from '@/stores/alerts'
 import ImageViewer from './ImageViewer.vue'
 import LinePlot from './LinePlot.vue'
 import FilterBadge from '@/components/Global/FilterBadge.vue'
 import ImageDownloadMenu from '@/components/Project/ImageAnalysis/ImageDownloadMenu.vue'
+import { siteIDToName } from '@/utils/common'
 
 const props = defineProps({
   modelValue: {
@@ -20,6 +22,7 @@ const props = defineProps({
 })
 const emit = defineEmits(['update:modelValue'])
 const configStore = useConfigurationStore()
+const alertsStore = useAlertsStore()
 
 const lineProfile = ref([])
 const lineProfileLength = ref()
@@ -27,12 +30,15 @@ const startCoords = ref()
 const endCoords = ref()
 const catalog = ref([])
 const positionAngle = ref()
+const headerDialog = ref(false)
+const headerData = ref({})
 
 function closeDialog() {
   lineProfile.value = []
   lineProfileLength.value = 0
   startCoords.value = null
   endCoords.value = null
+  headerData.value = null
   emit('update:modelValue', false)
 }
 
@@ -68,6 +74,26 @@ function handleAnalysisOutput(response, action, action_callback){
   }
 }
 
+function showHeaderDialog() {
+
+  if(headerData.value && Object.keys(headerData.value).length > 0) {
+    headerDialog.value = true
+    return
+  }
+
+  const archiveHeadersUrl = configStore.datalabArchiveApiUrl + 'frames/' + props.image.id + '/headers/'
+  fetchApiCall({url: archiveHeadersUrl, method: 'GET', 
+    successCallback: (response) => {
+      headerData.value = response.data
+      headerDialog.value = true
+    },
+    failCallback: (error) => {
+      console.error('Failed to fetch headers:', error)
+      alertsStore.setAlert('error', `Could not fetch headers for frame ${props.image.id}`)
+    }
+  })
+}
+
 </script>
 <template>
   <v-dialog
@@ -78,11 +104,20 @@ function handleAnalysisOutput(response, action, action_callback){
       <v-toolbar
         class="analysis-toolbar"
         density="comfortable"
-        :title="image.target_name || 'N/A'"
       >
+        <filter-badge
+          v-if="image.FILTER || image.filter"
+          :filter="image.FILTER || image.filter"
+          class="ml-2"
+        />
+        <v-toolbar-title>{{ image.basename || "Unknown" }}</v-toolbar-title>
         <image-download-menu
           :image="image"
           @analysis-action="requestAnalysis"
+        />
+        <v-btn
+          icon="mdi-information"
+          @click="showHeaderDialog"
         />
         <v-btn
           icon="mdi-close"
@@ -96,19 +131,15 @@ function handleAnalysisOutput(response, action, action_callback){
           @analysis-action="requestAnalysis"
         />
         <div class="side-panel-container">
-          <v-sheet class="side-panel">
-            <h1>Details</h1>
-            <p>Basename: {{ image.basename }}</p>
-            <p>Date & Time: {{ image.observation_date }}</p>
-            <p>Site: {{ image.site_id }}</p>
-            <p>Telescope: {{ image.telescope_id }}</p>
-            <p>Instrument: {{ image.instrument_id }}</p>
-            <span>Filter:
-              <filter-badge
-                v-if="image.FILTER || image.filter"
-                :filter="image.FILTER || image.filter"
-              />
-            </span>
+          <v-sheet
+            v-if="image.site_id || image.telescope_id || image.instrument_id || image.observation_date"
+            rounded
+            class="side-panel"
+          >
+            <p><v-icon icon="mdi-earth" /> {{ siteIDToName(image.site_id) ?? 'Missing Site' }}</p>
+            <p><v-icon icon="mdi-telescope" /> {{ image.telescope_id ?? 'Missing Telescope ID' }}</p>
+            <p><v-icon icon="mdi-camera" /> {{ image.instrument_id ?? 'Missing Instrument ID' }} </p>
+            <p><v-icon icon="mdi-clock" /> {{ new Date(image.observation_date).toLocaleString() }}</p>
           </v-sheet>
           <line-plot
             :y-axis-luminosity="lineProfile"
@@ -121,10 +152,46 @@ function handleAnalysisOutput(response, action, action_callback){
       </div>
     </v-sheet>
   </v-dialog>
+  <v-dialog
+    v-model="headerDialog"
+    width="auto"
+  >
+    <v-sheet class="pa-12">
+      <h1 class="mb-8">
+        FITS Headers
+      </h1>
+      <v-table>
+        <tbody>
+          <tr
+            v-for="(value, key) in headerData"
+            :key="key"
+          >
+            <td class="table_key">
+              {{ key }}
+            </td>
+            <td>{{ value }}</td>
+          </tr>
+        </tbody>
+      </v-table>
+    </v-sheet>
+  </v-dialog>
 </template>
 <style scoped>
 a{
   color: var(--tan);
+}
+.v-sheet{
+  background-color: var(--metal);
+  color: var(--tan);
+}
+.v-table{
+  background-color: var(--metal);
+  color: var(--tan);
+  max-width: 60ch;
+}
+.table_key{
+  font-weight: bold;
+  font-size: large;
 }
 .analysis-sheet{
   background-color: var(--dark-blue);
@@ -146,7 +213,7 @@ a{
   flex-direction: column
 }
 .side-panel{
-  background-color: var(--dark-blue);
+  padding: 1rem;
   color: var(--tan);
   margin-left: 10px;
   margin-bottom: 5%;
