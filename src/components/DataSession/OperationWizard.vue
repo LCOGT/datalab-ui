@@ -140,7 +140,7 @@ function goForward() {
     // if there are no images for a filter required by the operation, do not proceed
     for (const inputKey in selectedOperationInputs.value) {
       const inputField = selectedOperationInputs.value[inputKey]
-      if (inputField.type == 'file' && imagesWithFilter(inputField.filter).length == 0){
+      if (inputField.type == 'file' && props.images.length == 0){
         return
       }
     }
@@ -173,23 +173,11 @@ function submitOperation() {
 function setOperationInputImages() {
   for (const inputKey in selectedImages.value) {
     let input = []
-    const filter = selectedOperationInputs.value[inputKey].filter
     selectedImages.value[inputKey].forEach(index => {
-      input.push(imagesWithFilter(filter)[index])
+      input.push(props.images[index])
     })
     selectedOperationInput.value[inputKey] = input
   }
-}
-
-function imagesWithFilter(filters) {
-  if(!filters) {
-    return props.images
-  }
-  const imagesFiltered = props.images.filter((image) => filters.includes(image.filter))
-  if (imagesFiltered.length == 0) {
-    alert.setAlert('warning', 'Operation requires images with filter ' + filters.join(', '))
-  }
-  return imagesFiltered
 }
 
 function selectImage(inputKey, imageIndex) {
@@ -279,7 +267,7 @@ function selectImage(inputKey, imageIndex) {
               {{ inputDescription.name }}
             </div>
             <image-grid
-              :images="imagesWithFilter(inputDescription.filter)"
+              :images="props.images"
               :selected-images="selectedImages[inputKey]"
               :column-span="calculateColumnSpan(images.length, imagesPerRow)"
               :allow-selection="true"

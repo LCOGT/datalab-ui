@@ -37,8 +37,8 @@ const rawData = ref({})
 const sliderRange = ref([0, 65535])
 const zScaleValues = ref([0, 65535])
 
-const titleText = computed(() => {
-  return props.imageName.replace('_', ' ')
+const filterName = computed(() => {
+  return props.imageName.replace('_input', ' ')
 })
 
 const maxPixelValue = computed(() => {
@@ -105,13 +105,13 @@ onMounted(async () => {
       :max-size="props.maxSize"
       :image-data="rawData"
       :scale-points="sliderRange"
-      :filter="props.image.filter"
+      :filter="filterName"
       :image-name="props.imageName"
       :composite-name="props.compositeName"
     />
     <v-col>
       <h3 class="image-scale-title text-capitalize">
-        {{ titleText }}
+        {{ filterName }} Input
       </h3>
       <histogram-slider
         :selected-color="filterToColor(props.image.filter)"

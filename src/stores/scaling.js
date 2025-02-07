@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { convertFilter, filterToPixelIndex } from '@/utils/common'
+import { filterToPixelIndex } from '@/utils/common'
 
 /**
  * This store is used to store intermediate images in scaling to then use in a composite image
@@ -18,13 +18,14 @@ export const useScalingStore = defineStore('scaling', {
       if (!(combinedImageName in this.scaledImageArrays)) {
         this.scaledImageArrays[combinedImageName] = {}
       }
-      let rgbFilter = convertFilter(filter)
       if (!('combined' in this.scaledImageArrays[combinedImageName])) {
         this.arrayChanged[combinedImageName] = 0
         this.scaledImageArrays[combinedImageName]['combined'] = new ImageData(maxSize, maxSize)
         this.scaledImageArrays[combinedImageName]['combined'].data.fill(255)
       }
-      let filterIndex = filterToPixelIndex(rgbFilter)
+
+      const filterIndex = filterToPixelIndex(filter)
+
       for (let i = filterIndex, j=0; j < imageDataArray.length; i += 4, j++) {
         this.scaledImageArrays[combinedImageName]['combined'].data[i] = imageDataArray[j]
       }

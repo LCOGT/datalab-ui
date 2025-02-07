@@ -3,53 +3,38 @@ const calculateColumnSpan = (imageCount, imagesPerRow) => {
   return totalColumns
 }
 
-const convertFilter = (filter) => {
-  if (filter === 'V' || filter === 'gp') {
-    return 'g'
+function filterToPixelIndex(filter) {
+  const filterPixelMap = {
+    'red': 0,
+    'green': 1,
+    'blue': 2,
   }
-  else if (filter === 'rp' || filter === 'r') {
-    return 'r'
-  }
-  else if (filter === 'B') {
-    return 'b'
-  }
-}
 
-const filterToPixelIndex = (filter) => {
-  if (filter === 'r') {
-    return 0
-  }
-  else if (filter === 'g') {
-    return 1
-  }
-  else if (filter === 'b') {
-    return 2
-  }
+  return filterPixelMap[filter.trim().toLowerCase()]
 }
 
 const filterToColor = (filter) => {
-  switch (filter) {
-  case 'R': case 'rp':
-    return 'red'
-  case 'V': case 'gp':
-    return 'green'
-  case 'B':
-    return 'blue'
-  default:
-    return 'var(--light-blue)'
-  }
+  const filterColorMap = [
+    { color: 'red', filters: ['r', 'rp', 'ip', 'h-alpha'] },
+    { color: 'green', filters: ['v', 'oiii'] },
+    { color: 'blue', filters: ['b', 'gp', 'sii'] },
+  ]
+
+  const lowerCaseFilter = filter.trim().toLowerCase()
+  const found = filterColorMap.find(({ filters }) => filters.includes(lowerCaseFilter))
+  return found ? found.color : 'var(--light-blue)'
 }
 
 function siteIDToName(siteID) {
   const siteIDMap = {
-    'COJ': 'Siding Spring Observatory @ New South Wales',
-    'CPT': 'South African Astronomical Observatory @ Cape Town',
-    'TFN': 'Teide Observatory @ Tenerife',
-    'LSC': 'Cerro Tololo Inter-American Observatory @ Chile',
-    'ELP': 'McDonald Observatory @ University of Texas',
-    'OGG': 'Haleakala Observatory @ Maui',
-    'TLV': 'Wise Observatory @ Tel Aviv University',
-    'NGQ': 'Ali Observatory @ Tibet',
+    'COJ': 'Siding Spring @ New South Wales',
+    'CPT': 'South African Astronomical @ Cape Town',
+    'TFN': 'Teide @ Tenerife',
+    'LSC': 'Cerro Tololo Inter-American @ Chile',
+    'ELP': 'McDonald @ University of Texas',
+    'OGG': 'Haleakala @ Maui',
+    'TLV': 'Wise @ Tel Aviv University',
+    'NGQ': 'Ali @ Tibet',
   }
 
   return siteIDMap[siteID?.toUpperCase()] || siteID
@@ -67,4 +52,4 @@ function initializeDate(dateString = 'none', defaultOffsetDays = 0) {
   return isNaN(date.getTime()) ? new Date(Date.now() + defaultOffsetDays * 24 * 3600 * 1000) : date
 }
 
-export { calculateColumnSpan, siteIDToName, initializeDate, convertFilter, filterToPixelIndex, filterToColor }
+export { calculateColumnSpan, siteIDToName, initializeDate, filterToPixelIndex, filterToColor }
