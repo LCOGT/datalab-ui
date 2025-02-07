@@ -45,9 +45,10 @@ const alertsStore = useAlertsStore()
 const thumbnailsStore = useThumbnailsStore()
 const configurationStore = useConfigurationStore()
 
-function select(tableSelectedImages){
-  // check for the difference between selectedImages and event and return the unique indexes
-  for (const index of tableSelectedImages.filter(x => !props.selectedImages.includes(x))) {
+// checks difference between table and parent selected images and emits the difference
+function select(tableModel){
+  const symDiffSelected = tableModel.filter(image => !props.selectedImages.includes(image)).concat(props.selectedImages.filter(image => !tableModel.includes(image)))
+  for (const index of symDiffSelected) {
     emit('selectImage', index)
   }
 }
