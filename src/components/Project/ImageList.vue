@@ -38,8 +38,8 @@ const configurationStore = useConfigurationStore()
 // checks difference between table and parent selected images and emits the difference
 function select(tableModel){
   const symDiffSelected = tableModel.filter(image => !props.selectedImages.includes(image)).concat(props.selectedImages.filter(image => !tableModel.includes(image)))
-  for (const index of symDiffSelected) {
-    emit('selectImage', index)
+  for (const basename of symDiffSelected) {
+    emit('selectImage', basename)
   }
 }
 
