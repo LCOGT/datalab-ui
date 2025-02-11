@@ -14,10 +14,11 @@ function filterToPixelIndex(filter) {
 }
 
 const filterToColor = (filter) => {
+  filter = filter || ''
   const filterColorMap = [
     { color: 'red', filters: ['r', 'rp', 'ip', 'h-alpha'] },
-    { color: 'green', filters: ['v', 'oiii'] },
-    { color: 'blue', filters: ['b', 'gp', 'sii'] },
+    { color: 'green', filters: ['v', 'gp', 'oiii'] },
+    { color: 'blue', filters: ['b', 'sii'] },
   ]
 
   const lowerCaseFilter = filter.trim().toLowerCase()

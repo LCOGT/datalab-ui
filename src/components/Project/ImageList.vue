@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, defineProps } from 'vue'
+import { ref, defineProps } from 'vue'
 import { useThumbnailsStore } from '@/stores/thumbnails'
 import { useAlertsStore } from '@/stores/alerts'
 import { useConfigurationStore } from '@/stores/configuration'
@@ -19,16 +19,6 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['selectImage'])
-
-// Adding index key so @select component emits selected image index
-const indexedImages = computed(() => {
-  return props.images ? props.images.map((image, index) => {
-    return {
-      ...image,
-      index
-    }
-  }) : []
-})
 
 const headers = ref([
   { title: 'IMAGE', align: 'start', sortable: false, key: 'url' },
@@ -81,8 +71,8 @@ function launchAnalysis(image){
     v-if="images"
     :model-value="selectedImages"
     :headers="headers"
-    :items="indexedImages"
-    item-value="index"
+    :items="images"
+    item-value="basename"
     :items-per-page="images.length"
     show-select
     hover
