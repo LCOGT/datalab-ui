@@ -215,19 +215,19 @@ function fetchCatalog(){
 <style>
 /* Custom icons for leaflet-geoman */
 .custom-reset-zoom-icon {
-  background-image: url('../../../assets/images/resize.svg');
+  background-image: url('../../assets/images/resize.svg');
 }
 
 .leaflet-pm-toolbar .leaflet-pm-icon-delete {
-  background-image: url('../../../assets/images/delete.svg');
+  background-image: url('../../assets/images/delete.svg');
 }
 
 .leaflet-pm-toolbar .leaflet-pm-icon-polyline {
-  background-image: url('../../../assets/images/vector-line.svg');
+  background-image: url('../../assets/images/vector-line.svg');
 }
 
 .leaflet-pm-toolbar .leaflet-pm-icon-edit {
-  background-image: url('../../../assets/images/vector-polyline-edit.svg');
+  background-image: url('../../assets/images/vector-polyline-edit.svg');
 }
 /* Custom styling for toolbar */
 .leaflet-bar a:hover{

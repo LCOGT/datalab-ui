@@ -40,17 +40,6 @@ function logOut() {
             @click="logOut"
           />
         </v-list-item>
-        <v-list-item>
-          Settings
-        </v-list-item>
-        <v-list-item>
-          <v-switch
-            v-model="userDataStore.isColorblindMode"
-            label="High Contrast"
-            color="var(--light-blue)"
-            base-color="var(--light-blue)"
-          />
-        </v-list-item>
       </v-card>
     </v-menu>
   </div>
