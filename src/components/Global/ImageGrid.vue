@@ -25,20 +25,20 @@ const props = defineProps({
   }
 })
 
-let imageDetails = ref({})
 const configurationStore = useConfigurationStore()
 const alertsStore = useAlertsStore()
 const thumbnailsStore = useThumbnailsStore()
 const emit = defineEmits(['selectImage'])
 const showAnalysisDialog = ref(false)
+const imageDetails = ref({})
 const analysisImage = ref({})
 var doubleClickTimer = 0
 
-const handleClick = (index) => {
+const handleClick = (basename) => {
   clearTimeout(doubleClickTimer)
   // timeout length indicates how long to wait for a second click before treating as a single click
   doubleClickTimer = setTimeout(() => {
-    emit('selectImage', index)
+    emit('selectImage', basename)
     doubleClickTimer = 0
   }, 250)
 }
@@ -69,8 +69,8 @@ const launchAnalysis = (image) => {
   }
 }
 
-const isSelected = (index) => {
-  return props.selectedImages.includes(index)
+const isSelected = (basename) => {
+  return props.selectedImages.includes(basename)
 }
 
 watch(() => props.images, () => {
@@ -102,9 +102,9 @@ watch(() => props.images, () => {
           :src="imageDetails[image.basename]"
           :alt="image.basename"
           cover
-          :class="{ 'selected-image': isSelected(index) }"
+          :class="{ 'selected-image': isSelected(image.basename) }"
           aspect-ratio="1"
-          @click="handleClick(index)"
+          @click="handleClick(image.basename)"
           @dblclick="handleDoubleClick(image)"
         >
           <filter-badge

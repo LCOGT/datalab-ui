@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed, defineEmits, defineProps} from 'vue'
+import { ref, onMounted, computed} from 'vue'
 import { fetchApiCall, handleError } from '@/utils/api'
 import { calculateColumnSpan } from '@/utils/common'
 import ImageGrid from '../Global/ImageGrid'
@@ -119,7 +119,8 @@ const wizardTitle = computed(() => {
 const isInputComplete = computed(() => {
   for (const inputKey in selectedOperationInput.value) {
     const input = selectedOperationInput.value[inputKey]
-    if ( input === undefined || input === null || input.length == 0) {
+    const minimum = selectedOperationInputs.value[inputKey].minimum
+    if ( input === undefined || input === null || (minimum ? input.length < minimum : input.length == 0)) {
       return false
     }
   }
@@ -135,12 +136,24 @@ const operationRequiresInputScaling = computed(() => {
   return false
 })
 
+function sortImagesByFilter(filters){
+  // Trim and lowercase all filters
+  for (const filter in filters){
+    filters[filter] = filters[filter].trim().toLowerCase()
+  }
+  // Place desired filters at the front, followed by the rest
+  return [
+    ...props.images.filter(image => filters.includes(image.filter?.trim().toLowerCase())),
+    ...props.images.filter(image => !filters.includes(image.filter?.trim().toLowerCase()))
+  ]
+}
+
 function goForward() {
   if (page.value == 'select') {
     // if there are no images for a filter required by the operation, do not proceed
     for (const inputKey in selectedOperationInputs.value) {
       const inputField = selectedOperationInputs.value[inputKey]
-      if (inputField.type == 'file' && imagesWithFilter(inputField.filter).length == 0){
+      if (inputField.type == 'file' && props.images.length == 0){
         return
       }
     }
@@ -173,35 +186,23 @@ function submitOperation() {
 function setOperationInputImages() {
   for (const inputKey in selectedImages.value) {
     let input = []
-    const filter = selectedOperationInputs.value[inputKey].filter
-    selectedImages.value[inputKey].forEach(index => {
-      input.push(imagesWithFilter(filter)[index])
+    selectedImages.value[inputKey].forEach(basename => {
+      input.push(props.images.find(image => image.basename == basename))
     })
     selectedOperationInput.value[inputKey] = input
   }
 }
 
-function imagesWithFilter(filters) {
-  if(!filters) {
-    return props.images
-  }
-  const imagesFiltered = props.images.filter((image) => filters.includes(image.filter))
-  if (imagesFiltered.length == 0) {
-    alert.setAlert('warning', 'Operation requires images with filter ' + filters.join(', '))
-  }
-  return imagesFiltered
-}
-
-function selectImage(inputKey, imageIndex) {
+function selectImage(inputKey, basename) {
   const inputImages = selectedImages.value[inputKey]
   const maxImages = selectedOperationInputs.value[inputKey].maximum
 
-  if (inputImages.includes(imageIndex)) {
-    inputImages.splice(inputImages.indexOf(imageIndex), 1)
+  if (inputImages.includes(basename)) {
+    inputImages.splice(inputImages.indexOf(basename), 1)
     setOperationInputImages()
   }
   else if (!maxImages || inputImages.length < maxImages){
-    inputImages.push(imageIndex)
+    inputImages.push(basename)
     setOperationInputImages()
   }
   else{
@@ -279,7 +280,7 @@ function selectImage(inputKey, imageIndex) {
               {{ inputDescription.name }}
             </div>
             <image-grid
-              :images="imagesWithFilter(inputDescription.filter)"
+              :images="inputDescription.filter ? sortImagesByFilter(inputDescription.filter) : props.images"
               :selected-images="selectedImages[inputKey]"
               :column-span="calculateColumnSpan(images.length, imagesPerRow)"
               :allow-selection="true"

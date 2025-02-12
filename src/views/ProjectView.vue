@@ -34,19 +34,19 @@ const selectedImages = computed(() => {
   // returns a list combining all the selected images in all projects to be used for a new data session
   return Object.keys(selectedImagesByProposal.value).reduce((acc, projectId) => {
     const proposalImages = imagesByProposal.value[projectId] ? imagesByProposal.value[projectId] : []
-    const proposalSelectedImageIndexes = selectedImagesByProposal.value[projectId]
-    return acc.concat(proposalSelectedImageIndexes.map(imageIndex => proposalImages[imageIndex]))
+    const proposalSelectedImages = selectedImagesByProposal.value[projectId]
+    return acc.concat(proposalImages.filter(image => proposalSelectedImages.includes(image.basename)))
   }, [])
 })
 
-function selectImage(proposalIndex, imageIndex) {
+function selectImage(proposalIndex, basename) {
   // accepts either a list of selected images or a single image index to toggle selection on
   const proposalSelectedImages = selectedImagesByProposal.value[proposalIndex]
   
-  if(proposalSelectedImages.includes(imageIndex)){
-    proposalSelectedImages.splice(proposalSelectedImages.indexOf(imageIndex), 1)
+  if(proposalSelectedImages.includes(basename)){
+    proposalSelectedImages.splice(proposalSelectedImages.indexOf(basename), 1)
   } else {
-    proposalSelectedImages.push(imageIndex)
+    proposalSelectedImages.push(basename)
   }
 }
 
