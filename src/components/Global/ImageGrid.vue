@@ -4,7 +4,7 @@ import { useThumbnailsStore } from '@/stores/thumbnails'
 import { useConfigurationStore } from '@/stores/configuration'
 import { useAlertsStore } from '@/stores/alerts'
 import FilterBadge from './FilterBadge.vue'
-import ImageAnalyzer from '../Project/ImageAnalysis/ImageAnalyzer.vue'
+import ImageAnalyzer from './ImageAnalysis/ImageAnalyzer.vue'
 
 const props = defineProps({
   images: {

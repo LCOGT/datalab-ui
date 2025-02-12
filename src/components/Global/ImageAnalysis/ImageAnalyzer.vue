@@ -7,7 +7,7 @@ import ImageViewer from './ImageViewer.vue'
 import LinePlot from './LinePlot.vue'
 import FilterBadge from '@/components/Global/FilterBadge.vue'
 import NonLinearSlider from '@/components/Global/NonLinearSlider.vue'
-import ImageDownloadMenu from '@/components/Project/ImageAnalysis/ImageDownloadMenu.vue'
+import ImageDownloadMenu from './ImageDownloadMenu.vue'
 import FitsHeaderTable from './FitsHeaderTable.vue'
 import { siteIDToName } from '@/utils/common'
 

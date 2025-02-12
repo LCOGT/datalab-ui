@@ -5,7 +5,7 @@ import { useAlertsStore } from '@/stores/alerts'
 import { useConfigurationStore } from '@/stores/configuration'
 import { siteIDToName } from '@/utils/common'
 import FilterBadge from '@/components/Global/FilterBadge.vue'
-import ImageAnalyzer from '../Project/ImageAnalysis/ImageAnalyzer.vue'
+import ImageAnalyzer from '../Global/ImageAnalysis/ImageAnalyzer.vue'
 
 const props = defineProps({
   images: {
