@@ -7,6 +7,7 @@ import { calculateColumnSpan } from '@/utils/common'
 import { useConfigurationStore } from '@/stores/configuration'
 import ImageGrid from '@/components/Global/ImageGrid.vue'
 import OperationWizard from '@/components/DataSession/OperationWizard.vue'
+import _ from 'lodash'
 
 const props = defineProps({
   data: {
@@ -30,8 +31,7 @@ const tab = ref('main')
 const dataSessionsUrl = store.datalabApiBaseUrl + 'datasessions/'
 const imagesPerRow = 4
 var operationMap = {}
-var selectedOperation = -1
-var selectedOperationIndex = ref(-1)
+var selectedOperation = ref(-1)
 
 async function addCompletedOperationsOutput() {
   const url = dataSessionsUrl + props.data.id + '/operations/'
@@ -61,7 +61,7 @@ function addCompletedOperation(operationResponse) {
       outputFile.operationIndex = operationMap[operationResponse.id]
       if (!imagesContainsFile(outputFile)) {
         images.value.push(outputFile)
-        if (selectedOperation == -1 || selectedOperation == outputFile.operation) {
+        if (selectedOperation.value == -1 || selectedOperation.value == outputFile.operation) {
           filteredImages.value.push(outputFile)
         }
       }
@@ -69,14 +69,12 @@ function addCompletedOperation(operationResponse) {
   }
 }
 
-function selectOperation(operationIndex) {
-  if (operationIndex == selectedOperationIndex.value) {
-    selectedOperationIndex.value = -1
-    selectedOperation = -1
+function selectOperation(operationId) {
+  if (operationId == selectedOperation.value) {
+    selectedOperation.value = -1
   }
   else {
-    selectedOperation = props.data.operations[operationIndex].id
-    selectedOperationIndex.value = operationIndex
+    selectedOperation.value = operationId
   }
   reconcileFilteredImages()
 }
@@ -94,11 +92,11 @@ function reconcileOperationImages() {
 
 function reconcileFilteredImages() {
   // This updates the filteredImages after changes in the operations list, or changes in selection of an operation.
-  if (selectedOperation == -1) {
+  if (selectedOperation.value == -1) {
     filteredImages.value = [...images.value]
   }
   else {
-    filteredImages.value = images.value.filter(image => image.operation == selectedOperation)
+    filteredImages.value = images.value.filter(image => image.operation == selectedOperation.value)
   }
 }
 
@@ -117,19 +115,34 @@ function reconcileOperations() {
   // This makes sure our operationMap mapping operation ids to indices is up to date following changes in the operation list
   operationMap = {}
   props.data.operations.forEach((operation, index) => {
-    operationMap[operation.id] = index
+    operationMap[operation.id] = index + 1
   })
-  if (!(selectedOperation in operationMap)) {
-    selectedOperation = -1
+  if (!(selectedOperation.value in operationMap)) {
+    selectedOperation.value = -1
   }
   reconcileOperationImages()
 }
 
 watch(
   () => props.data.operations, () => {
+    // Look through the input_data for file arrays and set dependency set on each operation
+    props.data.operations.forEach((operation, index) => {
+      operation.index = index + 1
+      operation.dependencies = new Set()
+      Object.values(operation.input_data).forEach(inputParam => {
+        if (_.isArray(inputParam)) {
+          inputParam.forEach(inputValue => {
+            if (inputValue.basename && inputValue.source == 'datalab' && inputValue.operation) {
+              // This operation depends on another operation so add that to dependencies
+              operation.dependencies.add(inputValue.operation)
+            }
+          })
+        }
+      })
+    })
     reconcileOperations()
   },
-  { immediate: false })
+  { immediate: true })
 
 onMounted(() => {
   addCompletedOperationsOutput()
@@ -158,7 +171,7 @@ onMounted(() => {
           <operation-pipeline-flow
             :session-id="data.id"
             :operations="data.operations"
-            :selected-operation="selectedOperationIndex"
+            :selected-operation="selectedOperation"
             :images="images"
             :active="props.active"
             @select-operation="selectOperation"
@@ -177,7 +190,7 @@ onMounted(() => {
               :session-id="data.id"
               :operations="data.operations"
               :active="props.active"
-              :selected-operation="selectedOperationIndex"
+              :selected-operation="selectedOperation"
               @operation-completed="addCompletedOperation"
               @select-operation="selectOperation"
               @operation-was-deleted="emit('reloadSession')"

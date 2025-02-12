@@ -44,7 +44,7 @@ function closeDialog() {
       </v-card-title>
       <v-card-text>
         <p class="delete-text">
-          {{ dialogBody }}
+          <span v-html="dialogBody"></span>
         </p>
       </v-card-text>
       <v-card-actions>
