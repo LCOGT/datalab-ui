@@ -9,7 +9,6 @@ export const useUserDataStore = defineStore('userData', {
       profile: {},
       proposals: [],
       openProposals: [],
-      isColorblindMode: false,
       gridToggle: true,
       activeSessionId: ''
     }
