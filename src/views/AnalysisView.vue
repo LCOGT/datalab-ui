@@ -1,14 +1,14 @@
 <script setup>
 import { ref, computed } from 'vue'
-import { fetchApiCall } from '../../../utils/api'
+import { fetchApiCall } from '../utils/api'
 import { useConfigurationStore } from '@/stores/configuration'
 import { useAlertsStore } from '@/stores/alerts'
-import ImageViewer from './ImageViewer.vue'
-import LinePlot from './LinePlot.vue'
 import FilterBadge from '@/components/Global/FilterBadge.vue'
 import NonLinearSlider from '@/components/Global/NonLinearSlider.vue'
-import ImageDownloadMenu from '@/components/Project/ImageAnalysis/ImageDownloadMenu.vue'
-import FitsHeaderTable from './FitsHeaderTable.vue'
+import ImageDownloadMenu from '@/components/Analysis/ImageDownloadMenu.vue'
+import FitsHeaderTable from '@/components/Analysis/FitsHeaderTable.vue'
+import ImageViewer from '@/components/Analysis/ImageViewer.vue'
+import LinePlot from '@/components/Analysis/LinePlot.vue'
 import { siteIDToName } from '@/utils/common'
 
 const props = defineProps({

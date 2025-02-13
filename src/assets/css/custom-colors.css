@@ -1,16 +1,4 @@
 :root {
-	--dark-blue: rgb(44,54,63);
-	--dark-green: rgb(75,127,82);
-	--tangerine: rgb(255,90,95);
-	--tan: rgb(233,205,155);
-	--metal: rgb(36, 44, 51);
-	--light-gray: rgb(204, 208, 211);
-	--light-blue: rgb(126,155,196);
-	--cancel: rgb(254,101,79);
-}
-
-
-[colorblind="true"] {
 	--dark-blue: rgb(28, 34, 40);
 	--dark-green: rgb(245, 118, 0);
 	--tangerine: rgb(255,90,95);

@@ -19,9 +19,12 @@ const props = defineProps({
 </template>
 <style scoped>
 .filter-badge {
-  border-radius: 5px;
+  border-radius: 10px;
   color: var(--tan);
-  padding: 5px 10px;
+  padding: 6px 10px;
   display: inline-block;
+  user-select: none;
+  font-size: smaller;
+  font-weight: bolder;
 }
 </style>
