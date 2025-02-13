@@ -54,5 +54,12 @@ function deleteOperation(sessionId, operationId, successCallback, failCallback =
   fetchApiCall({ url: url, method: 'DELETE', successCallback: successCallback, failCallback: failCallback })
 }
 
+function deleteOperations(sessionId, operationIds, successCallback, failCallback = handleError) {
+  const configStore = useConfigurationStore()
+  const url = configStore.datalabApiBaseUrl + 'datasessions/' + sessionId + '/operations/bulk_delete/'
+  const body = {ids: operationIds}
+  fetchApiCall({ url: url, method: 'POST', body: body, successCallback: successCallback, failCallback: failCallback })
+}
 
-export { fetchApiCall, handleError, deleteOperation }
+
+export { fetchApiCall, handleError, deleteOperation, deleteOperations }

@@ -37,7 +37,7 @@ function selectOperation(index) {
     @click="selectOperation(props.id)"
   >
     <p>
-      {{ props.id }}: {{ props.data.name }}
+      {{ props.data.index }}: {{ props.data.name }}
     </p>
   </load-bar-button>
 </template>

@@ -5,6 +5,7 @@ import { useAlertsStore } from '@/stores/alerts'
 import { fetchApiCall, handleError } from '@/utils/api'
 import LoadBarButton from '@/components/DataSession/LoadBarButton.vue'
 import DeleteOperationDialog from '@/components/Global/DeleteOperationDialog.vue'
+import _ from 'lodash'
 
 const store = useConfigurationStore()
 const alertStore = useAlertsStore()
@@ -31,14 +32,14 @@ const props = defineProps({
 
 const operationPollingTimers = {}
 const operationPercentages = ref({})
-const deleteOperationId = ref(-1)
+const deleteOperations = ref([])
 const showDeleteDialog = ref(false)
 const POLL_WAIT_TIME = 2000
 const DEC_TO_PERCENT = 100
 const COMPLETE_PERCENT = 100
 
-function selectOperation(index) {
-  emit('selectOperation', index)
+function selectOperation(id) {
+  emit('selectOperation', id)
 }
 
 async function pollOperationCompletion(operationID) {
@@ -82,13 +83,33 @@ function clearPolling(operationID) {
   }
 }
 
+function clearAllPolling() {
+  Object.keys(operationPollingTimers).forEach(operationID => {
+    clearPolling(operationID)
+  })
+}
+
+function recursiveFindChildren(operationId, childOperationIds = new Set()) {
+  props.operations.forEach((operation) => {
+    if (operation.dependencies.has(operationId)) {
+      childOperationIds.add(operation.id)
+      recursiveFindChildren(operation.id, childOperationIds)
+    }
+  })
+  return
+}
+
 function openDeleteOperationDialog(operation) {
-  deleteOperationId.value = operation.id
+  let childrenIds = new Set()
+  recursiveFindChildren(operation.id, childrenIds)
+  childrenIds.add(operation.id)
+  deleteOperations.value = _.filter(props.operations, function(o) {return childrenIds.has(o.id)})
   showDeleteDialog.value = true
 }
 
 function itemDeleted(){
   // Reset the selected operation after its deleted, otherwise the next operation will be selected 
+  clearAllPolling()
   emit('selectOperation', -1)
   emit('operationWasDeleted')
 }
@@ -121,18 +142,14 @@ watch(
       })
     }
     else {
-      Object.keys(operationPollingTimers).forEach(operationID => {
-        clearPolling(operationID)
-      })
+      clearAllPolling()
     }
   }, { immediate: true }
 )
 
 onBeforeUnmount(() => {
   // Clean up Polling Intervals
-  Object.keys(operationPollingTimers).forEach(operationID => {
-    clearPolling(operationID)
-  })
+  clearAllPolling()
 })
 
 </script>
@@ -149,24 +166,24 @@ onBeforeUnmount(() => {
     />
   </h3>
   <v-row
-    v-for="(operation, index) in operations"
+    v-for="operation in operations"
     :key="operation.id"
     justify="center"
     class="operation mb-2"
   >
     <load-bar-button
-      :class="{selected: index == props.selectedOperation}"
+      :class="{selected: operation.id == props.selectedOperation}"
       class="operation_button"
       :progress="operationPercentages[operation.id] ?? 0"
-      @click="selectOperation(index)"
+      @click="selectOperation(operation.id)"
     >
       <p>
-        {{ index }}: {{ operation.name }}
+        {{ operation.index }}: {{ operation.name }}
       </p>
     </load-bar-button>
     <v-slide-x-transition hide-on-leave>
       <v-btn
-        v-if="index == props.selectedOperation"
+        v-if="operation.id == props.selectedOperation"
         variant="plain"
         icon="mdi-close"
         color="var(--cancel)"
@@ -177,7 +194,7 @@ onBeforeUnmount(() => {
   <delete-operation-dialog
     v-model="showDeleteDialog"
     :session-id="sessionId"
-    :operation-id="deleteOperationId"
+    :operations="deleteOperations"
     @item-was-deleted="itemDeleted()"
   />
 </template>
