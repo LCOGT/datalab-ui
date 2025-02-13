@@ -123,23 +123,28 @@ function reconcileOperations() {
   reconcileOperationImages()
 }
 
+function processOperations() {
+  // Look through the input_data for file arrays and set dependency set on each operation
+  props.data.operations.forEach((operation, index) => {
+    // Set the operation index based on its list position in the response (1 indexed)
+    operation.index = index + 1
+    operation.dependencies = new Set()
+    Object.values(operation.input_data).forEach(inputParam => {
+      if (_.isArray(inputParam)) {
+        inputParam.forEach(inputValue => {
+          if (inputValue.basename && inputValue.source == 'datalab' && inputValue.operation) {
+            // This operation depends on another operation so add that to dependencies
+            operation.dependencies.add(inputValue.operation)
+          }
+        })
+      }
+    })
+  })
+}
+
 watch(
   () => props.data.operations, () => {
-    // Look through the input_data for file arrays and set dependency set on each operation
-    props.data.operations.forEach((operation, index) => {
-      operation.index = index + 1
-      operation.dependencies = new Set()
-      Object.values(operation.input_data).forEach(inputParam => {
-        if (_.isArray(inputParam)) {
-          inputParam.forEach(inputValue => {
-            if (inputValue.basename && inputValue.source == 'datalab' && inputValue.operation) {
-              // This operation depends on another operation so add that to dependencies
-              operation.dependencies.add(inputValue.operation)
-            }
-          })
-        }
-      })
-    })
+    processOperations()
     reconcileOperations()
   },
   { immediate: true })
