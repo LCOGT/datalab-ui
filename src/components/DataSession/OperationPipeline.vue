@@ -1,15 +1,10 @@
 <script setup>
-import { ref, watch, onBeforeUnmount } from 'vue'
-import { useConfigurationStore } from '@/stores/configuration'
-import { useAlertsStore } from '@/stores/alerts'
-import { fetchApiCall, handleError } from '@/utils/api'
+import { ref } from 'vue'
 import LoadBarButton from '@/components/DataSession/LoadBarButton.vue'
 import DeleteOperationDialog from '@/components/Global/DeleteOperationDialog.vue'
 import _ from 'lodash'
 
-const store = useConfigurationStore()
-const alertStore = useAlertsStore()
-const emit = defineEmits(['operationCompleted', 'selectOperation', 'deleteOperation', 'operationWasDeleted', 'viewGraph'])
+const emit = defineEmits(['operationCompleted', 'selectOperation', 'operationWasDeleted', 'viewGraph'])
 
 const props = defineProps({
   operations: {
@@ -30,63 +25,11 @@ const props = defineProps({
   }
 })
 
-const operationPollingTimers = {}
-const operationPercentages = ref({})
 const deleteOperations = ref([])
 const showDeleteDialog = ref(false)
-const POLL_WAIT_TIME = 2000
-const DEC_TO_PERCENT = 100
-const COMPLETE_PERCENT = 100
 
 function selectOperation(id) {
   emit('selectOperation', id)
-}
-
-async function pollOperationCompletion(operationID) {
-  // Success Callback for checking operation status
-  const updateOperationStatus = (response) => {
-    if(response){
-      switch(response.status){
-      case 'PENDING':
-        break
-      case 'IN_PROGRESS':
-        operationPercentages.value[operationID] = response.operation_progress * DEC_TO_PERCENT
-        break
-      case 'COMPLETED':
-        operationPercentages.value[operationID] = COMPLETE_PERCENT
-        emit('operationCompleted', response)
-        clearPolling(operationID)
-        break
-      case 'FAILED':
-        alertStore.setAlert('error', response.message ? response.message : 'Failed', 'Operation Error:')
-        operationPercentages.value[operationID] = COMPLETE_PERCENT
-        emit('deleteOperation', operationID)
-        clearPolling(operationID)
-        break
-      default:
-        console.error('Unknown Operation Status:', response.status)
-      }
-    }
-    else{
-      alertStore.setAlert('error', 'Operation status not found')
-    }
-  }
-
-  const url = store.datalabApiBaseUrl + 'datasessions/' + props.sessionId + '/operations/' + operationID + '/'
-  await fetchApiCall({ url: url, method: 'GET', successCallback: updateOperationStatus, failCallback: handleError })
-}
-
-function clearPolling(operationID) {
-  if (operationID in operationPollingTimers){
-    clearInterval(operationPollingTimers[operationID])
-    delete operationPollingTimers[operationID]
-  }
-}
-
-function clearAllPolling() {
-  Object.keys(operationPollingTimers).forEach(operationID => {
-    clearPolling(operationID)
-  })
 }
 
 function recursiveFindChildren(operationId, childOperationIds = new Set()) {
@@ -109,48 +52,22 @@ function openDeleteOperationDialog(operation) {
 
 function itemDeleted(){
   // Reset the selected operation after its deleted, otherwise the next operation will be selected 
-  clearAllPolling()
   emit('selectOperation', -1)
   emit('operationWasDeleted')
 }
 
-watch(() => props.operations, () => {
-  if (props.active) {
-    props.operations.forEach(operation => {
-      if (!operationPollingTimers[operation.id]) {
-        // call once so buttons progress is updated immediately
-        pollOperationCompletion(operation.id)
-        if (operation.status == 'PENDING' || operation.status == 'IN_PROGRESS'){
-          operationPollingTimers[operation.id] = setInterval(() => pollOperationCompletion(operation.id), POLL_WAIT_TIME)
-        }
-      }
-    })
+function operationStateToClass(operation) {
+  if (operation.status === 'PENDING') {
+    return 'operate-button-pending'
   }
-})
+  else if (operation.status === 'IN_PROGRESS') {
+    return 'operate-button-in-progress'
+  }
+  else {
+    return ''
+  }
+}
 
-watch(
-  () => props.active, (active, previousActive) => {
-    if (active && !previousActive) {
-      props.operations.forEach(operation => {
-        if (!operationPollingTimers[operation.id]) {
-          // call once so buttons progress is updated immediately
-          pollOperationCompletion(operation.id)
-          if (operation.status == 'PENDING' || operation.status == 'IN_PROGRESS'){
-            operationPollingTimers[operation.id] = setInterval(() => pollOperationCompletion(operation.id), POLL_WAIT_TIME)
-          }
-        }
-      })
-    }
-    else {
-      clearAllPolling()
-    }
-  }, { immediate: true }
-)
-
-onBeforeUnmount(() => {
-  // Clean up Polling Intervals
-  clearAllPolling()
-})
 
 </script>
 <template>
@@ -174,10 +91,12 @@ onBeforeUnmount(() => {
     <load-bar-button
       :class="{selected: operation.id == props.selectedOperation}"
       class="operation_button"
-      :progress="operationPercentages[operation.id] ?? 0"
+      :progress="operation.operation_progress ?? 0"
+      :state="operation.state"
+      :error="operation.message ?? ''"
       @click="selectOperation(operation.id)"
     >
-      <p>
+      <p :class="operationStateToClass(operation)">
         {{ operation.index }}: {{ operation.name }}
       </p>
     </load-bar-button>
