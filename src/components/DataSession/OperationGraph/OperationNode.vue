@@ -27,16 +27,30 @@ function selectOperation(index) {
     emit('selectOperation', index)
   }
 }
+
+function operationStateToClass(state) {
+  if (state === 'PENDING') {
+    return 'operate-button-pending'
+  }
+  else if (state === 'IN_PROGRESS') {
+    return 'operate-button-in-progress'
+  }
+  else {
+    return ''
+  }
+}
 </script>
 
 <template>
   <load-bar-button
     :class="{selected: props.id == props.selectedId}"
     class="operation_button nodrag"
-    progress="100"
+    :progress="props.data.operation_progress ?? 0"
+    :state="props.data.status"
+    :error="props.data.message ?? ''"
     @click="selectOperation(props.id)"
   >
-    <p>
+    <p :class="operationStateToClass(props.data.status)">
       {{ props.data.index }}: {{ props.data.name }}
     </p>
   </load-bar-button>

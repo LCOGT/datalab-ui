@@ -1,10 +1,11 @@
 <script setup>
-import { ref, defineEmits, defineProps, onMounted, watch } from 'vue'
+import { ref, defineProps, watch } from 'vue'
 import OperationPipeline from './OperationPipeline.vue'
 import OperationPipelineFlow from './OperationGraph/OperationPipelineFlow.vue'
-import { fetchApiCall, handleError, deleteOperation } from '@/utils/api.js'
+import { fetchApiCall, handleError } from '@/utils/api.js'
 import { calculateColumnSpan } from '@/utils/common'
 import { useConfigurationStore } from '@/stores/configuration'
+import { useAlertsStore } from '@/stores/alerts'
 import ImageGrid from '@/components/Global/ImageGrid.vue'
 import OperationWizard from '@/components/DataSession/OperationWizard.vue'
 import _ from 'lodash'
@@ -21,44 +22,31 @@ const props = defineProps({
 })
 
 const store = useConfigurationStore()
+const alertStore = useAlertsStore()
 
-const emit = defineEmits(['reloadSession'])
+const operations = ref([...props.data.operations])
 const images = ref([...props.data.input_data])
 const filteredImages = ref([...images.value])
 const showWizardDialog = ref(false)
 const tab = ref('main')
+const operationPollingTimers = {}
 
 const dataSessionsUrl = store.datalabApiBaseUrl + 'datasessions/'
 const imagesPerRow = 4
+const POLL_WAIT_TIME = 5000
+
 var operationMap = {}
 var selectedOperation = ref(-1)
-
-async function addCompletedOperationsOutput() {
-  const url = dataSessionsUrl + props.data.id + '/operations/'
-
-  function updateCompletedOperations(response) {
-    response.results.forEach(operationResponse => {
-      if (operationResponse.status == 'COMPLETED') {
-        addCompletedOperation(operationResponse)
-      }
-    })
-    reconcileOperations()
-  }
-
-  await fetchApiCall({ url: url, method: 'GET', successCallback: updateCompletedOperations, failCallback: handleError })
-}
-
 
 function imagesContainsFile(file) {
   return images.value.some(image => image.basename == file.basename && image.source == file.source && image.operation == file.operation)
 }
 
-
-function addCompletedOperation(operationResponse) {
-  if ('output' in operationResponse && 'output_files' in operationResponse.output) {
-    operationResponse.output.output_files.forEach(outputFile => {
-      outputFile.operation = operationResponse.id
-      outputFile.operationIndex = operationMap[operationResponse.id]
+function addCompletedOperation(operation) {
+  if ('output' in operation && 'output_files' in operation.output) {
+    operation.output.output_files.forEach(outputFile => {
+      outputFile.operation = operation.id
+      outputFile.operationIndex = operation.index
       if (!imagesContainsFile(outputFile)) {
         images.value.push(outputFile)
         if (selectedOperation.value == -1 || selectedOperation.value == outputFile.operation) {
@@ -79,17 +67,6 @@ function selectOperation(operationId) {
   reconcileFilteredImages()
 }
 
-function reconcileOperationImages() {
-  // This updates the operationIndex of images after changes in the operations list
-  images.value = images.value.filter(obj => !obj.operation || obj.operation in operationMap)
-  images.value.forEach(image => {
-    if (image.operation) {
-      image.operationIndex = operationMap[image.operation]
-    }
-  })
-  reconcileFilteredImages()
-}
-
 function reconcileFilteredImages() {
   // This updates the filteredImages after changes in the operations list, or changes in selection of an operation.
   if (selectedOperation.value == -1) {
@@ -105,27 +82,17 @@ async function addOperation(operationDefinition) {
 
   // first operation doesn't load unless this is here
   function postOperationSuccess() {
-    emit('reloadSession')
+    refreshOperations()
   }
 
   await fetchApiCall({ url: url, method: 'POST', body: operationDefinition, successCallback: postOperationSuccess, failCallback: handleError })
 }
 
-function reconcileOperations() {
-  // This makes sure our operationMap mapping operation ids to indices is up to date following changes in the operation list
-  operationMap = {}
-  props.data.operations.forEach((operation, index) => {
-    operationMap[operation.id] = index + 1
-  })
-  if (!(selectedOperation.value in operationMap)) {
-    selectedOperation.value = -1
-  }
-  reconcileOperationImages()
-}
-
 function processOperations() {
   // Look through the input_data for file arrays and set dependency set on each operation
-  props.data.operations.forEach((operation, index) => {
+  operationMap = {}
+  operations.value.forEach((operation, index) => {
+    operationMap[operation.id] = operation
     // Set the operation index based on its list position in the response (1 indexed)
     operation.index = index + 1
     operation.dependencies = new Set()
@@ -142,16 +109,101 @@ function processOperations() {
   })
 }
 
-watch(
-  () => props.data.operations, () => {
-    processOperations()
-    reconcileOperations()
-  },
-  { immediate: true })
+function clearPolling(operationID) {
+  if (operationID in operationPollingTimers){
+    clearInterval(operationPollingTimers[operationID])
+    delete operationPollingTimers[operationID]
+  }
+}
 
-onMounted(() => {
-  addCompletedOperationsOutput()
-})
+async function pollOperationCompletion(operation) {
+  // Success Callback for checking operation status
+  const updateOperationStatus = (response) => {
+    // Copy over the updated status into the operation
+    operationMap[response.id].status = response.status
+    operationMap[response.id].operation_progress = response.operation_progress
+    operationMap[response.id].output = response.output
+    operationMap[response.id].message = response.message
+    if(response){
+      switch(response.status){
+      case 'PENDING':
+        break
+      case 'IN_PROGRESS':
+        break
+      case 'COMPLETED':
+        addCompletedOperation(operationMap[response.id])
+        clearPolling(response.id)
+        // Trigger use to attempt to start polling again for any dependent operations
+        startOperationPolling()
+        break
+      case 'FAILED':
+        alertStore.setAlert('error', response.message ? response.message : 'Failed', 'Operation Error:')
+        clearPolling(response.id)
+        break
+      default:
+        console.error('Unknown Operation Status:', response.status)
+      }
+    }
+    else{
+      alertStore.setAlert('error', 'Operation status not found')
+    }
+  }
+  const url = store.datalabApiBaseUrl + 'datasessions/' + props.data.id + '/operations/' + operation.id + '/'
+  await fetchApiCall({ url: url, method: 'GET', successCallback: updateOperationStatus, failCallback: handleError })
+}
+
+function startOperationPolling() {
+  operations.value.forEach(operation => {
+    if (operation.status != 'COMPLETED') {
+      if (_.every(Array.from(operation.dependencies), function(id) {
+        return id in operationMap && operationMap[id].status == 'COMPLETED'
+      })){
+        if (!operationPollingTimers[operation.id]) {
+          operationPollingTimers[operation.id] = setInterval(() => pollOperationCompletion(operation), POLL_WAIT_TIME)
+        }
+      }
+    }
+  })
+}
+
+function stopOperationPolling() {
+  Object.keys(operationPollingTimers).forEach(operationID => {
+    clearPolling(operationID)
+  })
+}
+
+// This triggers us to just get the operations for a datasession
+async function refreshOperations() {
+  const url = dataSessionsUrl + props.data.id + '/operations/'
+
+  function onRefreshOperations(response) {
+    operations.value = response.results
+    processOperations()
+    operations.value.forEach(operation => {
+      if (operation.status == 'COMPLETED') {
+        addCompletedOperation(operation)
+      }
+    })
+    startOperationPolling()
+  }
+
+  await fetchApiCall({ url: url, method: 'GET', successCallback: onRefreshOperations, failCallback: handleError })
+}
+
+watch(
+  () => props.active, (active, previousActive) => {
+    if (active && !previousActive) {
+      // If this tab becomes active, begin our process of polling for
+      // non-completed operations. First get all the operations state.
+      refreshOperations()
+    }
+    else {
+      // If this tab becomes inactive from active, then make sure we stop
+      // polling for operation changes
+      stopOperationPolling()
+    }
+  }, { immediate: true }
+)
 
 </script>
 
@@ -175,7 +227,7 @@ onMounted(() => {
         <v-container class="d-lg-flex ds-container graph-container">
           <operation-pipeline-flow
             :session-id="data.id"
-            :operations="data.operations"
+            :operations="operations"
             :selected-operation="selectedOperation"
             :images="images"
             :active="props.active"
@@ -193,13 +245,12 @@ onMounted(() => {
             <!-- The operations bar list goes here -->
             <operation-pipeline
               :session-id="data.id"
-              :operations="data.operations"
+              :operations="operations"
               :active="props.active"
               :selected-operation="selectedOperation"
               @operation-completed="addCompletedOperation"
               @select-operation="selectOperation"
-              @operation-was-deleted="emit('reloadSession')"
-              @delete-operation="(operationID) => deleteOperation(props.data.id, operationID, emit('reloadSession'))"
+              @operation-was-deleted="refreshOperations"
               @view-graph="tab = 'graph'"
             />
             <v-btn
