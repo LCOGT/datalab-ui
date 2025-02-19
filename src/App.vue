@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, computed, watch } from 'vue'
+import { onMounted, computed } from 'vue'
 import { useUserDataStore } from '@/stores/userData'
 import { useConfigurationStore } from './stores/configuration'
 import NavBar from './components/Global/NavBar.vue'
@@ -31,17 +31,13 @@ onMounted(async () => {
   }
 })
 
-watch(() => userDataStore.isColorblindMode, (newVal) => {
-  document.documentElement.setAttribute('colorblind', newVal)
-}, { immediate: true })
-
 </script>
 
 <template>
   <template v-if="loadedConfig">
+    <alert-toast />
     <template v-if="userDataStore.userIsAuthenticated">
       <nav-bar />
-      <alert-toast />
     </template>
     <router-view />
   </template>

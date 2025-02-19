@@ -1,9 +1,11 @@
 <script setup>
-import { ref, onMounted, computed, defineEmits, defineProps} from 'vue'
+import { ref, onMounted, computed} from 'vue'
 import { fetchApiCall, handleError } from '@/utils/api'
 import { calculateColumnSpan } from '@/utils/common'
 import ImageGrid from '../Global/ImageGrid'
+import ImageScalingGroup from '../Global/Scaling/ImageScalingGroup'
 import { useConfigurationStore } from '@/stores/configuration'
+import { useAlertsStore } from '@/stores/alerts'
 
 const props = defineProps({
   images: {
@@ -13,6 +15,7 @@ const props = defineProps({
 })
 
 const store = useConfigurationStore()
+const alert = useAlertsStore()
 const emit = defineEmits(['closeWizard', 'addOperation'])
 const dataSessionsUrl = store.datalabApiBaseUrl
 
@@ -30,6 +33,13 @@ onMounted(async () => {
     selectOperation(Object.keys(availableOperations.value)[0])
   }
 })
+
+function updateScaling(imageName, zmin, zmax) {
+  // When input image scaling is updated, we set it inside the operation input object
+  // that will then be sent to the server when we add the operation
+  selectedOperationInput.value[imageName][0].zmin = zmin
+  selectedOperationInput.value[imageName][0].zmax = zmax
+}
 
 function selectOperation(name) {
   selectedOperation.value = name
@@ -75,8 +85,25 @@ const goForwardText = computed(() => {
   if (page.value == 'select') {
     return 'Configure Operation'
   }
-  else {
+  else if (page.value == 'configure'){
+    if (operationRequiresInputScaling.value) {
+      return 'Set Image Scaling'
+    }
+    else{
+      return 'Add Operation'
+    }
+  }
+  else{
     return 'Add Operation'
+  }
+})
+
+const disableGoForward = computed(() => {
+  if (page.value == 'select') {
+    return selectedOperation.value === ''
+  }
+  else{
+    return !isInputComplete.value
   }
 })
 
@@ -89,35 +116,98 @@ const wizardTitle = computed(() => {
   }
 })
 
+const isInputComplete = computed(() => {
+  for (const inputKey in selectedOperationInput.value) {
+    const input = selectedOperationInput.value[inputKey]
+    const minimum = selectedOperationInputs.value[inputKey].minimum
+    if ( input === undefined || input === null || (minimum ? input.length < minimum : input.length == 0)) {
+      return false
+    }
+  }
+  return true
+})
+
+const operationRequiresInputScaling = computed(() => {
+  for (const inputKey in selectedOperationInputs.value) {
+    if (selectedOperationInputs.value[inputKey].include_custom_scale) {
+      return true
+    }
+  }
+  return false
+})
+
+function sortImagesByFilter(filters){
+  // Trim and lowercase all filters
+  for (const filter in filters){
+    filters[filter] = filters[filter].trim().toLowerCase()
+  }
+  // Place desired filters at the front, followed by the rest
+  return [
+    ...props.images.filter(image => filters.includes(image.filter?.trim().toLowerCase())),
+    ...props.images.filter(image => !filters.includes(image.filter?.trim().toLowerCase()))
+  ]
+}
+
 function goForward() {
   if (page.value == 'select') {
-    page.value = 'configure'
-  }
-  else {
-    let operationDefinition = {
-      'name': selectedOperation.value,
-      'input_data': {
-        ...selectedOperationInput.value
+    // if there are no images for a filter required by the operation, do not proceed
+    for (const inputKey in selectedOperationInputs.value) {
+      const inputField = selectedOperationInputs.value[inputKey]
+      if (inputField.type == 'file' && props.images.length == 0){
+        return
       }
     }
-    for (const inputKey in selectedImages.value) {
-      let selected = []
-      selectedImages.value[inputKey].forEach(index => {
-        selected.push(props.images[index])
-      })
-      operationDefinition.input_data[inputKey] = selected
+    page.value = 'configure'
+  }
+  else if (page.value == 'configure'){
+    if (operationRequiresInputScaling.value) {
+      page.value = 'scaling'
     }
-    emit('addOperation', operationDefinition)
-    emit('closeWizard')
+    else {
+      submitOperation()
+    }
+  }
+  else {
+    submitOperation()
   }
 }
 
-function selectImage(inputKey, imageIndex) {
-  if (selectedImages.value[inputKey].includes(imageIndex)) {
-    selectedImages.value[inputKey].splice(selectedImages.value[inputKey].indexOf(imageIndex), 1)
+function submitOperation() {
+  let operationDefinition = {
+    'name': selectedOperation.value,
+    'input_data': {
+      ...selectedOperationInput.value
+    }
   }
-  else {
-    selectedImages.value[inputKey].push(imageIndex)
+  emit('addOperation', operationDefinition)
+  emit('closeWizard')
+}
+
+function setOperationInputImages() {
+  for (const inputKey in selectedImages.value) {
+    let input = []
+    selectedImages.value[inputKey].forEach(basename => {
+      input.push(props.images.find(image => image.basename == basename))
+    })
+    selectedOperationInput.value[inputKey] = input
+  }
+}
+
+function selectImage(inputKey, basename) {
+  const inputImages = selectedImages.value[inputKey]
+  const maxImages = selectedOperationInputs.value[inputKey].maximum
+
+  if (inputImages.includes(basename)) {
+    inputImages.splice(inputImages.indexOf(basename), 1)
+    setOperationInputImages()
+  }
+  else if (!maxImages || inputImages.length < maxImages){
+    inputImages.push(basename)
+    setOperationInputImages()
+  }
+  else{
+    alert.setAlert('warning', 'Maximum number of images selected')
+    console.log('Maximum number of images selected in input', inputKey)
   }
 }
 
@@ -182,9 +272,7 @@ function selectImage(inputKey, imageIndex) {
             :type="inputDescription.type"
             class="operation-input"
           />
-          <div
-            v-else-if="inputDescription.type == 'file'"
-          >
+          <div v-else-if="inputDescription.type == 'file'">
             <div
               v-if="inputDescription.name"
               class="input-images"
@@ -192,13 +280,27 @@ function selectImage(inputKey, imageIndex) {
               {{ inputDescription.name }}
             </div>
             <image-grid
-              :images="images"
+              :images="inputDescription.filter ? sortImagesByFilter(inputDescription.filter) : props.images"
+              :selected-images="selectedImages[inputKey]"
               :column-span="calculateColumnSpan(images.length, imagesPerRow)"
-              class="wizard-images"
               :allow-selection="true"
               @select-image="selectImage(inputKey, $event)"
             />
           </div>
+        </div>
+      </v-card-text>
+    </v-slide-y-reverse-transition>
+    <v-slide-y-reverse-transition hide-on-leave>
+      <v-card-text
+        v-show="page == 'scaling'"
+        class="wizard-card"
+      >
+        <div v-if="isInputComplete">
+          <image-scaling-group
+            :input-description="selectedOperationInputs"
+            :inputs="selectedOperationInput"
+            @update-scaling="updateScaling"
+          />
         </div>
       </v-card-text>
     </v-slide-y-reverse-transition>
@@ -215,6 +317,7 @@ function selectImage(inputKey, imageIndex) {
       <v-btn
         variant="text"
         class="gofwd-btn"
+        :disabled="disableGoForward"
         @click="goForward"
       >
         {{ goForwardText }}
@@ -279,12 +382,6 @@ function selectImage(inputKey, imageIndex) {
   color: var(--tan);
   font-size: 1.5rem;
   text-transform: uppercase;
-}
-.wizard-images {
-  max-width: 100%;
-  height: auto;
-  box-sizing: border-box;
-  cursor: pointer;
 }
 
 .selected-image {

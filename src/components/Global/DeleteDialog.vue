@@ -1,33 +1,34 @@
 <!-- eslint-disable vue/require-prop-types -->
 <script setup>
-import { ref, defineProps, defineEmits } from 'vue'
-import { fetchApiCall } from '../../utils/api'
-import { useConfigurationStore } from '@/stores/configuration'
+import { defineProps, defineEmits } from 'vue'
 
-const props = defineProps([ 'modelValue', 'deleteId'])
-const emit = defineEmits(['update:modelValue', 'reloadSession'])
-const store = useConfigurationStore()
-
-let showSnackBar = ref(false)
-const datalabApiBaseUrl = store.datalabApiBaseUrl
-const dataSessionsUrl = datalabApiBaseUrl + 'datasessions/'
+defineProps({
+  modelValue: {
+    type: Boolean,
+    required: true
+  },
+  dialogTitle: {
+    type: String,
+    required: true
+  },
+  dialogBody: {
+    type: String,
+    required: true
+  },
+  onDelete: {
+    type: Function,
+    required: true
+  },
+})
+const emit = defineEmits(['update:modelValue'])
 
 function closeDialog() { 
   emit('update:modelValue', false)
 }
 
-function sessionDeleted(){
-  emit('reloadSession')
-  closeDialog()
-}
-
-async function confirmDeleteSession() {
-  const url = dataSessionsUrl + props.deleteId
-  await fetchApiCall({url: url, method: 'DELETE', successCallback: sessionDeleted, failCallback: () => {showSnackBar.value=true} })
-}
 </script>
 <template>
-  <!-- Shared dialog used to confirm deleting of sessions -->
+  <!-- Shared dialog used to confirm deleting of items -->
   <v-dialog
     :model-value="modelValue"
     persistent
@@ -37,13 +38,13 @@ async function confirmDeleteSession() {
       <v-card-title
         class="text-h5"
       >
-        <p class="delete-session-text">
-          DELETE SESSION
+        <p class="delete-item-text">
+          {{ dialogTitle }}
         </p>
       </v-card-title>
       <v-card-text>
         <p class="delete-text">
-          Are you sure you want to delete this Datalab Session? This operation is not reversible!
+          <span v-html="dialogBody"></span>
         </p>
       </v-card-text>
       <v-card-actions>
@@ -58,27 +59,20 @@ async function confirmDeleteSession() {
         <v-btn
           class="delete-btn"
           variant="text"
-          @click="confirmDeleteSession()"
+          @click="onDelete()"
         >
           Delete
         </v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>
-  <v-snackbar
-    v-model="showSnackBar"
-    color="red"
-    :timeout="2000"
-  >
-    Error: Item couldn't be deleted
-  </v-snackbar>
 </template>
 
 <style scoped>
 .delete-card {
   background-color: var(--metal);
 }
-.delete-session-text {
+.delete-item-text {
   color: var(--cancel);
   font-family: 'Open Sans', sans-serif;
   letter-spacing: 0.1rem;

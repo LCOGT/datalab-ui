@@ -1,181 +1,169 @@
 <script setup>
-import { ref, computed, onBeforeMount, onUnmounted, watch } from 'vue'
-import ProjectBar from '@/components/Project/ProjectBar.vue'
-import ImageCarousel from '@/components/Project/ImageCarousel.vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import { VDateInput } from 'vuetify/labs/VDateInput'
 import ImageList from '@/components/Project/ImageList.vue'
-import { useRouter } from 'vue-router'
-import { useConfigurationStore } from '@/stores/configuration'
-import { useSettingsStore } from '@/stores/settings'
+import ImageGrid from '@/components/Global/ImageGrid.vue'
+import CreateSessionDialog from '@/components/Project/CreateSessionDialog.vue'
 import { useUserDataStore } from '@/stores/userData'
-import { fetchApiCall } from '../utils/api'
+import { useThumbnailsStore } from '@/stores/thumbnails'
+import { useConfigurationStore } from '@/stores/configuration'
+import { useAlertsStore } from '@/stores/alerts'
+import { fetchApiCall } from '@/utils/api'
+import { initializeDate } from '@/utils/common'
+import { useRoute } from 'vue-router'
+import router from '@/router'
 
-const router = useRouter()
-const configurationStore = useConfigurationStore()
-const settingsStore = useSettingsStore()
+const route = useRoute()
+
 const userDataStore = useUserDataStore()
-const isPopupVisible = ref(false)
-const uniqueDataSessions = ref([])
-const newSessionName = ref('')
-const errorMessage = ref('')
-const isLoading = ref(true)
-const selectedProject = ref(null)
-const dataSessionsUrl = configurationStore.datalabApiBaseUrl + 'datasessions/'
+const thumbnailsStore = useThumbnailsStore()
+const configurationStore = useConfigurationStore()
+const alertsStore = useAlertsStore()
 
-onBeforeMount(() => {
-  if (!userDataStore.userIsAuthenticated) router.push({ name: 'Registration' })
+const showCreateSessionDialog = ref(false)
+const imagesByProposal = ref({})
+const selectedImagesByProposal = ref({})
+const startDate = ref(initializeDate(route.query.startDate, -3))
+const endDate = ref( initializeDate(route.query.endDate))
+const ra = ref(route.query.ra)
+const dec = ref(route.query.dec)
+const search = ref(route.query.search)
+const observationId = ref(route.query.observationId)
+
+const selectedImages = computed(() => {
+  // returns a list combining all the selected images in all projects to be used for a new data session
+  return Object.keys(selectedImagesByProposal.value).reduce((acc, projectId) => {
+    const proposalImages = imagesByProposal.value[projectId] ? imagesByProposal.value[projectId] : []
+    const proposalSelectedImages = selectedImagesByProposal.value[projectId]
+    return acc.concat(proposalImages.filter(image => proposalSelectedImages.includes(image.basename)))
+  }, [])
 })
 
-const selectedProjectImages = ref([])
-
-// handles the selected project to filter images that only have the selected proposal_id
-async function filterImagesByProposalId(proposalId) {
-  // selectedProjectImages.value = imageCache.value.filter(image => proposalId.includes(image.proposal_id))
-  selectedProject.value = proposalId
-  if (!settingsStore.imagesByProposal[proposalId]) {
-    isLoading.value = true
-    await settingsStore.loadAndCacheImages(proposalId, 'reduction_level=91')
+function selectImage(proposalIndex, basename) {
+  // accepts either a list of selected images or a single image index to toggle selection on
+  const proposalSelectedImages = selectedImagesByProposal.value[proposalIndex]
+  
+  if(proposalSelectedImages.includes(basename)){
+    proposalSelectedImages.splice(proposalSelectedImages.indexOf(basename), 1)
+  } else {
+    proposalSelectedImages.push(basename)
   }
-  isLoading.value = false
-  selectedProjectImages.value = settingsStore.imagesByProposal[proposalId]
 }
 
-// boolean computed property used to disable the add to session button
-const noSelectedImages = computed(() => {
-  return settingsStore.selectedImages.length === 0
-})
-
-const imageCounter = computed(() => {
-  return settingsStore.selectedImages.length
-})
-
-const unselectImages = () => {
-  settingsStore.selectedImages = []
+function deselectAllImages() {
+  // clear the arrays per proposal in selectedImagesByProposal
+  Object.keys(selectedImagesByProposal.value).forEach(projectId => {
+    selectedImagesByProposal.value[projectId] = []
+  })
 }
 
-// manages successful api response by mapping data to unique sessions
-const mapDataSessions = (data) => {
-  const results = data.results
-  uniqueDataSessions.value = results
-    .map(session => ({ id: session.id, name: session.name }))
-  isPopupVisible.value = true
-}
+async function loadProposals(option){
+  // Update the URL with the current filters
+  router.push({ query: { ra: ra.value, dec: dec.value, observationId: observationId.value, search: search.value, startDate: startDate.value.toISOString(), endDate: endDate.value.toISOString() } })
 
-// manages api call failures by logging errors
-const handleError = (error) => {
-  console.error('API call failed with error:', error)
-  errorMessage.value = error.message || 'An error occurred'
-}
+  // Only loads images for open proposal panels
+  userDataStore.openProposals.forEach(async proposal => {
+    // if there the value for the key is null the user is not authorized to view the proposal
+    if(!userDataStore.proposals[proposal]) return
 
-// fetches session data from API and handles response or error using the callbacks
-const getDataSessions = async () => {
-  await fetchApiCall({ url: dataSessionsUrl, method: 'GET', successCallback: mapDataSessions, failCallback: handleError })
-}
+    const proposalID = userDataStore.proposals[proposal].id
+    const baseUrl = configurationStore.datalabArchiveApiUrl + 'frames/'
+    const timeStr = `start=${startDate.value.toISOString()}&end=${endDate.value.toISOString()}`
+    
+    option = `${option}&${timeStr}&proposal_id=${proposalID}&include_thumbnails=true`
+    if(ra.value && dec.value) option += `&covers=POINT(${ra.value} ${dec.value})`
+    if(observationId.value) option += `&observation_id=${observationId.value}`
 
-// updates an existing session with selected images
-const addImagesToExistingSession = async (session) => {
-  const sessionIdUrl = dataSessionsUrl + session.id + '/'
-  // fetches existing session data
-  const currentSessionResponse = await fetchApiCall({ url: sessionIdUrl, method: 'GET' })
-  if (currentSessionResponse) {
-    const currentSessionData = currentSessionResponse.input_data
-    // merging existing and new image data
-    // this is temporary since the backend has to be updated to handle this
-    // remove this when backend gets updated
-    const selectedImages = settingsStore.selectedImages
-    const inputData = [...currentSessionData, ...selectedImages.map(image => ({
-      'source': 'archive',
-      'basename': image.basename.replace('-small', '') || image.basename.replace('-large', '')
-    }))]
-    const requestBody = {
-      'name': session.name,
-      'input_data': inputData
+    const imageUrl = option ? `${baseUrl}?${option}` : baseUrl
+    const responseData = await fetchApiCall({ url: imageUrl, method: 'GET' })
+
+    if (responseData && responseData.results) {
+      // Preload all the small thumbnails into the cache. The large thumbnails will be loaded on demand
+      // TODO: The processing of frames should be moved to the thumbnails store or the thumbnail's utility file
+      responseData.results.forEach((frame) => {
+        frame.smallThumbUrl = ''
+        frame.largeThumbUrl = ''
+        frame.source = 'archive'
+        for (const thumbnail of frame.thumbnails) {
+          if (thumbnail.size === 'small') {
+            frame.smallThumbUrl = thumbnail.url
+          }
+          else if (thumbnail.size === 'large') {
+            frame.largeThumbUrl = thumbnail.url
+          }
+        }
+        frame.smallCachedUrl = ref('')
+        thumbnailsStore.cacheImage('small', configurationStore.archiveType, frame.smallThumbUrl, frame.basename).then((cachedUrl) => {
+          frame.smallCachedUrl.value = cachedUrl
+        })
+      })
+      // Add images to their proposal group
+      imagesByProposal.value[proposalID] = responseData.results
     }
+  })
+}
 
-    // sending the PATCH request with the merged data
-    await fetchApiCall({ url: sessionIdUrl, method: 'PATCH', body: requestBody })
-  } else {
-    handleError()
+watch(() => [startDate.value, endDate.value], async () => {
+  // Filters that can be queried instantly with no debounce
+  loadProposals('reduction_level=91')
+})
+
+watch(() => [ra.value, dec.value, observationId.value], async () => {
+  // Clear the Search filter if the ra or dec field is cleared
+  if(!ra.value || !dec.value){
+    search.value = ''
   }
-}
-
-// closes popup, invokes addImagesToExistingSession, and reroutes user to DataSessions view
-const selectDataSession = async (session) => {
-  isPopupVisible.value = false
-  await addImagesToExistingSession(session)
-  router.push({ name: 'DataSessionView' })
-
-}
-
-const validateSessionName = () => {
-  errorMessage.value = ''
-
-  if (sessionNameExists(newSessionName.value)) {
-    errorMessage.value = 'Data Session name already exists. Please choose a different name.'
-    return
-  } else if (newSessionName.value.length < 5) {
-    errorMessage.value = 'Data Session name is too short.'
-    return
-  } else if (newSessionName.value.length > 25) {
-    errorMessage.value = 'Data Session name is too long.'
-    return
+  if((ra.value && isNaN(ra.value)) || (dec.value && isNaN(dec.value))){
+    alertsStore.setAlert('warning', 'RA and DEC must be a number')
   }
-}
-
-const closePopup = () => {
-  isPopupVisible.value = false
-  newSessionName.value = ''
-  errorMessage.value = ''
-}
-
-// handles creation of a new session 
-const createNewDataSession = async () => {
-  const selectedImages = settingsStore.selectedImages
-  const inputData = selectedImages.map(image => ({
-    'source': 'archive',
-    'basename': image.basename.replace('-small', '') || image.basename.replace('-large', '')
-  }))
-  const requestBody = {
-    'name': newSessionName.value,
-    'input_data': inputData
+  if(observationId.value && isNaN(observationId.value)){
+    alertsStore.setAlert('warning', `Observation ID is not a number ${observationId.value}`)
   }
-
-  // attempting a POST request for new session
-  const response = await fetchApiCall({ url: dataSessionsUrl, method: 'POST', body: requestBody })
-  if (response) {
-    isPopupVisible.value = false
-    newSessionName.value = ''
-    errorMessage.value = ''
-    settingsStore.recentSessionId = response.id
-    router.push({ name: 'DataSessionView' })
-  } else {
-    errorMessage.value = 'Error creating new data session'
-  }
-}
-
-const sessionNameExists = (name) => {
-  return uniqueDataSessions.value.some(session => session.name === name)
-}
-
-watch(() => userDataStore.proposals, async () => {
-  if (userDataStore.proposals.length > 0) {
-    filterImagesByProposalId(userDataStore.proposals[0].id)
-  }
-}, { immediate: true })
-
-watch(() => settingsStore.startDate, async () => {
-  settingsStore.imagesByProposal = {}
-  if (selectedProject.value){
-    filterImagesByProposalId(selectedProject.value)
+  // Debouncing the load so users have time to finish typing
+  else if(setTimeout(async () => {
+    await loadProposals('reduction_level=91')
+  }, 1700)){
+    clearTimeout()
   }
 })
 
-onUnmounted(() => {
-  unselectImages()
+watch(() => search.value, async () => {
+  // Search has its own watcher since we would like to clear the ra and dec fields when the search field is cleared
+  if(search.value){
+    const url = `https://simbad2k.lco.global/${search.value}`
+    fetchApiCall({url: url, method: 'GET', successCallback: (data)=> {
+      if(!data.error){
+        ra.value = data.ra_d
+        dec.value = data.dec_d
+      }
+    }})
+  }
+  else{
+    ra.value = null
+    dec.value = null
+  }
+})
+
+onMounted(() => {
+  // Check so Observe@PTR can open the relevant proposal
+  if(route.query.proposalId){
+    const proposalIndexToOpen = userDataStore.proposals.findIndex(proposal => proposal.id == route.query.proposalId)
+    if(proposalIndexToOpen != -1)
+      userDataStore.openProposals = [proposalIndexToOpen]
+    else
+      alertsStore.setAlert('warning', `Proposal ${route.query.proposalId} not found in users proposals`)
+  }
+  loadProposals('reduction_level=91')
+  // create selected images array for each proposal
+  userDataStore.proposals.forEach(proposal => {
+    selectedImagesByProposal.value[proposal.id] = []
+  })
 })
 
 </script>
 
 <template>
+<<<<<<< HEAD
   <!-- only load if config is loaded -->
   <section>
   <div class="container">
@@ -324,120 +312,171 @@ onUnmounted(() => {
   font-size: 1.3rem;
   margin-right: 1rem;
   background-color: var(--light-blue);
+=======
+  <div class="proposal-filters">
+    <v-date-input
+      v-model="startDate"
+      :max="endDate"
+      label="From"
+      prepend-icon=""
+      prepend-inner-icon="$calendar"
+      :hide-actions="true"
+      hide-details="auto"
+    />
+    <v-date-input
+      v-model="endDate"
+      :max="new Date()"
+      :min="startDate"
+      label="To"
+      prepend-icon=""
+      prepend-inner-icon="$calendar"
+      :hide-actions="true"
+      hide-details="auto"
+    />
+    <v-text-field
+      v-model="observationId"
+      label="Observation ID"
+      clearable
+      hide-details
+    />
+    <v-text-field
+      v-model="ra"
+      label="RA"
+      clearable
+      hide-details
+    />
+    <v-text-field
+      v-model="dec"
+      label="DEC"
+      clearable
+      hide-details
+    />
+    <v-text-field
+      v-model="search"
+      prepend-inner-icon="mdi-magnify"
+      label="Sources"
+      clearable
+      hide-details
+    />
+    <v-switch
+      v-model="userDataStore.gridToggle"
+      color="var(--light-blue)"
+      base-color="var(--light-blue)"
+      prepend-icon="mdi-view-list"
+      append-icon="mdi-image"
+    />
+  </div>
+  <div class="proposal-images">
+    <v-expansion-panels
+      v-model="userDataStore.openProposals"
+      variant="accordion"
+      :multiple="true"
+      bg-color="var(--metal)"
+    >
+      <v-expansion-panel
+        v-for="proposal in userDataStore.proposals"
+        :key="proposal.id"
+      >
+        <v-expansion-panel-title @click="loadProposals('reduction_level=91')">
+          <p>{{ proposal.title }}</p>
+        </v-expansion-panel-title>
+        <v-expansion-panel-text>
+          <image-grid
+            v-if="userDataStore.gridToggle"
+            :images="imagesByProposal[proposal.id]"
+            :selected-images="selectedImagesByProposal[proposal.id]"
+            :allow-selection="true"
+            :column-span="5"
+            @select-image="selectImage(proposal.id, $event)"
+          />
+          <image-list
+            v-else
+            :images="imagesByProposal[proposal.id]"
+            :selected-images="selectedImagesByProposal[proposal.id]"
+            @select-image="selectImage(proposal.id, $event)"
+          />
+          <div
+            v-if="imagesByProposal[proposal.id]?.length == 0"
+            class="no-images mt-5 d-flex flex-column justify-center align-center"
+          >
+            <v-icon
+              icon="mdi-image-off"
+              :size="100"
+            />
+            <h1>No Images Found</h1>
+            <p>Try changing the date range or filters to see more images</p>
+          </div>
+        </v-expansion-panel-text>
+      </v-expansion-panel>
+    </v-expansion-panels>
+  </div>
+  <div class="proposal-buttons">
+    <v-btn
+      :disabled="selectedImages.length == 0"
+      class="proposal-button deselect_button"
+      prepend-icon="mdi-trash-can-outline"
+      text="Clear"
+      @click="deselectAllImages"
+    />
+    <v-btn
+      :disabled="selectedImages.length == 0"
+      class="proposal-button add_button"
+      :text=" selectedImages.length == 0 ? 'No Images' : `Add ${selectedImages.length} image${selectedImages.length > 1 ? 's' : ''}` "
+      @click="showCreateSessionDialog=true"
+    />
+  </div>
+  <create-session-dialog
+    v-model="showCreateSessionDialog"
+    :new-images="selectedImages"
+  />
+</template>
+<style scoped>
+.proposal-filters{
+  display: flex;
+  gap: 1rem;
+  margin: 1rem;
   color: var(--tan);
-  opacity: calc(1);
+}
+.v-expansion-panel-title p{
+>>>>>>> main
+  color: var(--tan);
   font-weight: 700;
-}
-.add_button:disabled {
-  opacity: calc(0.7);
-}
-.unselect_images {
-  width: 17.3rem;
-  height: 4rem;
   font-size: 1.3rem;
+}
+.proposal-images {
+  margin-left: 1rem;
   margin-right: 1rem;
-  background-color: var(--cancel);
-  color: var(--tan);
-  opacity: calc(1);
-  font-weight: 700;
-}
-.unselect_images:disabled {
-  opacity: calc(0.7);
-}
-.card{
-  height: 550px;
-  width: 900px;
-  align-self: center;
-  display: flex !important;
-}
-.sessions_header {
-  font-family: 'Open Sans', sans-serif;
-  font-size: 1.6rem;
-  padding: 1.5rem;
-  text-align: center;
-  color: var(--tan);
-  font-weight: 600;
-  letter-spacing: 0.05rem;
-}
-.scroll-container {
+  max-height: 70%;
   overflow-y: scroll;
 }
-.v-list-item {
-  overflow: auto;
-}
-.sessions {
-  font-family: 'Open Sans', sans-serif;
+.no-images{
   color: var(--tan);
-  font-size: 1.4rem;
 }
-.create-container {
-  display: flex;
-  flex-direction: column;
-  width: 100%; 
-}
-.new-session-field {
-  max-height: 40px;
-  max-width: 90%;
-  margin-left: 3%;
-}
-.error-message {
-  color: var(--cancel);
-  font-size: 1.1rem;
-  font-family: 'Open Sans', sans-serif;
-  margin-left: 10%;
+.proposal-buttons {
+  margin-bottom: 1rem;
   position: fixed;
-  bottom: 10%;
+  bottom: 0;
+  right: 0;
+  color: var(--tan);
 }
-.button-container {
-  font-family: 'Open Sans', sans-serif;
-  padding: 0 1rem;
-  margin-top: 7%;
-  flex-direction: row;
-  justify-content: space-between;
-}
-.create_button {
-  color: var(--light-blue);
+.proposal-button {
+  margin-right: 1rem;
+  background-color: var(--light-blue);
   font-weight: 700;
-  font-size: 1.4rem;
+  font-size: 1.3rem;
+  margin-right: 1rem;
 }
-.cancel_button {
-  color: var(--cancel);
-  font-weight: 700;
-  font-size: 1.4rem;
+.proposal-button:disabled {
+  opacity: calc(0.5);
 }
-@media (max-width: 1200px) {
-  .card {
-    height: 55vh;
-    width: 30vw;
-    align-self: center;
-  }
-  .sessions_header {
-    font-size: 1.2rem;
-    padding: 0.8rem;
-  }
-  .project-bar {
-    height: 60%;
-  }
-  .button {
-    font-family: 'Open Sans', sans-serif;
-    font-size: 1rem;
-    padding: 0 1rem;
-    margin-bottom: 1rem;
-  }
-  .sessions {
-    font-family: 'Open Sans', sans-serif;
-    font-size: 0.85rem;
-  }
+.add_button {
+  width: 14rem;
+  height: 3rem;
+  background-color: var(--light-blue);
 }
-@media (max-width: 900px) {
-  .card {
-    width: 40vw;
-    height: 35vh;
-  } 
-  .project-bar {
-    height: 35vh;
-    width: 25vw;
-    margin-right: 1.5rem;
-  }
+.deselect_button {
+  width: 10rem;
+  height: 3rem;
+  background-color: var(--cancel);
 }
 </style>

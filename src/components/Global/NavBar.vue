@@ -1,4 +1,5 @@
 <script setup>
+import { RouterLink } from 'vue-router'
 import UserMenu from './UserMenu.vue'
 import ptrlogo from '../../assets/ptr_logo.png'
 

@@ -1,12 +1,19 @@
 <script setup>
-import { defineProps, ref, defineEmits, watch } from 'vue'
+import { ref, watch } from 'vue'
 import { useThumbnailsStore } from '@/stores/thumbnails'
 import { useConfigurationStore } from '@/stores/configuration'
+import { useAlertsStore } from '@/stores/alerts'
+import FilterBadge from './FilterBadge.vue'
+import ImageAnalyzer from '../../views/AnalysisView.vue'
 
 const props = defineProps({
   images: {
+    type: [Array, Boolean],
+    default: false
+  },
+  selectedImages: {
     type: Array,
-    required: true
+    default: () => []
   },
   columnSpan: {
     type: Number,
@@ -18,35 +25,60 @@ const props = defineProps({
   }
 })
 
-let imageDetails = ref({})
-let selectedImages = ref([])
 const configurationStore = useConfigurationStore()
+const alertsStore = useAlertsStore()
 const thumbnailsStore = useThumbnailsStore()
 const emit = defineEmits(['selectImage'])
+const showAnalysisDialog = ref(false)
+const imageDetails = ref({})
+const analysisImage = ref({})
+var doubleClickTimer = 0
 
-
-const isSelected = (index) => {
-  return selectedImages.value.includes(index)
+const handleClick = (basename) => {
+  clearTimeout(doubleClickTimer)
+  // timeout length indicates how long to wait for a second click before treating as a single click
+  doubleClickTimer = setTimeout(() => {
+    emit('selectImage', basename)
+    doubleClickTimer = 0
+  }, 250)
 }
 
-const onImageClick = (index) => {
-  if (props.allowSelection) {
-    if (selectedImages.value.includes(index)) {
-      selectedImages.value.splice(selectedImages.value.indexOf(index), 1)
+const handleDoubleClick = (image) => {
+  clearTimeout(doubleClickTimer)
+  alertsStore.setAlert('info', `Opening ${image?.basename} for analysis`)
+  launchAnalysis(image)
+}
+
+const launchAnalysis = (image) => {
+  try {
+    if (!image.largeCachedUrl) {
+      image.largeCachedUrl = ref('')
+      const url = image.large_url || image.largeThumbUrl || ''
+      thumbnailsStore.cacheImage('large', configurationStore.archiveType, url, image.basename).then((cachedUrl) => {
+        image.largeCachedUrl = cachedUrl
+        analysisImage.value = image
+        showAnalysisDialog.value = true
+      })
     }
     else {
-      selectedImages.value.push(index)
+      analysisImage.value = image
+      showAnalysisDialog.value = true
     }
-    emit('selectImage', index)
+  } catch {
+    alertsStore.setAlert('error', `Failed to open ${image?.basename}`)
   }
 }
 
+const isSelected = (basename) => {
+  return props.selectedImages.includes(basename)
+}
+
 watch(() => props.images, () => {
-  selectedImages.value = []
+  if (!props.images) return
   props.images.forEach(image => {
     if (image.basename && !(image.basename in imageDetails.value)) {
       imageDetails.value[image.basename] = ref('')
-      const url = image.thumbnail_url || ''
+      const url = image.thumbnail_url || image.smallThumbUrl || ''
       thumbnailsStore.cacheImage('small', configurationStore.archiveType, url, image.basename).then((cachedUrl) => {
         imageDetails.value[image.basename] = cachedUrl
       })
@@ -57,55 +89,75 @@ watch(() => props.images, () => {
 </script>
 
 <template>
-  <v-row v-if="props.images.length">
-    <v-col
-      v-for="(image, index) in props.images"
-      :key="index"
-      :cols="columnSpan"
-    >
-      <v-img
-        v-if="image.basename in imageDetails && imageDetails[image.basename]"
-        :src="imageDetails[image.basename]"
-        :alt="image.basename"
-        cover
-        :class="{ 'selected-image': isSelected(index) }"
-        aspect-ratio="1"
-        class="image-grid"
-        @click="onImageClick(index)"
+  <v-row>
+    <template v-if="props.images">
+      <v-col
+        v-for="(image, index) in props.images"
+        :key="index"
+        :cols="columnSpan"
+        class="image-grid-col"
       >
-        <span
-          v-if="'operationIndex' in image"
-          class="image-text-overlay"
-        >{{ image.operationIndex }}</span>
-      </v-img>
-    </v-col>
+        <v-img
+          v-if="image.basename in imageDetails && imageDetails[image.basename]"
+          :src="imageDetails[image.basename]"
+          :alt="image.basename"
+          cover
+          :class="{ 'selected-image': isSelected(image.basename) }"
+          aspect-ratio="1"
+          @click="handleClick(image.basename)"
+          @dblclick="handleDoubleClick(image)"
+        >
+          <filter-badge
+            v-if="image.filter || image.FILTER"
+            :filter="image.filter || image.FILTER"
+          />
+          <span
+            v-if="'operationIndex' in image"
+            class="image-text-overlay"
+          >{{ image.operationIndex }}</span>
+        </v-img>
+        <v-skeleton-loader
+          v-else
+          type="card"
+          color="var(--dark-blue)"
+          bg-color="var(--metal)"
+        />
+      </v-col>
+    </template>
+    <template v-else>
+      <v-col
+        v-for="n in 10"
+        :key="n"
+        :cols="columnSpan"
+        class="image-grid-col"
+      >
+        <v-skeleton-loader
+          type="card"
+          class="ma-1"
+          color="var(--dark-blue)"
+          bg-color="var(--metal)"
+        />
+      </v-col>
+    </template>
   </v-row>
+  <image-analyzer
+    v-model="showAnalysisDialog"
+    :image="analysisImage"
+  />
 </template>
 
 <style scoped>
-.image-grid-container {
-  display: flex;
-  max-width: 200px;
-  max-height: 200px;
-}
 .selected-image {
   border: 0.3rem solid var(--dark-green);
 }
 
 .image-text-overlay {
-  color: white;
+  color: var(--tan);
   font-weight: bold;
   margin-right: 5px;
   float: right;
 }
-.image-grid {
+.image-grid-col {
   max-width: 200px;
-  height: auto;
-}
-@media (max-width: 900px) {
-.image-grid {
-  width: 20vw;
-  height: auto;
-}
 }
 </style>

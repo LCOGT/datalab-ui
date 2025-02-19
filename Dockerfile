@@ -16,6 +16,8 @@ RUN echo -e "	server {\n" \
             "			root   /app;\n" \
             "			index  index.html;\n" \
             "			try_files \$uri \$uri/ /index.html;\n" \
+            "			add_header 'Cross-Origin-Embedder-Policy' 'require-corp';\n" \
+            "			add_header 'Cross-Origin-Opener-Policy' 'same-origin';\n" \
             "		}\n" \
             "	}\n" \
             > /etc/nginx/conf.d/datalab.conf

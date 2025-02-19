@@ -112,18 +112,28 @@ export const useThumbnailsStore = defineStore('thumbnails', {
       basename = basename.replace('-small', '').replace('-large', '')
       let cachedUrl = this.cachedUrl(size, basename)
       if (cachedUrl === undefined || cachedUrl === ''){
-        return getImageFromBasename(size, archive, url, basename).then((response) => response.blob())
+        return getImageFromBasename(size, archive, url, basename).then((response) => {
+          if (response){
+            return response.blob()
+          }
+          return undefined
+        })
           .then((responseBlob) => {
-            const responseUrl = URL.createObjectURL(responseBlob)
-            if (size == 'large'){
-              this.largeThumbnailsCache.set(basename, responseUrl)
-              if (persist) this.$persist()  // must persist manually since it doesn't detect the cache changed
+            if (responseBlob) {
+              // Convert to image/jpeg for caching as S3 presigned URLs blobs default to binary/octet-stream
+              responseBlob = new Blob([responseBlob], {type: 'image/jpeg'})
+              const responseUrl = URL.createObjectURL(responseBlob)
+              if (size == 'large'){
+                this.largeThumbnailsCache.set(basename, responseUrl)
+                if (persist) this.$persist()  // must persist manually since it doesn't detect the cache changed
+              }
+              else {
+                this.smallThumbnailsCache.set(basename, responseUrl)
+                if (persist) this.$persist()  // must persist manually since it doesn't detect the cache changed
+              }
+              return responseUrl
             }
-            else {
-              this.smallThumbnailsCache.set(basename, responseUrl)
-              if (persist) this.$persist()  // must persist manually since it doesn't detect the cache changed
-            }
-            return responseUrl
+            return ''
           })
       }
       return cachedUrl

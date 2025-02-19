@@ -5,7 +5,12 @@ import { useAlertsStore } from '../../stores/alerts'
 const alertStore = useAlertsStore()
 const showAlert = ref(false)
 
-watch(() => alertStore.alertText, () => {showAlert.value = true})
+watch(() => alertStore.alertTimeStamp, () => {
+  showAlert.value = true
+  setTimeout(() => {
+    showAlert.value = false
+  }, 5000)
+})
 
 </script>
 <template>
@@ -23,7 +28,8 @@ watch(() => alertStore.alertText, () => {showAlert.value = true})
     position: absolute;
     bottom: 0;
     left: 0;
-    z-index: 1000;
+    /* to show above the v-overlay whose z-index is 2400 */
+    z-index: 2401;
     padding: 10px;
     margin: 2rem;
   }

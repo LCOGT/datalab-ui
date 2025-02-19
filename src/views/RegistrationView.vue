@@ -2,16 +2,17 @@
 import { ref, onBeforeMount } from 'vue'
 import { useConfigurationStore } from '@/stores/configuration'
 import { useUserDataStore } from '@/stores/userData'
+import { useAlertsStore } from '@/stores/alerts'
 import { useRouter } from 'vue-router'
 import { fetchApiCall } from '@/utils/api'
 import lambdaLogo from '../assets/PTR-lambda.png'
 
 const configurationStore = useConfigurationStore()
+const alertStore = useAlertsStore()
 const userDataStore = useUserDataStore()
 const router = useRouter()
 const username = ref('')
 const password = ref('')
-const errorMessage = ref('')
 const showPassword = ref(false)
 
 onBeforeMount(() => {
@@ -28,13 +29,13 @@ const storeToken = async (data) => {
   const authToken = data.token
   if (authToken) {
     userDataStore.authToken = authToken
-    await fetchApiCall({ url: configurationStore.observationPortalUrl + 'profile/', method: 'GET', successCallback: storeUser, failCallback: handleError })
+    await fetchApiCall({ url: configurationStore.observationPortalUrl + 'profile/', method: 'GET', successCallback: storeUser, failCallback: handleAuthError })
   }
 }
 
-const handleError = (error) => {
+const handleAuthError = (error) => {
   console.error('API call failed with error:', error)
-  errorMessage.value = 'Failed to authenticate user'
+  alertStore.setAlert('error', 'Credentials not recognized')
 }
 
 const storeUser = (user) => {
@@ -50,7 +51,7 @@ const Login = async () => {
     password: password.value
   }
   // store an auth token from login credentials
-  await fetchApiCall({ url: configurationStore.observationPortalUrl + 'api-token-auth/', method: 'POST', body: requestBody, successCallback: storeToken, failCallback: handleError })
+  await fetchApiCall({ url: configurationStore.observationPortalUrl + 'api-token-auth/', method: 'POST', body: requestBody, successCallback: storeToken, failCallback: handleAuthError })
 }
 
 </script>
@@ -96,12 +97,6 @@ const Login = async () => {
         >
           Login
         </v-btn>
-        <div
-          v-if="errorMessage"
-          class="error-message"
-        >
-          {{ errorMessage }}
-        </div>
       </v-form>
     </v-card>
   </v-container>
@@ -129,10 +124,5 @@ const Login = async () => {
 .login-title {
   display: flex;
   align-items: center;
-}
-
-.error-message {
-  color: red;
-  margin-top: 10px;
 }
 </style>
