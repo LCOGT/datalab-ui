@@ -60,15 +60,15 @@ h1 {
   h2 {
     font-size:2.75em;
 }
-  h3 {
-    font-size:2.25em;
-  }
-  h4{
-    font-size:1.75em;
-  }
-  h5{
-    font-size: 1.125em;
-  }
+h3 {
+  font-size:2.25em;
+}
+h4{
+  font-size:1.75em;
+}
+h5{
+  font-size: 1.125em;
+}
 
 p {
     font-size: 1.2rem;
@@ -87,7 +87,19 @@ nav {
     background-color: $grey-level4;
 
     .navbar{
-        min-height:2rem;
+        min-height:2.75rem;
+    }
+    button.datalab-site-menu{
+      color: $grey-level3;
+      font-size: 2em;
+      padding: 0 10px;
+      background-color: $green;
+      text-transform: uppercase;
+      font-family: $font-headers;
+
+      span {
+        padding:0;
+      }
     }
 }
 

@@ -26,7 +26,11 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 
 <template>
-  <nav class="navbar" role="navigation" aria-label="main navigation">
+  <nav
+    class="navbar"
+    role="navigation"
+    aria-label="main navigation"
+  >
     <div class="navbar-brand">
       <router-link class="navbar-item" to="/">
         <img :src="ptrlogo" alt="Photon Ranch logo"/>
@@ -40,40 +44,32 @@ document.addEventListener('DOMContentLoaded', () => {
     </div>
     <div class="navbar-menu">
       <div class="navbar-start">
-        <!-- navbar items -->
+        <div class="dropdown is-hoverable">
+          <div class="dropdown-trigger">
+            <button class="button datalab-site-menu is-normal" aria-haspopup="true" aria-controls="ptr-site-menu">
+              <span>DataLab</span>
+              <span class="icon is-small">
+                <v-icon icon="mdi-menu-down"></v-icon>
+              </span>
+            </button>
+          </div>
+          <div id="ptr-site-menu" class="dropdown-menu"  role="menu">
+            <div class="dropdown-content">
+              <a href="#" class="dropdown-item"> Learn </a>
+              <a href="#" class="dropdown-item"> Observe </a>
+            </div>
+          </div>
+        </div>
       </div>
       <div class="navbar-end">
-        <router-link class="navbar-item" to="/about">About</router-link>
-        <router-link class="navbar-item" to="/learn">Learn</router-link>
-        <router-link class="navbar-item" to="/observe">Observe</router-link>
-        <router-link class="navbar-item" to="/datalab">DataLab</router-link>
+          <router-link to="/projects" class="navbar-item">Projects</router-link>
+          <router-link to="/datasessions" class="navbar-item">Data Sessions</router-link>
         <div class="buttons">
           <user-menu />
         </div>
       </div>
     </div>
   </nav>
-  <section class="hero">
-      <div class="container">
-        <div class="columns is-vcentered">
-          <div class="column is-one-quarter">
-            <h1>DataLab  <FontAwesomeIcon icon="fa-solid fa-chevron-right" class="blue small" /></h1>
-          </div>
-          <div class="column">
-            <div class="tabs is-left">
-              <ul>
-                <li>
-                  <router-link to="/projects">Projects</router-link>
-                </li>
-                <li>
-                  <router-link to="/datasessions">Data Sessions</router-link>
-                </li>
-              </ul>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
 </template>
 
 

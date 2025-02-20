@@ -26,15 +26,10 @@ function logOut() {
         />
       </template>
       <v-card
-        color="var(--metal)"
         class="nav-text"
       >
         <v-list-item>
-          Account
-        </v-list-item>
-        <v-list-item>
           <v-btn
-            append-icon="mdi-arrow-right"
             variant="text"
             text="Logout"
             @click="logOut"
