@@ -44,10 +44,10 @@ onMounted(async () => {
 
 <style>
 body {
-  background-color: var(--dark-blue);
+  background-color: var(--grey-level2);
 }
 
 #app {
-  font-family: 'Open Sans', sans-serif;
+  font-family: 'Quattrocento Sans', sans-serif;
 }
 </style>
