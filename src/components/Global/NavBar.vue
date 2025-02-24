@@ -35,8 +35,8 @@ import ptrlogo from '../../assets/ptr_logo.png'
           </div>
           <div id="ptr-site-menu" class="dropdown-menu"  role="menu">
             <div class="dropdown-content">
-              <a href="#" class="dropdown-item"> Learn </a>
-              <a href="#" class="dropdown-item"> Observe </a>
+              <a href="#" class="dropdown-item learn-site-item">Learn</a>
+              <a href="#" class="dropdown-item observe-site-item">Observe</a>
             </div>
           </div>
         </div>
@@ -72,6 +72,20 @@ import ptrlogo from '../../assets/ptr_logo.png'
       span {
         padding:0;
       }
+    }
+    .learn-site-item {
+      color: var(--off-white);
+      font-size: 1.25em;
+      background-color: var(--blue);
+      text-transform: uppercase;
+      font-family: var(--font-headers);
+    }
+    .observe-site-item {
+      color: var(--off-white);
+      font-size: 1.25em;
+      background-color: var(--red);
+      text-transform: uppercase;
+      font-family: var(--font-headers);
     }
 }
 </style>
