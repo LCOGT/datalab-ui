@@ -25,6 +25,11 @@ export const useAnalysisStore = defineStore('analysis', {
     },
     // Load image dimensions
     loadImageDimensions() {
+      // Check if image dimensions are already loaded
+      if (this.imageWidth && this.imageHeight) {
+        return
+      }
+      
       if (!this.imageUrl) {
         console.error('No image URL provided')
         return
@@ -42,6 +47,11 @@ export const useAnalysisStore = defineStore('analysis', {
       })
     },
     async loadRawData() {
+      // Check if data is already loaded
+      if (this.rawData && this.zmin && this.zmax) {
+        return {rawData: this.rawData, zmin: this.zmin, zmax: this.zmax}
+      }
+
       const configStore = useConfigurationStore()
       const datalabApiBaseUrl = configStore.datalabApiBaseUrl
       const url = datalabApiBaseUrl + 'analysis/raw-data/'
@@ -62,6 +72,7 @@ export const useAnalysisStore = defineStore('analysis', {
           this.rawData = response
           this.zmin = response.zmin
           this.zmax = response.zmax
+          return({rawData: this.rawData, zmin: this.zmin, zmax: this.zmax})
         },
         failCallback: (error) => {
           console.error('Could not load raw_data', error)

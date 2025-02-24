@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, defineEmits, defineProps } from 'vue'
 import { useConfigurationStore } from '@/stores/configuration'
+import { useAnalysisStore } from '@/stores/analysis'
 import { fetchApiCall } from '@/utils/api'
 import { filterToColor } from '@/utils/common'
 import RawScaledImage from './RawScaledImage.vue'
@@ -34,11 +35,12 @@ const props = defineProps({
 
 const emit = defineEmits(['updateScaling'])
 const store = useConfigurationStore()
+const analysisStore = useAnalysisStore()
 const dataSessionsUrl = store.datalabApiBaseUrl
 const errorReason = ref('')
-const rawData = ref({})
+const rawData = ref(analysisStore.rawData || {})
 const sliderRange = ref([0, 65535])
-const zScaleValues = ref([0, 65535])
+const zScaleValues = ref([analysisStore.zmin, analysisStore.zmax])
 
 const filterName = computed(() => {
   return props.imageName.replace('_input', ' ')
@@ -77,7 +79,7 @@ function updateScaleRange(lowerValue, upperValue) {
   emit('updateScaling', props.imageName, sliderRange.value[0], sliderRange.value[1])
 }
 
-onMounted(async () => {
+function fetchRawData(){
   const url = dataSessionsUrl + 'analysis/raw-data/'
   const body = {
     'basename': props.image.basename,
@@ -94,6 +96,13 @@ onMounted(async () => {
       console.error('API call failed with error:', error)
     }
   })
+}
+
+onMounted(async () => {
+  const readyToDrawHistogram = rawData.value && zScaleValues.value[0] && zScaleValues.value[1]
+  if(!readyToDrawHistogram){
+    await fetchRawData()
+  }
 })
 
 </script>
