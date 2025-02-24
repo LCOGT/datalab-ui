@@ -67,15 +67,6 @@ function sliderToBinValue(sliderValue) {
   }
 }
 
-function labelSliderToScaleValue(sliderValue) {
-  // This returns the current scaleRange value given a sliderValue. It doesn't convert and show the sliderValue
-  // so that we can correctly show what the scaleRange is if it is modified in the number fields.
-  if (sliderValue == sliderRange.value[0]) {
-    return scaleRange.value[0]
-  }
-  return scaleRange.value[1]
-}
-
 function scaleToSliderValue(scaleValue) {
   // This converts from scaleRange to the nearest sliderRange value, which allows us to map from scale space to
   // slider space when the user makes a change to the scaleRange directly with the number fields
@@ -145,41 +136,43 @@ watch(
 
 </script>
 <template>
-  <v-row class="histogram-range-controls">
-    <v-col cols="4">
+  <v-row class="histogram-range-controls mb-1">
+    <v-col>
       <v-text-field
         v-model="scaleRange[0]"
         :min="0"
-        label="lower point"
+        label="z-min"
         density="compact"
         type="number"
         variant="outlined"
-        step="10"
+        bg-color="var(--dark-blue)"
+        hide-spin-buttons
         hide-details
         @update:model-value="updateLowerScale"
       />
     </v-col>
-    <v-col cols="4">
+    <v-col>
       <v-text-field
         v-model="scaleRange[1]"
         :max="props.maxValue"
-        label="upper point"
+        label="z-max"
         density="compact"
         type="number"
         variant="outlined"
-        step="10"
+        bg-color="var(--dark-blue)"
+        hide-spin-buttons
         hide-details
         @update:model-value="updateUpperScale"
       />
     </v-col>
-    <v-col cols="4">
+    <v-col>
       <v-btn
-        class="ml-2"
         color="var(--light-blue)"
+        prepend-icon="mdi-refresh"
+        text="Z-Scale"
+        rounded="lg"
         @click="zScaleImage"
-      >
-        Z-Scale
-      </v-btn>
+      />
     </v-col>
   </v-row>
   <div class="histogram-range-slider">
@@ -192,6 +185,7 @@ watch(
       gradient-direction="left"
       :model-value="props.histogram"
       auto-draw
+      padding="1"
     />
     <v-range-slider
       v-model="sliderRange"
@@ -205,11 +199,7 @@ watch(
       strict
       hide-details
       @update:model-value="updateScaleRange"
-    >
-      <template #thumb-label="{ modelValue }">
-        {{ labelSliderToScaleValue(modelValue) }}
-      </template>
-    </v-range-slider>
+    />
   </div>
 </template>
 <style scoped>
@@ -221,6 +211,6 @@ watch(
 
 .v-range-slider {
   position: relative;
-  bottom: 30px;
+  bottom: 17px;
 }
 </style>
