@@ -1,0 +1,87 @@
+@import url('https://fonts.googleapis.com/css2?family=Quattrocento+Sans:ital,wght@0,400;0,700;1,400;1,700&family=Unica+One&display=swap');
+
+:root {
+	--dark-blue: rgb(28, 34, 40);
+	--dark-green: #8bac2f;
+	--tangerine: #f38321;
+	--metal: rgb(21, 25, 29);
+	--light-gray: white;
+	--light-blue: rgb(20, 182, 246);
+	--cancel: rgb(255, 0, 0);
+	--blue: #00ADEF;
+	--red: #EF4123;
+	--green: #A6CE39;
+	--purple: #9980fa;
+	--yellow: #ffcb05;
+	--off-white: #fcfcfc;
+	--grey-level1: #3b4249;
+	--grey-level2: #262e35;
+	--grey-level3: #192026;
+	--grey-level4: #13181D;
+	--metal: var(--grey-level3);
+	--bulma-tabs-link-active-border-bottom-color : var(--blue);
+	--bulma-tabs-link-active-color: var(--blue);
+	--tan: var(--white);
+	--cancel: var(--red);
+	--light-blue: var(--blue);
+	--warning: var(--yellow);
+	--success: var(--green);
+	--info: var(--purple);
+	--font-stack: "Quattrocento Sans", sans-serif;
+	--font-headers: 'Unica One', sans-serif;
+	--bulma-navbar-height: 64px;
+}
+
+#app {
+    flex: 1;
+    }
+
+html {
+  background-color: var(--grey-level3);
+}
+
+body {
+  font: 100% var(--font-stack);
+  color: var(--off-white);
+  background-color: var(--grey-level3);
+  display: flex;
+  min-height: 100vh;
+  flex-direction: column;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-headers);
+  text-transform: uppercase;
+  color: var(--off-white);
+}
+
+footer.footer {
+    background-color: var(-grey-level4);
+}
+
+h1 {
+    font-size:3.5em;
+  }
+  h2 {
+    font-size:2.75em;
+}
+  h3 {
+    font-size:2.25em;
+  }
+  h4{
+    font-size:1.75em;
+  }
+  h5{
+    font-size: 1.125em;
+  }
+
+p {
+    font-size: 1.2rem;
+    color: var(-off-white);
+}
+
+.datalab-site-menu {
+	font-family: var(--font-headers);
+	text-transform: uppercase;
+	background-color: var(--green);
+}

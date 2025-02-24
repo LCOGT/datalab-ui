@@ -155,7 +155,7 @@ onMounted(() => {
 </template>
 <style scoped>
 .create-session-dialog {
-  font-family: 'Open Sans', sans-serif;
+  font-family: var(--font-stack);
 }
 
 .card{

@@ -126,7 +126,6 @@ function launchAnalysis(image){
 
 <style scoped>
 .data_table {
-  font-family: 'Open Sans', sans-serif;
   font-size: 1rem;
   color: var(--tan);
   background-color: var(--metal);

@@ -322,10 +322,12 @@ onMounted(() => {
   width: 14rem;
   height: 3rem;
   background-color: var(--light-blue);
+  color: var(--off-white);
 }
 .deselect_button {
   width: 10rem;
   height: 3rem;
   background-color: var(--cancel);
+  color: var(--off-white);
 }
 </style>

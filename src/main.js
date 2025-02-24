@@ -7,7 +7,8 @@ import { loadFonts } from './plugins/webfontloader'
 import router from './router'
 
 import 'leaflet/dist/leaflet.css'
-import './assets/css/custom-colors.css'
+import './assets/css/ptr-extra.css'
+import 'bulma/css/bulma.css'
 import '@vue-flow/core/dist/style.css'
 
 loadFonts()
