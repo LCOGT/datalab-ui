@@ -26,5 +26,6 @@ const props = defineProps({
   user-select: none;
   font-size: smaller;
   font-weight: bolder;
+  color: var(--off-white);
 }
 </style>
