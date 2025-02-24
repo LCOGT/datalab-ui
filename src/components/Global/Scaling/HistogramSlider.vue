@@ -131,7 +131,7 @@ function zScaleImage() {
 watch(
   () => props.zMax, () => {
     zScaleImage()
-  }
+  }, { immediate: true }
 )
 
 </script>
