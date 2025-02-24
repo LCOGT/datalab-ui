@@ -338,7 +338,8 @@ function selectImage(inputKey, basename) {
 
 .wizard-title {
   color: var(--tan);
-  font-family: 'Open Sans', sans-serif;
+  font-family: var(--font-headers);
+  text-transform: uppercase;
   font-weight: 600;
   font-size: 1.7rem;
   letter-spacing: 0.05rem;
@@ -364,7 +365,7 @@ function selectImage(inputKey, basename) {
   color: var(--tan);
   background-color: var(--metal);
   text-transform: uppercase;
-  font-family: 'Open Sans', sans-serif;
+  font-family: var(--font-stack);
   font-size: 3rem;
 }
 
@@ -378,7 +379,7 @@ function selectImage(inputKey, basename) {
 }
 
 .input-images {
-  font-family: 'Open Sans', sans-serif;
+  font-family: var(--font-stack);
   color: var(--tan);
   font-size: 1.5rem;
   text-transform: uppercase;
@@ -395,12 +396,12 @@ function selectImage(inputKey, basename) {
 }
 
 .goback-btn {
-  color: var(--cancel);
+  background-color: var(--cancel);
   font-size: 1.2rem;
 }
 
 .gofwd-btn {
-  color: var(--light-blue);
+  background-color: var(--light-blue);
   font-size: 1.2rem;
 }
 </style>
