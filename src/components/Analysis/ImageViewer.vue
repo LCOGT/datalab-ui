@@ -22,6 +22,7 @@ const emit = defineEmits(['analysisAction'])
 
 let imageMap = null
 let imageBounds = null
+let imageOverlay = null
 let lineLayer = null
 let catalogLayerGroup = null
 const imageWidth = ref(0)
@@ -30,7 +31,6 @@ const leafletDiv = ref(null)
 const alerts = useAlertsStore()
 
 onMounted(() => {
-  loadImageOverlay()
   leafletSetup()
 })
 
@@ -38,19 +38,12 @@ watch(() => props.catalog, () => {
   createCatalogLayer()
 })
 
+watch(() => props.imageSrc, () => {
+  loadImageOverlay()
+})
+
 // loads image overlay and set bounds
 function loadImageOverlay() {
-  // Create leaflet map (here referred to as image)
-  imageMap = L.map(leafletDiv.value, {
-    maxZoom: 5,
-    minZoom: -3,
-    zoomSnap: 0,
-    zoomDelta: 0.5,
-    crs: L.CRS.Simple,
-    attributionControl: false,
-    maxBoundsViscosity: 1.0,
-  })
-
   const img = new Image()
   img.src = props.imageSrc
   
@@ -58,14 +51,21 @@ function loadImageOverlay() {
     imageWidth.value = img.width
     imageHeight.value = img.height
 
-    // source catalog requires image dimensions to be fetched
-    fetchCatalog()
+    // To avoid fetching catalog multiple times when image scaled
+    if(!props.catalog.length) {
+      fetchCatalog()
+    }
 
     // Getting image bounds based on img's size
     imageBounds = [[0, 0], [imageHeight.value, imageWidth.value]]
 
+    // Remove old overlay if it exists
+    if (imageOverlay && imageMap.hasLayer(imageOverlay)) {
+      imageMap.removeLayer(imageOverlay)
+    }
+    
     // Add new overlay with correct bounds
-    L.imageOverlay(img, imageBounds).addTo(imageMap)
+    imageOverlay = L.imageOverlay(img, imageBounds).addTo(imageMap)
 
     /**
      * This code ensures the image fills the map space and sets a minZoom level.
@@ -84,6 +84,17 @@ function loadImageOverlay() {
 }
 
 function leafletSetup(){
+  // Create leaflet map (here referred to as image)
+  imageMap = L.map(leafletDiv.value, {
+    maxZoom: 5,
+    minZoom: -3,
+    zoomSnap: 0,
+    zoomDelta: 0.5,
+    crs: L.CRS.Simple,
+    attributionControl: false,
+    maxBoundsViscosity: 1.0,
+  })
+
   // Create custom control to reset view after zooming in
   imageMap.pm.Toolbar.createCustomControl({
     name: 'resetView',

@@ -1,30 +1,31 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { fetchApiCall } from '../utils/api'
+import { siteIDToName } from '@/utils/common'
 import { useConfigurationStore } from '@/stores/configuration'
 import { useAlertsStore } from '@/stores/alerts'
+import { useAnalysisStore } from '@/stores/analysis'
 import FilterBadge from '@/components/Global/FilterBadge.vue'
 import NonLinearSlider from '@/components/Global/NonLinearSlider.vue'
+import ImageScaler from '@/components/Global/Scaling/ImageScaler.vue'
 import ImageDownloadMenu from '@/components/Analysis/ImageDownloadMenu.vue'
 import FitsHeaderTable from '@/components/Analysis/FitsHeaderTable.vue'
 import ImageViewer from '@/components/Analysis/ImageViewer.vue'
 import LinePlot from '@/components/Analysis/LinePlot.vue'
-import { siteIDToName } from '@/utils/common'
 
 const props = defineProps({
-  modelValue: {
-    type: Boolean,
-    required: true,
-  },
   image: {
     type: Object,
     required: true,
     default: null,
   }
 })
-const emit = defineEmits(['update:modelValue'])
+
+const emit = defineEmits(['closeAnalysisDialog'])
+
 const configStore = useConfigurationStore()
 const alertsStore = useAlertsStore()
+const analysisStore = useAnalysisStore()
 
 const lineProfile = ref([])
 const lineProfileLength = ref()
@@ -32,10 +33,11 @@ const startCoords = ref()
 const endCoords = ref()
 const catalogToggle = ref(true)
 const catalog = ref([])
+const fluxSliderRange = ref([0, 10000])
 const positionAngle = ref()
 const headerDialog = ref(false)
 const headerData = ref({})
-const fluxSliderRange = ref([0, 10000])
+const imgWorker = new Worker('drawImageWorker.js')
 
 const filteredCatalog = computed(() => {
   if(catalogToggle.value){
@@ -46,16 +48,16 @@ const filteredCatalog = computed(() => {
   }
 })
 
-function closeDialog() {
-  lineProfile.value = []
-  catalog.value = []
-  lineProfileLength.value = 0
-  startCoords.value = null
-  endCoords.value = null
-  headerData.value = null
-  positionAngle.value = null
-  emit('update:modelValue', false)
-}
+onMounted(() => {
+  analysisStore.image = props.image
+  analysisStore.imageUrl = props.image.largeCachedUrl
+  instantiateScalerWorker()
+})
+
+onUnmounted(() => {
+  imgWorker.terminate()
+  analysisStore.$reset()
+})
 
 // This function runs when imageViewer emits an analysis-action event and should be extended to handle other analysis types
 function requestAnalysis(action, input, action_callback=null){
@@ -110,105 +112,145 @@ function showHeaderDialog() {
   }
 }
 
+// instantiate the scaler worker when new rawData is available
+async function instantiateScalerWorker(){
+  // Load the image scale data if it is not already loaded
+  if(!analysisStore.imageScaleReady){
+    try {
+      await analysisStore.loadScaleData()
+    } 
+    catch (error) {
+      console.error('Failed to load scale data:', error)
+      return
+    }
+  }
+
+  // Create a new offscreen canvas and shared array buffer for the worker
+  const imgScalingCanvas = document.createElement('canvas')
+  imgScalingCanvas.width = analysisStore.imageWidth
+  imgScalingCanvas.height = analysisStore.imageHeight
+  const offscreen = imgScalingCanvas.transferControlToOffscreen()
+  const sharedArrayBuffer = new SharedArrayBuffer(Uint8ClampedArray.BYTES_PER_ELEMENT * analysisStore.imageWidth * analysisStore.imageHeight)
+
+  // Send the offscreen canvas and raw image data to the worker
+  imgWorker.postMessage({canvas: offscreen, width: analysisStore.imageWidth, height: analysisStore.imageHeight, sharedArrayBuffer: sharedArrayBuffer}, [offscreen])
+  imgWorker.postMessage({imageData: structuredClone(analysisStore.rawData)})
+
+  // Callback function for when worker completes, updates leaflet image
+  imgWorker.onmessage = () => {
+    analysisStore.imageUrl = imgScalingCanvas.toDataURL()
+  }
+}
+
+function updateScaling(imageName, min, max){
+  imgWorker.postMessage({scalePoints: [min, max]})
+}
+
 </script>
 <template>
-  <v-dialog
-    :model-value="modelValue"
-    persistent
-    fullscreen
-  >
-    <v-sheet class="analysis-page">
-      <v-toolbar
-        class="analysis-toolbar"
-        density="comfortable"
-      >
-        <filter-badge
-          v-if="image.FILTER || image.filter"
-          :filter="image.FILTER || image.filter"
-          class="ml-2"
-        />
-        <v-toolbar-title>{{ image.basename || "Unknown" }}</v-toolbar-title>
-        <image-download-menu
-          :image-name="image.basename"
-          :fits-url="image.url || image.fits_url"
-          :jpg-url="image.largeCachedUrl"
-          @analysis-action="requestAnalysis"
-        />
-        <v-btn
-          v-if="image.id"
-          icon="mdi-information"
-          @click="showHeaderDialog"
-        />
-        <v-btn
-          icon="mdi-close"
-          color="var(--cancel)"
-          @click="closeDialog()"
-        />
-      </v-toolbar>
-      <div class="analysis-content">
-        <image-viewer
-          :image-src="image.largeCachedUrl"
-          :catalog="filteredCatalog"
-          @analysis-action="requestAnalysis"
-        />
-        <div class="side-panel-container">
-          <v-sheet
-            v-if="image.site_id || image.telescope_id || image.instrument_id || image.observation_date"
-            class="side-panel-item pa-4"
-            rounded
-          >
-            <p v-if="image.site_id">
-              <v-icon icon="mdi-earth" /> {{ siteIDToName(image.site_id) }}
-            </p>
-            <p v-if="image.telescope_id">
-              <v-icon icon="mdi-telescope" /> {{ image.telescope_id }}
-            </p>
-            <p v-if="image.instrument_id">
-              <v-icon icon="mdi-camera" /> {{ image.instrument_id }}
-            </p>
-            <p v-if="image.observation_date">
-              <v-icon icon="mdi-clock" /> {{ new Date(image.observation_date).toLocaleString() }}
-            </p>
-          </v-sheet>
-          <v-sheet
-            v-if="catalog.length"
-            rounded
-            class="side-panel-item image-controls-sheet"
-          >
-            <b>{{ filteredCatalog.length }} Sources with Flux between {{ fluxSliderRange[0] }} and {{ fluxSliderRange[1] }}</b>
-            <div class="d-flex justify-end">
-              <v-btn
-                class="mr-2"
-                variant="text"
-                title="Toggle Catalog"
-                density="comfortable"
-                icon="mdi-flare"
-                :color="catalogToggle ? 'var(--light-blue)' : 'var(--tan)'"
-                @click="() => catalogToggle = !catalogToggle"
-              />
-              <non-linear-slider
-                v-model="fluxSliderRange"
-                :max="Math.max(...catalog.map((source) => source.flux))"
-                :min="Math.min(...catalog.map((source) => source.flux))"
-              />
-            </div>
-          </v-sheet>
-          <v-sheet
-            class="side-panel-item line-plot-sheet"
-            rounded
-          >
-            <line-plot
-              :y-axis-data="lineProfile"
-              :x-axis-length="lineProfileLength"
-              :start-coords="startCoords"
-              :end-coords="endCoords"
-              :position-angle="positionAngle"
+  <v-sheet class="analysis-page">
+    <v-toolbar
+      class="analysis-toolbar"
+      density="comfortable"
+    >
+      <filter-badge
+        v-if="image.FILTER || image.filter"
+        :filter="image.FILTER || image.filter"
+        class="ml-2"
+      />
+      <v-toolbar-title>{{ image.basename || "Unknown" }}</v-toolbar-title>
+      <image-download-menu
+        :image-name="image.basename"
+        :fits-url="image.url || image.fits_url"
+        :jpg-url="analysisStore.imageUrl"
+        @analysis-action="requestAnalysis"
+      />
+      <v-btn
+        v-if="image.id"
+        icon="mdi-information"
+        @click="showHeaderDialog"
+      />
+      <v-btn
+        icon="mdi-close"
+        color="var(--cancel)"
+        @click="emit('closeAnalysisDialog')"
+      />
+    </v-toolbar>
+    <div class="analysis-content">
+      <image-viewer
+        :image-src="analysisStore.imageUrl"
+        :catalog="filteredCatalog"
+        @analysis-action="requestAnalysis"
+      />
+      <div class="side-panel-container">
+        <v-sheet
+          v-if="image.site_id || image.telescope_id || image.instrument_id || image.observation_date"
+          class="side-panel-item pa-4"
+          rounded
+        >
+          <p v-if="image.site_id">
+            <v-icon icon="mdi-earth" /> {{ siteIDToName(image.site_id) }}
+          </p>
+          <p v-if="image.telescope_id">
+            <v-icon icon="mdi-telescope" /> {{ image.telescope_id }}
+          </p>
+          <p v-if="image.instrument_id">
+            <v-icon icon="mdi-camera" /> {{ image.instrument_id }}
+          </p>
+          <p v-if="image.observation_date">
+            <v-icon icon="mdi-clock" /> {{ new Date(image.observation_date).toLocaleString() }}
+          </p>
+        </v-sheet>
+        <v-sheet
+          v-if="catalog.length"
+          rounded
+          class="side-panel-item image-controls-sheet"
+        >
+          <b>{{ filteredCatalog.length }} Sources with Flux between {{ fluxSliderRange[0] }} and {{ fluxSliderRange[1] }}</b>
+          <div class="d-flex justify-end">
+            <v-btn
+              class="mr-2"
+              variant="text"
+              title="Toggle Catalog"
+              density="comfortable"
+              icon="mdi-flare"
+              :color="catalogToggle ? 'var(--light-blue)' : 'var(--tan)'"
+              @click="() => catalogToggle = !catalogToggle"
             />
-          </v-sheet>
-        </div>
+            <non-linear-slider
+              v-model="fluxSliderRange"
+              :max="Math.max(...catalog.map((source) => source.flux))"
+              :min="Math.min(...catalog.map((source) => source.flux))"
+            />
+          </div>
+        </v-sheet>
+        <v-sheet
+          v-if="analysisStore.imageScaleReady"
+          class="side-panel-item"
+          rounded
+        >
+          <image-scaler
+            :image="analysisStore.image"
+            :show-sample="false"
+            :max-size="analysisStore.imageWidth"
+            @update-scaling="updateScaling"
+          />
+        </v-sheet>
+        <v-sheet
+          class="side-panel-item line-plot-sheet"
+          rounded
+        >
+          <line-plot
+            :y-axis-data="lineProfile"
+            :x-axis-length="lineProfileLength"
+            :start-coords="startCoords"
+            :end-coords="endCoords"
+            :position-angle="positionAngle"
+          />
+        </v-sheet>
       </div>
-    </v-sheet>
-  </v-dialog>
+    </div>
+  </v-sheet>
   <v-dialog
     v-model="headerDialog"
     width="600px"

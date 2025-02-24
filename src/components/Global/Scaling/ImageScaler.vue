@@ -24,9 +24,9 @@ const props = defineProps({
   },
   compositeName: {
     type: String,
-    required: true
+    default: ''
   },
-  scaledImage: {
+  showSample: {
     type: Boolean,
     default: true
   }
@@ -35,7 +35,6 @@ const props = defineProps({
 const emit = defineEmits(['updateScaling'])
 const store = useConfigurationStore()
 const dataSessionsUrl = store.datalabApiBaseUrl
-const isLoading = ref(true)
 const errorReason = ref('')
 const rawData = ref({})
 const sliderRange = ref([0, 65535])
@@ -89,10 +88,8 @@ onMounted(async () => {
     successCallback: (response) => {
       rawData.value = response
       zScaleValues.value = [response.zmin, response.zmax]
-      isLoading.value = false
     },
     failCallback: (error) => {
-      isLoading.value = false
       errorReason.value = error
       console.error('API call failed with error:', error)
     }
@@ -103,7 +100,7 @@ onMounted(async () => {
 <template>
   <div class="image-scaler">
     <raw-scaled-image
-      v-if="scaledImage"
+      v-if="showSample"
       class="mr-4"
       :max-size="props.maxSize"
       :image-data="rawData"
