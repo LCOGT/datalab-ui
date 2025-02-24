@@ -20,11 +20,15 @@ const props = defineProps({
   },
   imageName: {
     type: String,
-    required: true
+    default: ''
   },
   compositeName: {
     type: String,
     required: true
+  },
+  scaledImage: {
+    type: Boolean,
+    default: true
   }
 })
 
@@ -97,11 +101,10 @@ onMounted(async () => {
 
 </script>
 <template>
-  <v-sheet
-    class="image-scaler"
-    rounded
-  >
+  <div class="image-scaler">
     <raw-scaled-image
+      v-if="scaledImage"
+      class="mr-4"
       :max-size="props.maxSize"
       :image-data="rawData"
       :scale-points="sliderRange"
@@ -109,9 +112,12 @@ onMounted(async () => {
       :image-name="props.imageName"
       :composite-name="props.compositeName"
     />
-    <v-col>
-      <h3 class="image-scale-title text-capitalize">
-        {{ filterName }} Input
+    <v-col class="pa-0">
+      <h3
+        v-if="filterName"
+        class="image-scale-title text-capitalize"
+      >
+        {{ filterName }} Channel
       </h3>
       <histogram-slider
         :selected-color="filterToColor(props.image.filter)"
@@ -123,17 +129,15 @@ onMounted(async () => {
         @update-scaling="updateScaleRange"
       />
     </v-col>
-  </v-sheet>
+  </div>
 </template>
 <style scoped>
 .image-scaler{
   display: flex;
-  padding: 1rem;
   background-color: var(--metal);
 }
 .image-scale-title {
   margin-bottom: 0.5rem;
-  text-align: center;
   color: var(--tan);
   font-weight: bold;
 }
