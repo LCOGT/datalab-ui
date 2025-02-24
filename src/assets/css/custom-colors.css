@@ -2,8 +2,8 @@
 
 :root {
 	--dark-blue: rgb(28, 34, 40);
-	--dark-green: rgb(245, 118, 0);
-	--tangerine: rgb(255,90,95);
+	--dark-green: #8bac2f;
+	--tangerine: #f38321;
 	--metal: rgb(21, 25, 29);
 	--light-gray: white;
 	--light-blue: rgb(20, 182, 246);
@@ -11,6 +11,8 @@
 	--blue: #00ADEF;
 	--red: #EF4123;
 	--green: #A6CE39;
+	--purple: #9980fa;
+	--yellow: #ffcb05
 	--off-white: #fcfcfc;
 	--grey-level1: #3b4249;
 	--grey-level2: #262e35;
@@ -22,8 +24,12 @@
 	--tan: var(--white);
 	--cancel: var(--red);
 	--light-blue: var(--blue);
+	--warning: var(--yellow);
+	--success: var(--green);
+	--info: var(--purple);
 	--font-stack: "Quattrocento Sans", sans-serif;
 	--font-headers: 'Unica One', sans-serif;
+	--bulma-navbar-height: 64px;
 }
 
 #app {

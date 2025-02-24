@@ -87,5 +87,9 @@ import ptrlogo from '../../assets/ptr_logo.png'
       text-transform: uppercase;
       font-family: var(--font-headers);
     }
+    .router-link-active {
+    background-color: var(--green);
+    color: var(--grey-level3);
+  }
 }
 </style>
