@@ -16,9 +16,12 @@ onmessage = function(job) {
   if (payload.canvas) {
     // Init worker with the canvas, width, height, imageData, and sharedArrayBuffer
     context = payload.canvas.getContext('2d')
-    sharedArrayBuffer = payload.sharedArrayBuffer
-    sharedArray = new Uint8ClampedArray(sharedArrayBuffer)
     imageDataObject = new ImageData(payload.width, payload.height)
+
+    if(payload.sharedArrayBuffer){
+      sharedArrayBuffer = payload.sharedArrayBuffer
+      sharedArray = new Uint8ClampedArray(sharedArrayBuffer) 
+    }
 
     // Create a gamma table
     let size = 256
@@ -61,7 +64,9 @@ function processScalePoints(scalePoints) {
   for (let i = 0; i < imageData.data.length; i++) {
     const clippedValue = Math.max(low16Bit, Math.min(high16Bit, imageData.data[i]))
     const normalizedValue = Math.floor((clippedValue - low16Bit) * scale)
-    sharedArray[i] = gammaTable[normalizedValue]
+    if(sharedArray){
+      sharedArray[i] = gammaTable[normalizedValue]
+    }
     imageDataObject.data[i * 4] = gammaTable[normalizedValue]
     imageDataObject.data[i * 4 + 1] = gammaTable[normalizedValue]
     imageDataObject.data[i * 4 + 2] = gammaTable[normalizedValue]

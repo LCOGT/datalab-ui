@@ -130,10 +130,9 @@ async function instantiateScalerWorker(){
   imgScalingCanvas.width = analysisStore.imageWidth
   imgScalingCanvas.height = analysisStore.imageHeight
   const offscreen = imgScalingCanvas.transferControlToOffscreen()
-  const sharedArrayBuffer = new SharedArrayBuffer(Uint8ClampedArray.BYTES_PER_ELEMENT * analysisStore.imageWidth * analysisStore.imageHeight)
 
   // Send the offscreen canvas and raw image data to the worker
-  imgWorker.postMessage({canvas: offscreen, width: analysisStore.imageWidth, height: analysisStore.imageHeight, sharedArrayBuffer: sharedArrayBuffer}, [offscreen])
+  imgWorker.postMessage({canvas: offscreen, width: analysisStore.imageWidth, height: analysisStore.imageHeight}, [offscreen])
   imgWorker.postMessage({imageData: structuredClone(analysisStore.rawData)})
 
   // Callback function for when worker completes, updates leaflet image
