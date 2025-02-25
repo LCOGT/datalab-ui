@@ -6,6 +6,7 @@ import '@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css'
 import 'leaflet/dist/leaflet.css'
 import { useAlertsStore } from '@/stores/alerts'
 import { useAnalysisStore } from '@/stores/analysis'
+import { loadImage } from '@/utils/common'
 
 const props = defineProps({
   catalog: {
@@ -18,6 +19,7 @@ const props = defineProps({
 const emit = defineEmits(['analysisAction'])
 
 let imageMap = null
+let imageName = null
 let imageBounds = null
 let imageOverlay = null
 let lineLayer = null
@@ -32,51 +34,53 @@ onMounted(() => leafletSetup())
 
 watch(() => props.catalog, () => createCatalogLayer())
 
-watch(() => analysisStore.imageUrl, () => {
-  loadImageOverlay(analysisStore.imageUrl)
-})
+watch(() => analysisStore.imageUrl, async (newImageUrl, oldImageUrl) => {
+  if (!newImageUrl || newImageUrl === oldImageUrl) return
 
-// loads image overlay and set bounds
-function loadImageOverlay(imgSrc) {
-  const img = new Image()
-  img.src = imgSrc
-  
-  img.onload = () => {
-    imageWidth.value = img.width
-    imageHeight.value = img.height
+  if (!imageName) {
+    await loadImageOverlay(newImageUrl)
+    imageName = analysisStore.image.basename
+  } 
+  else {
+    updateImageOverlay(newImageUrl)
+  }
+}
+)
 
-    // To avoid fetching catalog multiple times when image scaled
-    if(!props.catalog.length) {
-      fetchCatalog()
-    }
+// Loads image overlay and sets bounds
+async function loadImageOverlay(imgSrc) {
+  const img = await loadImage(imgSrc)
+  imageWidth.value = img.width
+  imageHeight.value = img.height
 
-    // Getting image bounds based on img's size
-    imageBounds = [[0, 0], [imageHeight.value, imageWidth.value]]
+  // Fetch catalog only if empty
+  if (!props.catalog.length) fetchCatalog()
 
-    updateImageOverlay(img)
+  imageBounds = [[0, 0], [imageHeight.value, imageWidth.value]]
 
-    /**
+  updateImageOverlay(imgSrc)
+
+  /**
      * This code ensures the image fills the map space and sets a minZoom level.
      * Next tick is used here otherwise the methods will not work due to bugs in leaflets code. 
      * 
      * MinZoom needs to be set to a high negative value in the settings to over-fit the whole image
      * then we fit the image and update the minZoom to the fitted zoom level.
      */
-    nextTick(() => {
-      imageMap.invalidateSize()
-      imageMap.fitBounds(imageBounds)
-      imageMap.setMaxBounds(imageBounds)
-      imageMap.setMinZoom(imageMap.getZoom())
-    })
-  }
+  nextTick(() => {
+    imageMap.invalidateSize()
+    imageMap.fitBounds(imageBounds)
+    imageMap.setMaxBounds(imageBounds)
+    imageMap.setMinZoom(imageMap.getZoom())
+  })
 }
 
 // Replaces the current overlay (if it exists) with a new image
-function updateImageOverlay(img){
+function updateImageOverlay(imgSrc){
   if (imageOverlay) {
-    imageOverlay.setUrl(img.src)
+    imageOverlay.setUrl(imgSrc)
   } else {
-    imageOverlay = L.imageOverlay(img.src, imageBounds).addTo(imageMap)
+    imageOverlay = L.imageOverlay(imgSrc, imageBounds).addTo(imageMap)
   }
 }
 
