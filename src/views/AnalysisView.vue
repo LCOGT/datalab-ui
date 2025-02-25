@@ -177,7 +177,6 @@ function updateScaling(imageName, min, max){
     </v-toolbar>
     <div class="analysis-content">
       <image-viewer
-        :image-src="analysisStore.imageUrl"
         :catalog="filteredCatalog"
         @analysis-action="requestAnalysis"
       />

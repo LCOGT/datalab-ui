@@ -5,12 +5,9 @@ import '@geoman-io/leaflet-geoman-free'
 import '@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css'
 import 'leaflet/dist/leaflet.css'
 import { useAlertsStore } from '@/stores/alerts'
+import { useAnalysisStore } from '@/stores/analysis'
 
 const props = defineProps({
-  imageSrc: {
-    type: String,
-    required: true,
-  },
   catalog: {
     type: Array,
     required: false,
@@ -29,23 +26,20 @@ const imageWidth = ref(0)
 const imageHeight = ref(0)
 const leafletDiv = ref(null)
 const alerts = useAlertsStore()
+const analysisStore = useAnalysisStore()
 
-onMounted(() => {
-  leafletSetup()
-})
+onMounted(() => leafletSetup())
 
-watch(() => props.catalog, () => {
-  createCatalogLayer()
-})
+watch(() => props.catalog, () => createCatalogLayer())
 
-watch(() => props.imageSrc, () => {
-  loadImageOverlay()
+watch(() => analysisStore.imageUrl, () => {
+  loadImageOverlay(analysisStore.imageUrl)
 })
 
 // loads image overlay and set bounds
-function loadImageOverlay() {
+function loadImageOverlay(imgSrc) {
   const img = new Image()
-  img.src = props.imageSrc
+  img.src = imgSrc
   
   img.onload = () => {
     imageWidth.value = img.width
@@ -59,13 +53,7 @@ function loadImageOverlay() {
     // Getting image bounds based on img's size
     imageBounds = [[0, 0], [imageHeight.value, imageWidth.value]]
 
-    // Remove old overlay if it exists
-    if (imageOverlay && imageMap.hasLayer(imageOverlay)) {
-      imageMap.removeLayer(imageOverlay)
-    }
-    
-    // Add new overlay with correct bounds
-    imageOverlay = L.imageOverlay(img, imageBounds).addTo(imageMap)
+    updateImageOverlay(img)
 
     /**
      * This code ensures the image fills the map space and sets a minZoom level.
@@ -80,6 +68,15 @@ function loadImageOverlay() {
       imageMap.setMaxBounds(imageBounds)
       imageMap.setMinZoom(imageMap.getZoom())
     })
+  }
+}
+
+// Replaces the current overlay (if it exists) with a new image
+function updateImageOverlay(img){
+  if (imageOverlay) {
+    imageOverlay.setUrl(img.src)
+  } else {
+    imageOverlay = L.imageOverlay(img.src, imageBounds).addTo(imageMap)
   }
 }
 
