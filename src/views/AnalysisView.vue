@@ -272,7 +272,7 @@ function updateScaling(imageName, min, max){
 .analysis-page{
   background-color: var(--dark-blue);
   color: var(--tan);
-  font-family: 'Open Sans', sans-serif;
+  font-family: var(--font-stack);
   max-height: 100vh;
   display: flex;
   flex-direction: column;

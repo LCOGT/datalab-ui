@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, defineEmits, defineProps } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useConfigurationStore } from '@/stores/configuration'
 import { useAnalysisStore } from '@/stores/analysis'
 import { fetchApiCall } from '@/utils/api'

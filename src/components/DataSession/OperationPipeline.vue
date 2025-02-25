@@ -1,14 +1,10 @@
 <script setup>
-import { ref, watch, onBeforeUnmount } from 'vue'
-import { useConfigurationStore } from '@/stores/configuration'
-import { useAlertsStore } from '@/stores/alerts'
-import { fetchApiCall, handleError } from '@/utils/api'
+import { ref } from 'vue'
 import LoadBarButton from '@/components/DataSession/LoadBarButton.vue'
 import DeleteOperationDialog from '@/components/Global/DeleteOperationDialog.vue'
+import _ from 'lodash'
 
-const store = useConfigurationStore()
-const alertStore = useAlertsStore()
-const emit = defineEmits(['operationCompleted', 'selectOperation', 'deleteOperation', 'operationWasDeleted', 'viewGraph'])
+const emit = defineEmits(['operationCompleted', 'selectOperation', 'operationWasDeleted', 'viewGraph'])
 
 const props = defineProps({
   operations: {
@@ -29,61 +25,28 @@ const props = defineProps({
   }
 })
 
-const operationPollingTimers = {}
-const operationPercentages = ref({})
-const deleteOperationId = ref(-1)
+const deleteOperations = ref([])
 const showDeleteDialog = ref(false)
-const POLL_WAIT_TIME = 2000
-const DEC_TO_PERCENT = 100
-const COMPLETE_PERCENT = 100
 
-function selectOperation(index) {
-  emit('selectOperation', index)
+function selectOperation(id) {
+  emit('selectOperation', id)
 }
 
-async function pollOperationCompletion(operationID) {
-  // Success Callback for checking operation status
-  const updateOperationStatus = (response) => {
-    if(response){
-      switch(response.status){
-      case 'PENDING':
-        break
-      case 'IN_PROGRESS':
-        operationPercentages.value[operationID] = response.operation_progress * DEC_TO_PERCENT
-        break
-      case 'COMPLETED':
-        operationPercentages.value[operationID] = COMPLETE_PERCENT
-        emit('operationCompleted', response)
-        clearPolling(operationID)
-        break
-      case 'FAILED':
-        alertStore.setAlert('error', response.message ? response.message : 'Failed', 'Operation Error:')
-        operationPercentages.value[operationID] = COMPLETE_PERCENT
-        emit('deleteOperation', operationID)
-        clearPolling(operationID)
-        break
-      default:
-        console.error('Unknown Operation Status:', response.status)
-      }
+function recursiveFindChildren(operationId, childOperationIds = new Set()) {
+  props.operations.forEach((operation) => {
+    if (operation.dependencies.has(operationId)) {
+      childOperationIds.add(operation.id)
+      recursiveFindChildren(operation.id, childOperationIds)
     }
-    else{
-      alertStore.setAlert('error', 'Operation status not found')
-    }
-  }
-
-  const url = store.datalabApiBaseUrl + 'datasessions/' + props.sessionId + '/operations/' + operationID + '/'
-  await fetchApiCall({ url: url, method: 'GET', successCallback: updateOperationStatus, failCallback: handleError })
-}
-
-function clearPolling(operationID) {
-  if (operationID in operationPollingTimers){
-    clearInterval(operationPollingTimers[operationID])
-    delete operationPollingTimers[operationID]
-  }
+  })
+  return
 }
 
 function openDeleteOperationDialog(operation) {
-  deleteOperationId.value = operation.id
+  let childrenIds = new Set()
+  recursiveFindChildren(operation.id, childrenIds)
+  childrenIds.add(operation.id)
+  deleteOperations.value = _.filter(props.operations, function(o) {return childrenIds.has(o.id)})
   showDeleteDialog.value = true
 }
 
@@ -93,47 +56,18 @@ function itemDeleted(){
   emit('operationWasDeleted')
 }
 
-watch(() => props.operations, () => {
-  if (props.active) {
-    props.operations.forEach(operation => {
-      if (!operationPollingTimers[operation.id]) {
-        // call once so buttons progress is updated immediately
-        pollOperationCompletion(operation.id)
-        if (operation.status == 'PENDING' || operation.status == 'IN_PROGRESS'){
-          operationPollingTimers[operation.id] = setInterval(() => pollOperationCompletion(operation.id), POLL_WAIT_TIME)
-        }
-      }
-    })
+function operationStateToClass(operation) {
+  if (operation.status === 'PENDING') {
+    return 'operate-button-pending'
   }
-})
+  else if (operation.status === 'IN_PROGRESS') {
+    return 'operate-button-in-progress'
+  }
+  else {
+    return ''
+  }
+}
 
-watch(
-  () => props.active, (active, previousActive) => {
-    if (active && !previousActive) {
-      props.operations.forEach(operation => {
-        if (!operationPollingTimers[operation.id]) {
-          // call once so buttons progress is updated immediately
-          pollOperationCompletion(operation.id)
-          if (operation.status == 'PENDING' || operation.status == 'IN_PROGRESS'){
-            operationPollingTimers[operation.id] = setInterval(() => pollOperationCompletion(operation.id), POLL_WAIT_TIME)
-          }
-        }
-      })
-    }
-    else {
-      Object.keys(operationPollingTimers).forEach(operationID => {
-        clearPolling(operationID)
-      })
-    }
-  }, { immediate: true }
-)
-
-onBeforeUnmount(() => {
-  // Clean up Polling Intervals
-  Object.keys(operationPollingTimers).forEach(operationID => {
-    clearPolling(operationID)
-  })
-})
 
 </script>
 <template>
@@ -149,24 +83,26 @@ onBeforeUnmount(() => {
     />
   </h3>
   <v-row
-    v-for="(operation, index) in operations"
+    v-for="operation in operations"
     :key="operation.id"
     justify="center"
     class="operation mb-2"
   >
     <load-bar-button
-      :class="{selected: index == props.selectedOperation}"
+      :class="{selected: operation.id == props.selectedOperation}"
       class="operation_button"
-      :progress="operationPercentages[operation.id] ?? 0"
-      @click="selectOperation(index)"
+      :progress="operation.operation_progress ?? 0"
+      :state="operation.state"
+      :error="operation.message ?? ''"
+      @click="selectOperation(operation.id)"
     >
-      <p>
-        {{ index }}: {{ operation.name }}
+      <p :class="operationStateToClass(operation)">
+        {{ operation.index }}: {{ operation.name }}
       </p>
     </load-bar-button>
     <v-slide-x-transition hide-on-leave>
       <v-btn
-        v-if="index == props.selectedOperation"
+        v-if="operation.id == props.selectedOperation"
         variant="plain"
         icon="mdi-close"
         color="var(--cancel)"
@@ -177,7 +113,7 @@ onBeforeUnmount(() => {
   <delete-operation-dialog
     v-model="showDeleteDialog"
     :session-id="sessionId"
-    :operation-id="deleteOperationId"
+    :operations="deleteOperations"
     @item-was-deleted="itemDeleted()"
   />
 </template>

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, defineProps } from 'vue'
+import { ref } from 'vue'
 import { useThumbnailsStore } from '@/stores/thumbnails'
 import { useAlertsStore } from '@/stores/alerts'
 import { useConfigurationStore } from '@/stores/configuration'
@@ -132,7 +132,6 @@ function launchAnalysis(image){
 
 <style scoped>
 .data_table {
-  font-family: 'Open Sans', sans-serif;
   font-size: 1rem;
   color: var(--tan);
   background-color: var(--metal);

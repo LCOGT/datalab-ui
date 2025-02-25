@@ -4,7 +4,6 @@ import ImagesNode from '@/components/DataSession/OperationGraph/ImagesNode.vue'
 import { VueFlow, useVueFlow, Panel } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import { nextTick, ref, watch } from 'vue'
-import _ from 'lodash'
 import { useLayout } from '@/components/DataSession/OperationGraph/useLayout.js'
 
 
@@ -67,50 +66,26 @@ function updateNodesAndEdges() {
   if (props.active) {
     nodes.value = []
     edges.value = []
-    let edgeIds = new Set()
-    // Build a map of output images to the operation id they are generated from
-    // This is basically deriving the graph relationships from the linear nodes
-    // It maps output image basenames to the operation index, which is then used
-    // to map future operations input images to the previous operation index as an edge
-    let outputImageToOperation = {}
-    props.operations.forEach((operation, index) => {
-      if (operation.output && operation.output.output_files){
-        operation.output.output_files.forEach(outputFile => {
-          outputImageToOperation[outputFile.basename] = index
-        })
-      }
-    })
 
-    // Use that map to create edges between operation nodes linking operations that use other
-    // operations outputs as inputs
-    props.operations.forEach((operation, index) => {
+    // Operations should have a dependencies property set which helps us build the edges of the graph
+    props.operations.forEach((operation) => {
       nodes.value.push({
-        id: index.toString(),
+        id: operation.id.toString(),
         type: 'operation',
         data: operation,
         position: {x: 0, y: 50}  // Initial position must be provided or layout freaks out
       })
     })
-    props.operations.forEach((operation, index) => {
-      Object.values(operation.input_data).forEach(inputParam => {
-        if (_.isArray(inputParam)) {
-          inputParam.forEach(inputValue => {
-            if (inputValue.basename && inputValue.basename in outputImageToOperation) {
-              let edgeId = 'e' + outputImageToOperation[inputValue.basename] + '->' + index
-              if (!edgeIds.has(edgeId)) {
-                edges.value.push({
-                  id: edgeId,
-                  source: outputImageToOperation[inputValue.basename].toString(),
-                  target: index.toString(),
-                  type: 'smoothstep',
-                  ...getEdgeProps(outputImageToOperation[inputValue.basename].toString(), index.toString())
-                })
-                // A Set of edgeIds is used to make sure we don't double create edges
-                edgeIds.add(edgeId)
-              }
-            }
-          })
-        }
+    props.operations.forEach((operation) => {
+      operation.dependencies.forEach((dependency) => {
+        let edgeId = 'e' + dependency + '->' + operation.id
+        edges.value.push({
+          id: edgeId,
+          source: dependency.toString(),
+          target: operation.id.toString(),
+          type: 'smoothstep',
+          ...getEdgeProps(dependency.toString(), operation.id.toString())
+        })
       })
     })
     // Must let VuewFlow have a cycle to setup initial positions of nodes before laying out

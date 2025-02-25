@@ -1,5 +1,5 @@
 <script setup>
-import { ref, defineProps, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useScalingStore } from '@/stores/scaling'
 
 // This component draws a composite RGB image from the scaling store
