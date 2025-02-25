@@ -60,17 +60,20 @@ function processScalePoints(scalePoints) {
   const low16Bit = parseInt(scalePoints[0])
   const high16Bit = parseInt(scalePoints[1])
   const scale = 255 / (high16Bit - low16Bit)
+  const len = imageData.data.length
 
-  for (let i = 0; i < imageData.data.length; i++) {
+  for (let i = 0; i < len; i++) {
     const clippedValue = Math.max(low16Bit, Math.min(high16Bit, imageData.data[i]))
     const normalizedValue = Math.floor((clippedValue - low16Bit) * scale)
-    if(sharedArray){
-      sharedArray[i] = gammaTable[normalizedValue]
-    }
-    imageDataObject.data[i * 4] = gammaTable[normalizedValue]
-    imageDataObject.data[i * 4 + 1] = gammaTable[normalizedValue]
-    imageDataObject.data[i * 4 + 2] = gammaTable[normalizedValue]
-    imageDataObject.data[i * 4 + 3] = 255
+    const gammaCorrected = gammaTable[normalizedValue]
+
+    if(sharedArray) sharedArray[i] = gammaCorrected
+
+    const j = i * 4
+    imageDataObject.data[j] = gammaCorrected
+    imageDataObject.data[j + 1] = gammaCorrected
+    imageDataObject.data[j + 2] = gammaCorrected
+    imageDataObject.data[j + 3] = 255
   }
   context.putImageData(imageDataObject, 0, 0)
   postMessage({'updateSharedArray': true})
