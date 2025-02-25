@@ -200,31 +200,34 @@ function updateScaling(imageName, min, max){
             <v-icon icon="mdi-clock" /> {{ new Date(image.observation_date).toLocaleString() }}
           </p>
         </v-sheet>
-        <v-sheet
-          v-if="catalog.length"
-          rounded
-          class="side-panel-item image-controls-sheet"
-        >
-          <b>{{ filteredCatalog.length }} Sources with Flux between {{ fluxSliderRange[0] }} and {{ fluxSliderRange[1] }}</b>
-          <div class="d-flex justify-end">
-            <v-btn
-              class="mr-2"
-              variant="text"
-              title="Toggle Catalog"
-              density="comfortable"
-              icon="mdi-flare"
-              :color="catalogToggle ? 'var(--light-blue)' : 'var(--tan)'"
-              @click="() => catalogToggle = !catalogToggle"
-            />
-            <non-linear-slider
-              v-model="fluxSliderRange"
-              :max="Math.max(...catalog.map((source) => source.flux))"
-              :min="Math.min(...catalog.map((source) => source.flux))"
-            />
-          </div>
-        </v-sheet>
+        <v-expand-transition>
+          <v-sheet
+            v-if="catalog.length"
+            rounded
+            class="side-panel-item image-controls-sheet"
+          >
+            <b>{{ filteredCatalog.length }} Sources with Flux between {{ fluxSliderRange[0] }} and {{ fluxSliderRange[1] }}</b>
+            <div class="d-flex justify-end">
+              <v-btn
+                class="mr-2"
+                variant="text"
+                title="Toggle Catalog"
+                density="comfortable"
+                icon="mdi-flare"
+                :color="catalogToggle ? 'var(--light-blue)' : 'var(--tan)'"
+                @click="() => catalogToggle = !catalogToggle"
+              />
+              <non-linear-slider
+                v-model="fluxSliderRange"
+                :max="Math.max(...catalog.map((source) => source.flux))"
+                :min="Math.min(...catalog.map((source) => source.flux))"
+              />
+            </div>
+          </v-sheet>
+        </v-expand-transition>
         <v-sheet
           v-if="analysisStore.imageScaleReady"
+          transition="fade-transition"
           class="side-panel-item"
           rounded
         >
@@ -235,6 +238,12 @@ function updateScaling(imageName, min, max){
             @update-scaling="updateScaling"
           />
         </v-sheet>
+        <v-skeleton-loader
+          v-else
+          class="side-panel-item"
+          :elevation="7"
+          type="paragraph"
+        />
         <v-sheet
           class="side-panel-item line-plot-sheet"
           rounded
