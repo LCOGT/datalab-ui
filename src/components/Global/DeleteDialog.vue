@@ -74,14 +74,14 @@ function closeDialog() {
 }
 .delete-item-text {
   color: var(--cancel);
-  font-family: 'Open Sans', sans-serif;
+  font-family: var(--font-stack);
   letter-spacing: 0.1rem;
   font-weight: 600;
   font-size: 1.3rem;
 }
 .delete-text {
   color: var(--tan);
-  font-family: 'Open Sans', sans-serif;
+  font-family: var(--font-stack);
   font-size: 1.2rem;
 }
 .close-btn {

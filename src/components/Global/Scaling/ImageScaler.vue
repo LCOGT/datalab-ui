@@ -110,7 +110,7 @@ onMounted(async () => {
       :composite-name="props.compositeName"
     />
     <v-col>
-      <h3 class="image-scale-title text-capitalize">
+      <h3 class="image-scale-title">
         {{ filterName }} Input
       </h3>
       <histogram-slider
