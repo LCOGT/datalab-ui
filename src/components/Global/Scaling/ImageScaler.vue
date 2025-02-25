@@ -17,7 +17,7 @@ const props = defineProps({
   },
   maxSize: {
     type: Number,
-    default: 500
+    default: 700
   },
   imageName: {
     type: String,
