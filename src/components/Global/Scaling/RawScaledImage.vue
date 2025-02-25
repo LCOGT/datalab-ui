@@ -1,5 +1,5 @@
 <script setup>
-import { ref, defineProps, watch, onMounted } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { useScalingStore } from '@/stores/scaling'
 import _ from 'lodash'
 

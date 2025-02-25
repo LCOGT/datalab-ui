@@ -5,7 +5,7 @@
 	--dark-green: #8bac2f;
 	--tangerine: #f38321;
 	--metal: rgb(21, 25, 29);
-	--light-gray: white;
+	--light-gray: rgb(230, 230, 230);
 	--light-blue: rgb(20, 182, 246);
 	--cancel: rgb(255, 0, 0);
 	--blue: #00ADEF;
@@ -21,7 +21,7 @@
 	--metal: var(--grey-level3);
 	--bulma-tabs-link-active-border-bottom-color : var(--blue);
 	--bulma-tabs-link-active-color: var(--blue);
-	--tan: var(--white);
+	--tan: var(--light-gray);
 	--cancel: var(--red);
 	--light-blue: var(--blue);
 	--warning: var(--yellow);
