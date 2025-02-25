@@ -1,5 +1,5 @@
 <script setup>
-import { defineEmits, defineProps, computed } from 'vue'
+import { computed } from 'vue'
 import CompositeImage from './CompositeImage.vue'
 import ImageScaler from './ImageScaler.vue'
 

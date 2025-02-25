@@ -1,6 +1,5 @@
 <script setup>
 import LoadBarButton from '@/components/DataSession/LoadBarButton.vue'
-import { defineEmits} from 'vue'
 
 const props = defineProps({
   id: {

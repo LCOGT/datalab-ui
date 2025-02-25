@@ -1,5 +1,5 @@
 <script setup>
-import { ref, defineProps } from 'vue'
+import { ref } from 'vue'
 import { useThumbnailsStore } from '@/stores/thumbnails'
 import { useAlertsStore } from '@/stores/alerts'
 import { useConfigurationStore } from '@/stores/configuration'

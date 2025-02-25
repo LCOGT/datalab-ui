@@ -1,5 +1,5 @@
 <script setup>
-import { ref, defineProps, watch } from 'vue'
+import { ref, watch } from 'vue'
 import OperationPipeline from './OperationPipeline.vue'
 import OperationPipelineFlow from './OperationGraph/OperationPipelineFlow.vue'
 import { fetchApiCall, handleError } from '@/utils/api.js'
@@ -109,7 +109,7 @@ function processOperations() {
   })
 }
 
-function clearPolling(operationID) {
+function stopPollingById(operationID) {
   if (operationID in operationPollingTimers){
     clearInterval(operationPollingTimers[operationID])
     delete operationPollingTimers[operationID]
@@ -132,13 +132,13 @@ async function pollOperationCompletion(operation) {
         break
       case 'COMPLETED':
         addCompletedOperation(operationMap[response.id])
-        clearPolling(response.id)
+        stopPollingById(response.id)
         // Trigger use to attempt to start polling again for any dependent operations
         startOperationPolling()
         break
       case 'FAILED':
         alertStore.setAlert('error', response.message ? response.message : 'Failed', 'Operation Error:')
-        clearPolling(response.id)
+        stopPollingById(response.id)
         break
       default:
         console.error('Unknown Operation Status:', response.status)
@@ -168,7 +168,7 @@ function startOperationPolling() {
 
 function stopOperationPolling() {
   Object.keys(operationPollingTimers).forEach(operationID => {
-    clearPolling(operationID)
+    stopPollingById(operationID)
   })
 }
 

@@ -1,6 +1,5 @@
 <!-- eslint-disable vue/require-prop-types -->
 <script setup>
-import { defineProps, defineEmits } from 'vue'
 
 defineProps({
   modelValue: {
