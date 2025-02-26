@@ -224,25 +224,21 @@ function updateScaling(imageName, min, max){
             </div>
           </v-sheet>
         </v-expand-transition>
-        <v-sheet
-          v-if="analysisStore.imageScaleReady"
-          transition="fade-transition"
-          class="side-panel-item"
-          rounded
-        >
-          <image-scaler
-            :image="analysisStore.image"
-            :show-sample="false"
-            :max-size="analysisStore.imageWidth"
-            @update-scaling="updateScaling"
-          />
-        </v-sheet>
-        <v-skeleton-loader
-          v-else
-          class="side-panel-item"
-          :elevation="7"
-          type="paragraph"
-        />
+        <v-expand-transition>
+          <v-sheet
+            v-if="analysisStore.imageScaleReady"
+            transition="fade-transition"
+            class="side-panel-item"
+            rounded
+          >
+            <image-scaler
+              :image="analysisStore.image"
+              :show-sample="false"
+              :max-size="analysisStore.imageWidth"
+              @update-scaling="updateScaling"
+            />
+          </v-sheet>
+        </v-expand-transition>
         <v-sheet
           class="side-panel-item line-plot-sheet"
           rounded
