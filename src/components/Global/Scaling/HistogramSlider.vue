@@ -42,14 +42,15 @@ const props = defineProps({
 
 const emit = defineEmits(['updateScaling'])
 
-const scaleRange = ref([props.bins[0], props.bins[props.bins.length-1]])
-const sliderRange = ref([0, props.bins.length-1])
+const binsLength = props.bins.length
+const scaleRange = ref([props.bins[0], props.bins[binsLength-1]])
+const sliderRange = ref([0, binsLength-1])
 const backgroundColor = 'var(--light-gray)'
 
 const gradient = computed(() => {
   // This function computes a "gradient" for the histogram sparkline, showing the selected region as highlighted
   let gradientArray = []
-  for (let i = 0; i < props.bins.length; i++) {
+  for (let i = 0; i < binsLength; i++) {
     if (i > (sliderRange.value[0]+1) && i < (sliderRange.value[1]-1)) {
       gradientArray.push(props.selectedColor)
     }
@@ -62,42 +63,42 @@ const gradient = computed(() => {
 
 function sliderToBinValue(sliderValue) {
   // This converts from sliderRange coordinates to scaleRange coordinates
-  if (props.bins.length >= sliderValue) {
+  if (binsLength >= sliderValue) {
     return props.bins[sliderValue]
   }
 }
 
+// Convert the slider value (bins) to the scale value (zMin/zMax)
+function labelSliderToScaleValue(sliderValue) {
+  if (sliderValue == sliderRange.value[0]) {
+    return scaleRange.value[0]
+  }
+  return scaleRange.value[1]
+}
+
+/**
+ * Maps a scale value (zmin/zmax) to a slider value (0 to bins.length-1)
+ * So when a scale value is changed with the number fields,
+ * it maps to the closest slider position.
+ * @param {number} scaleValue 
+ * @returns {number}
+ */
 function scaleToSliderValue(scaleValue) {
-  // This converts from scaleRange to the nearest sliderRange value, which allows us to map from scale space to
-  // slider space when the user makes a change to the scaleRange directly with the number fields
-  if (Math.abs(scaleValue - props.zMin) > Math.abs(scaleValue - props.zMax)) {
-    // Closer to the zMax, so iterate in reverse to find a match sooner
-    let previousDistance = Math.abs(scaleValue - props.bins[props.bins.length-1])
-    for (let i = props.bins.length-2; i >= 0; i--) {
-      let distance = Math.abs(scaleValue - props.bins[i])
-      if (distance > previousDistance) {
-        return i + 1
-      }
-      else {
-        previousDistance = distance
-      }
-    }
-    return 0
+  // Determine whether start or end of the bin array is closer to the scale value and start from there
+  const startIndex = Math.abs(scaleValue - props.zMin) > Math.abs(scaleValue - props.zMax) ? props.bins.length - 1 : 0
+  const stepDirection = startIndex === 0 ? 1 : -1
+
+  let previousDistance = Math.abs(scaleValue - props.bins[startIndex])
+
+  // Iterate until you find the closest bin to the scale value
+  for (let i = startIndex + stepDirection; i >= 0 && i < props.bins.length; i += stepDirection) {
+    let distance = Math.abs(scaleValue - props.bins[i])
+    if (distance > previousDistance) return i - stepDirection
+    else previousDistance = distance
   }
-  else {
-    // Closer to zMin, so iterate in the natural order
-    let previousDistance = Math.abs(scaleValue - props.bins[0])
-    for (let i = 1; i < props.bins.length; i++) {
-      let distance = Math.abs(scaleValue - props.bins[i])
-      if (distance > previousDistance) {
-        return i - 1
-      }
-      else {
-        previousDistance = distance
-      }
-    }
-    return props.bins.length - 1
-  }
+
+  // If no closer bin found, return the start or end of the bin array
+  return startIndex === 0 ? props.bins.length - 1 : 0
 }
 
 function updateScaleRange() {
@@ -195,11 +196,16 @@ watch(
       :track-fill-color="selectedColor"
       thumb-color="var(--dark-green)"
       thumb-size="16"
+      thumb-label="always"
       :max="props.bins.length-1"
       strict
       hide-details
       @update:model-value="updateScaleRange"
-    />
+    >
+      <template #thumb-label="{ modelValue }">
+        {{ labelSliderToScaleValue(modelValue) }}
+      </template>
+    </v-range-slider>
   </div>
 </template>
 <style scoped>
