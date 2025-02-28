@@ -1,7 +1,6 @@
-var context, imageData, sharedArrayBuffer, sharedArray, gammaTable, imageDataObject
+var context, imageData, sharedArrayBuffer, sharedArray, gammaTable, imageDataObject, scalePointMessage
 let hasImageData = false
 let hasCanvas = false
-let scalePointsStack = []
  
 /**
  * Web workers function a little differently in that onmessage is always called
@@ -32,26 +31,26 @@ onmessage = function(job) {
     }
 
     hasCanvas = true
-    tryProcessScaleStack()
+    tryProcessScalePoints()
   }
 
   if (payload.imageData) {
     imageData = payload.imageData
     hasImageData = true
-    tryProcessScaleStack()
+    tryProcessScalePoints()
   }
 
   if (payload.scalePoints) {
-    scalePointsStack.push(payload.scalePoints)
-    tryProcessScaleStack()
+    scalePointMessage = payload.scalePoints
+    tryProcessScalePoints()
   }
 }
 
-function tryProcessScaleStack() {
-  if(hasImageData && hasCanvas && scalePointsStack.length > 0) {
+function tryProcessScalePoints() {
+  if(hasImageData && hasCanvas && scalePointMessage) {
     // optimization to process only most recent queued scale
-    processScalePoints(scalePointsStack.pop())
-    scalePointsStack = []
+    processScalePoints(scalePointMessage)
+    scalePointMessage = null
   }
 }
 
