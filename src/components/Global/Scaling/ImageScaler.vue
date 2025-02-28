@@ -17,7 +17,7 @@ const props = defineProps({
   },
   maxSize: {
     type: Number,
-    default: 700
+    default: 700 // Determines the resolution of the RGB image and preview images
   },
   imageName: {
     type: String,
