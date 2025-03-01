@@ -15,21 +15,29 @@ export const useScalingStore = defineStore('scaling', {
   },
   actions: {
     updateImageArray(combinedImageName, filter, imageDataArray, maxSize) {
-      if (!(combinedImageName in this.scaledImageArrays)) {
-        this.scaledImageArrays[combinedImageName] = {}
+      let scaledImages = this.scaledImageArrays
+      let arrayChanged = this.arrayChanged
+
+      if (!(combinedImageName in scaledImages)) {
+        scaledImages[combinedImageName] = {}
       }
-      if (!('combined' in this.scaledImageArrays[combinedImageName])) {
-        this.arrayChanged[combinedImageName] = 0
-        this.scaledImageArrays[combinedImageName]['combined'] = new ImageData(maxSize, maxSize)
-        this.scaledImageArrays[combinedImageName]['combined'].data.fill(255)
+
+      var combined = scaledImages[combinedImageName]['combined']
+
+      if (!('combined' in scaledImages[combinedImageName])) {
+        arrayChanged[combinedImageName] = 0
+        combined = new ImageData(maxSize, maxSize)
+        combined.data.fill(255)
+        scaledImages[combinedImageName]['combined'] = combined
       }
 
       const filterIndex = filterToPixelIndex(filter)
+      const combinedData = combined.data
 
       for (let i = filterIndex, j=0; j < imageDataArray.length; i += 4, j++) {
-        this.scaledImageArrays[combinedImageName]['combined'].data[i] = imageDataArray[j]
+        combinedData[i] = imageDataArray[j]
       }
-      this.arrayChanged[combinedImageName]++
+      arrayChanged[combinedImageName]++
     }
   }
 })

@@ -118,10 +118,16 @@ function launchAnalysis(image){
     color="var(--dark-blue)"
     bg-color="var(--metal)"
   />
-  <image-analyzer
+  <v-dialog
     v-model="showAnalysisDialog"
-    :image="analysisImage"
-  />
+    persistent
+    fullscreen
+  >
+    <image-analyzer
+      :image="analysisImage"
+      @close-analysis-dialog="showAnalysisDialog = false"
+    />
+  </v-dialog>
 </template>
 
 <style scoped>

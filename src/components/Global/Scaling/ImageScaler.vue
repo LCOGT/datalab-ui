@@ -16,7 +16,7 @@ const props = defineProps({
   },
   maxSize: {
     type: Number,
-    default: 500
+    default: 700 // Determines the resolution of the RGB image and preview images
   },
   imageName: {
     type: String,
@@ -25,13 +25,12 @@ const props = defineProps({
   compositeName: {
     type: String,
     required: true
-  }
+  },
 })
 
 const emit = defineEmits(['updateScaling'])
 const store = useConfigurationStore()
 const dataSessionsUrl = store.datalabApiBaseUrl
-const isLoading = ref(true)
 const errorReason = ref('')
 const rawData = ref({})
 const sliderRange = ref([0, 65535])
@@ -74,7 +73,7 @@ function updateScaleRange(lowerValue, upperValue) {
   emit('updateScaling', props.imageName, sliderRange.value[0], sliderRange.value[1])
 }
 
-onMounted(async () => {
+function fetchRawData(){
   const url = dataSessionsUrl + 'analysis/raw-data/'
   const body = {
     'basename': props.image.basename,
@@ -85,23 +84,26 @@ onMounted(async () => {
     successCallback: (response) => {
       rawData.value = response
       zScaleValues.value = [response.zmin, response.zmax]
-      isLoading.value = false
     },
     failCallback: (error) => {
-      isLoading.value = false
       errorReason.value = error
       console.error('API call failed with error:', error)
     }
   })
+}
+
+onMounted(async () => {
+  const readyToDrawHistogram = rawData.value && zScaleValues.value[0] && zScaleValues.value[1]
+  if(!readyToDrawHistogram){
+    await fetchRawData()
+  }
 })
 
 </script>
 <template>
-  <v-sheet
-    class="image-scaler"
-    rounded
-  >
+  <div class="image-scaler">
     <raw-scaled-image
+      class="mr-4"
       :max-size="props.maxSize"
       :image-data="rawData"
       :scale-points="sliderRange"
@@ -109,9 +111,9 @@ onMounted(async () => {
       :image-name="props.imageName"
       :composite-name="props.compositeName"
     />
-    <v-col>
+    <v-col class="pa-0">
       <h3 class="image-scale-title">
-        {{ filterName }} Input
+        {{ filterName }} Channel
       </h3>
       <histogram-slider
         :selected-color="filterToColor(props.image.filter)"
@@ -123,17 +125,15 @@ onMounted(async () => {
         @update-scaling="updateScaleRange"
       />
     </v-col>
-  </v-sheet>
+  </div>
 </template>
 <style scoped>
 .image-scaler{
   display: flex;
-  padding: 1rem;
   background-color: var(--metal);
 }
 .image-scale-title {
   margin-bottom: 0.5rem;
-  text-align: center;
   color: var(--tan);
   font-weight: bold;
 }

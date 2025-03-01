@@ -8,7 +8,7 @@ const props = defineProps({
   },
   state: {
     type: String,
-    required: true
+    default: '',
   },
   error: {
     type: String,
@@ -29,8 +29,14 @@ const progressClass = computed(() => {
 
 <template>
   <v-btn class="loadBarButton">
-    <v-tooltip v-if="props.error" activator="parent" location="bottom">{{ props.error }}</v-tooltip>
-    <slot/>
+    <v-tooltip
+      v-if="props.error"
+      activator="parent"
+      location="bottom"
+    >
+      {{ props.error }}
+    </v-tooltip>
+    <slot />
     <div
       :class="progressClass"
       :style="{ width: progressPercent + '%' }"
