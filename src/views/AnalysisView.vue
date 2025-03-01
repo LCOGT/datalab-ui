@@ -130,7 +130,9 @@ async function instantiateScalerWorker(){
 
   // Callback function for when worker completes, updates leaflet image
   imgWorker.onmessage = () => {
-    analysisStore.imageUrl = imgScalingCanvas.toDataURL()
+    imgScalingCanvas.toBlob((blob) => {
+      analysisStore.imageUrl = URL.createObjectURL(blob)
+    })
   }
 }
 
