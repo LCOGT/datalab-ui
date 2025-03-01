@@ -42,15 +42,14 @@ const props = defineProps({
 
 const emit = defineEmits(['updateScaling'])
 
-const binsLength = props.bins.length
-const scaleRange = ref([props.bins[0], props.bins[binsLength-1]])
-const sliderRange = ref([0, binsLength-1])
+const scaleRange = ref([props.bins[0], props.bins[props.bins.length-1]])
+const sliderRange = ref([0, props.bins.length-1])
 const backgroundColor = 'var(--light-gray)'
 
 const gradient = computed(() => {
   // This function computes a "gradient" for the histogram sparkline, showing the selected region as highlighted
   let gradientArray = []
-  for (let i = 0; i < binsLength; i++) {
+  for (let i = 0; i < props.bins.length; i++) {
     if (i > (sliderRange.value[0]+1) && i < (sliderRange.value[1]-1)) {
       gradientArray.push(props.selectedColor)
     }
@@ -63,7 +62,7 @@ const gradient = computed(() => {
 
 function sliderToBinValue(sliderValue) {
   // This converts from sliderRange coordinates to scaleRange coordinates
-  if (binsLength >= sliderValue) {
+  if (props.bins.length >= sliderValue) {
     return props.bins[sliderValue]
   }
 }

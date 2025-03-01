@@ -17,11 +17,16 @@ export const useAnalysisStore = defineStore('analysis', {
   }),
   getters: {
     imageScaleReady: (state) => state.imageWidth && state.imageHeight && state.rawData && state.zmin && state.zmax,
+    histogram: (state) => { return state.rawData.histogram },
+    bins: (state) => { return state.rawData.bins },
+    maxPixelValue: (state) => { Math.pow(2, state.rawData.bitdepth) - 1 },
   },
   actions: {
     async loadScaleData() {
-      await this.loadImageDimensions()
-      await this.loadRawData()
+      if(!this.imageScaleReady){
+        await this.loadImageDimensions()
+        await this.loadRawData()
+      }
     },
     // Load image dimensions
     loadImageDimensions() {

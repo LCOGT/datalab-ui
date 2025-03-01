@@ -1,7 +1,6 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useConfigurationStore } from '@/stores/configuration'
-import { useAnalysisStore } from '@/stores/analysis'
 import { fetchApiCall } from '@/utils/api'
 import { filterToColor } from '@/utils/common'
 import RawScaledImage from './RawScaledImage.vue'
@@ -21,26 +20,21 @@ const props = defineProps({
   },
   imageName: {
     type: String,
-    default: ''
+    required: true
   },
   compositeName: {
     type: String,
-    default: ''
+    required: true
   },
-  showSample: {
-    type: Boolean,
-    default: true
-  }
 })
 
 const emit = defineEmits(['updateScaling'])
 const store = useConfigurationStore()
-const analysisStore = useAnalysisStore()
 const dataSessionsUrl = store.datalabApiBaseUrl
 const errorReason = ref('')
-const rawData = ref(analysisStore.rawData || {})
+const rawData = ref({})
 const sliderRange = ref([0, 65535])
-const zScaleValues = ref([analysisStore.zmin, analysisStore.zmax])
+const zScaleValues = ref([0, 65535])
 
 const filterName = computed(() => {
   return props.imageName.replace('_input', ' ')
@@ -109,7 +103,6 @@ onMounted(async () => {
 <template>
   <div class="image-scaler">
     <raw-scaled-image
-      v-if="showSample"
       class="mr-4"
       :max-size="props.maxSize"
       :image-data="rawData"
@@ -119,10 +112,7 @@ onMounted(async () => {
       :composite-name="props.compositeName"
     />
     <v-col class="pa-0">
-      <h3
-        v-if="filterName"
-        class="image-scale-title text-capitalize"
-      >
+      <h3 class="image-scale-title">
         {{ filterName }} Channel
       </h3>
       <histogram-slider

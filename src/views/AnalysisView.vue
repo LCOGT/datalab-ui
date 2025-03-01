@@ -7,7 +7,7 @@ import { useAlertsStore } from '@/stores/alerts'
 import { useAnalysisStore } from '@/stores/analysis'
 import FilterBadge from '@/components/Global/FilterBadge.vue'
 import NonLinearSlider from '@/components/Global/NonLinearSlider.vue'
-import ImageScaler from '@/components/Global/Scaling/ImageScaler.vue'
+import HistogramSlider from '@/components/Global/Scaling/HistogramSlider.vue'
 import ImageDownloadMenu from '@/components/Analysis/ImageDownloadMenu.vue'
 import FitsHeaderTable from '@/components/Analysis/FitsHeaderTable.vue'
 import ImageViewer from '@/components/Analysis/ImageViewer.vue'
@@ -115,17 +115,10 @@ function showHeaderDialog() {
 // instantiate the scaler worker when new rawData is available
 async function instantiateScalerWorker(){
   // Load the image scale data if it is not already loaded
-  if(!analysisStore.imageScaleReady){
-    try {
-      await analysisStore.loadScaleData()
-    } 
-    catch (error) {
-      console.error('Failed to load scale data:', error)
-      return
-    }
-  }
+  try { await analysisStore.loadScaleData() } 
+  catch (error) { return console.error('Failed to load scale data:', error) }
 
-  // Create a new offscreen canvas and shared array buffer for the worker
+  // Create a new offscreen canvas for the worker
   const imgScalingCanvas = document.createElement('canvas')
   imgScalingCanvas.width = analysisStore.imageWidth
   imgScalingCanvas.height = analysisStore.imageHeight
@@ -141,7 +134,7 @@ async function instantiateScalerWorker(){
   }
 }
 
-function updateScaling(imageName, min, max){
+function updateScaling(min, max){
   imgWorker.postMessage({scalePoints: [min, max]})
 }
 
@@ -231,10 +224,12 @@ function updateScaling(imageName, min, max){
             class="side-panel-item"
             rounded
           >
-            <image-scaler
-              :image="analysisStore.image"
-              :show-sample="false"
-              :max-size="analysisStore.imageWidth"
+            <histogram-slider
+              :histogram="analysisStore.histogram"
+              :bins="analysisStore.bins"
+              :max-value="analysisStore.maxPixelValue"
+              :z-min="analysisStore.zmin"
+              :z-max="analysisStore.zmax"
               @update-scaling="updateScaling"
             />
           </v-sheet>
