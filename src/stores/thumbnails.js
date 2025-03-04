@@ -109,34 +109,27 @@ export const useThumbnailsStore = defineStore('thumbnails', {
       this.archives = archives
     },
     async cacheImage(size, archive, url, basename, persist=true) {
-      basename = basename.replace('-small', '').replace('-large', '')
+      basename = basename.replace(/-(small|large)/, '')
+    
       let cachedUrl = this.cachedUrl(size, basename)
-      if (cachedUrl === undefined || cachedUrl === ''){
-        return getImageFromBasename(size, archive, url, basename).then((response) => {
-          if (response){
-            return response.blob()
-          }
-          return undefined
-        })
-          .then((responseBlob) => {
-            if (responseBlob) {
-              // Convert to image/jpeg for caching as S3 presigned URLs blobs default to binary/octet-stream
-              responseBlob = new Blob([responseBlob], {type: 'image/jpeg'})
-              const responseUrl = URL.createObjectURL(responseBlob)
-              if (size == 'large'){
-                this.largeThumbnailsCache.set(basename, responseUrl)
-                if (persist) this.$persist()  // must persist manually since it doesn't detect the cache changed
-              }
-              else {
-                this.smallThumbnailsCache.set(basename, responseUrl)
-                if (persist) this.$persist()  // must persist manually since it doesn't detect the cache changed
-              }
-              return responseUrl
-            }
-            return ''
-          })
-      }
-      return cachedUrl
+      if (cachedUrl) return cachedUrl
+
+      const response = await getImageFromBasename(size, archive, url, basename)
+      if (!response) return ''
+
+      let responseBlob = await response.blob()
+      if (!responseBlob) return ''
+
+      // Convert to image/jpeg for caching, as S3 presigned URLs default to binary/octet-stream
+      responseBlob = new Blob([responseBlob], { type: 'image/jpeg' })
+      const responseUrl = URL.createObjectURL(responseBlob)
+
+      const cache = size === 'large' ? this.largeThumbnailsCache : this.smallThumbnailsCache
+      cache.set(basename, responseUrl)
+
+      if (persist) this.$persist() // Persist manually since cache changes aren't auto-detected
+
+      return responseUrl
     },
     // This should just be called a single time when cache is reloaded fill the LRU cache with what is in the browser cache
     async reloadCachedImagesIntoLRUCache() {

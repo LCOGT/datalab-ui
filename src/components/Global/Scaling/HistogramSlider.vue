@@ -67,46 +67,37 @@ function sliderToBinValue(sliderValue) {
   }
 }
 
+// Convert the slider value (bins) to the scale value (zMin/zMax)
 function labelSliderToScaleValue(sliderValue) {
-  // This returns the current scaleRange value given a sliderValue. It doesn't convert and show the sliderValue
-  // so that we can correctly show what the scaleRange is if it is modified in the number fields.
   if (sliderValue == sliderRange.value[0]) {
     return scaleRange.value[0]
   }
   return scaleRange.value[1]
 }
 
+/**
+ * Maps a scale value (zmin/zmax) to a slider value (0 to bins.length-1)
+ * So when a scale value is changed with the number fields,
+ * it maps to the closest slider position.
+ * @param {number} scaleValue 
+ * @returns {number}
+ */
 function scaleToSliderValue(scaleValue) {
-  // This converts from scaleRange to the nearest sliderRange value, which allows us to map from scale space to
-  // slider space when the user makes a change to the scaleRange directly with the number fields
-  if (Math.abs(scaleValue - props.zMin) > Math.abs(scaleValue - props.zMax)) {
-    // Closer to the zMax, so iterate in reverse to find a match sooner
-    let previousDistance = Math.abs(scaleValue - props.bins[props.bins.length-1])
-    for (let i = props.bins.length-2; i >= 0; i--) {
-      let distance = Math.abs(scaleValue - props.bins[i])
-      if (distance > previousDistance) {
-        return i + 1
-      }
-      else {
-        previousDistance = distance
-      }
-    }
-    return 0
+  // Determine whether start or end of the bin array is closer to the scale value and start from there
+  const startIndex = Math.abs(scaleValue - props.zMin) > Math.abs(scaleValue - props.zMax) ? props.bins.length - 1 : 0
+  const stepDirection = startIndex === 0 ? 1 : -1
+
+  let previousDistance = Math.abs(scaleValue - props.bins[startIndex])
+
+  // Iterate until you find the closest bin to the scale value
+  for (let i = startIndex + stepDirection; i >= 0 && i < props.bins.length; i += stepDirection) {
+    let distance = Math.abs(scaleValue - props.bins[i])
+    if (distance > previousDistance) return i - stepDirection
+    else previousDistance = distance
   }
-  else {
-    // Closer to zMin, so iterate in the natural order
-    let previousDistance = Math.abs(scaleValue - props.bins[0])
-    for (let i = 1; i < props.bins.length; i++) {
-      let distance = Math.abs(scaleValue - props.bins[i])
-      if (distance > previousDistance) {
-        return i - 1
-      }
-      else {
-        previousDistance = distance
-      }
-    }
-    return props.bins.length - 1
-  }
+
+  // If no closer bin found, return the start or end of the bin array
+  return startIndex === 0 ? props.bins.length - 1 : 0
 }
 
 function updateScaleRange() {
@@ -140,46 +131,48 @@ function zScaleImage() {
 watch(
   () => props.zMax, () => {
     zScaleImage()
-  }
+  }, { immediate: true }
 )
 
 </script>
 <template>
-  <v-row class="histogram-range-controls">
-    <v-col cols="4">
+  <v-row class="histogram-range-controls mb-1">
+    <v-col>
       <v-text-field
         v-model="scaleRange[0]"
         :min="0"
-        label="lower point"
+        label="z-min"
         density="compact"
         type="number"
         variant="outlined"
-        step="10"
+        bg-color="var(--dark-blue)"
+        hide-spin-buttons
         hide-details
         @update:model-value="updateLowerScale"
       />
     </v-col>
-    <v-col cols="4">
+    <v-col>
       <v-text-field
         v-model="scaleRange[1]"
         :max="props.maxValue"
-        label="upper point"
+        label="z-max"
         density="compact"
         type="number"
         variant="outlined"
-        step="10"
+        bg-color="var(--dark-blue)"
+        hide-spin-buttons
         hide-details
         @update:model-value="updateUpperScale"
       />
     </v-col>
-    <v-col cols="4">
+    <v-col>
       <v-btn
-        class="ml-2"
         color="var(--light-blue)"
+        prepend-icon="mdi-refresh"
+        text="Z-Scale"
+        rounded="lg"
         @click="zScaleImage"
-      >
-        Z-Scale
-      </v-btn>
+      />
     </v-col>
   </v-row>
   <div class="histogram-range-slider">
@@ -192,6 +185,7 @@ watch(
       gradient-direction="left"
       :model-value="props.histogram"
       auto-draw
+      padding="1"
     />
     <v-range-slider
       v-model="sliderRange"
@@ -201,6 +195,7 @@ watch(
       :track-fill-color="selectedColor"
       thumb-color="var(--dark-green)"
       thumb-size="16"
+      thumb-label="always"
       :max="props.bins.length-1"
       strict
       hide-details
@@ -221,6 +216,6 @@ watch(
 
 .v-range-slider {
   position: relative;
-  bottom: 30px;
+  bottom: 17px;
 }
 </style>

@@ -4,7 +4,7 @@ import { useThumbnailsStore } from '@/stores/thumbnails'
 import { useConfigurationStore } from '@/stores/configuration'
 import { useAlertsStore } from '@/stores/alerts'
 import FilterBadge from './FilterBadge.vue'
-import ImageAnalyzer from '../../views/AnalysisView.vue'
+import AnalysisView from '../../views/AnalysisView.vue'
 
 const props = defineProps({
   images: {
@@ -140,10 +140,16 @@ watch(() => props.images, () => {
       </v-col>
     </template>
   </v-row>
-  <image-analyzer
+  <v-dialog
     v-model="showAnalysisDialog"
-    :image="analysisImage"
-  />
+    persistent
+    fullscreen
+  >
+    <analysis-view
+      :image="analysisImage"
+      @close-analysis-dialog="showAnalysisDialog = false"
+    />
+  </v-dialog>
 </template>
 
 <style scoped>

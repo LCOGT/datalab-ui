@@ -53,4 +53,14 @@ function initializeDate(dateString = 'none', defaultOffsetDays = 0) {
   return isNaN(date.getTime()) ? new Date(Date.now() + defaultOffsetDays * 24 * 3600 * 1000) : date
 }
 
-export { calculateColumnSpan, siteIDToName, initializeDate, filterToPixelIndex, filterToColor }
+// Utility function to load an image
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.src = src
+    img.onload = () => resolve(img)
+    img.onerror = reject
+  })
+}
+
+export { calculateColumnSpan, siteIDToName, initializeDate, filterToPixelIndex, filterToColor, loadImage }

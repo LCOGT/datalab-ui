@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { useScalingStore } from '@/stores/scaling'
 import _ from 'lodash'
 
@@ -54,8 +54,10 @@ onMounted(() => {
       store.updateImageArray(props.compositeName, props.filter, sharedArray, props.maxSize)
     }
   }
- 
+})
 
+onUnmounted(() => {
+  worker.terminate()
 })
 
 watch(
