@@ -1,0 +1,20 @@
+apiVersion: kpt.dev/v1
+kind: Kptfile
+metadata:
+  name: ns
+  annotations:
+    config.kubernetes.io/local-config: "true"
+upstream:
+  type: git
+  git:
+    repo: https://github.com/LCOGT/kpt-pkg-catalog
+    directory: /namespace
+    ref: main
+  updateStrategy: resource-merge
+upstreamLock:
+  type: git
+  git:
+    repo: https://github.com/LCOGT/kpt-pkg-catalog
+    directory: /namespace
+    ref: main
+    commit: 8210c419e90506ffd9c69f0fa213c30aa7533acd

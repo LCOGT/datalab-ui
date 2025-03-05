@@ -21,3 +21,8 @@ pnpm-debug.log*
 *.njsproj
 *.sln
 *.sw?
+
+# Nix specific
+.devenv
+.pre-commit-config.yaml
+.direnv
