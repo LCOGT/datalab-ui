@@ -1,0 +1,37 @@
+apiVersion: skaffold/v4beta10
+kind: Config
+metadata:
+  name: datalab-ui
+build:
+  tagPolicy:
+    gitCommit:
+      variant: Tags
+  artifacts:
+    - image: datalab-ui
+      custom:
+        buildCommand: skaffold-builder-buildx
+        dependencies:
+          dockerfile:
+            path: Dockerfile
+manifests:
+  kustomize:
+    paths:
+      - k8s/envs/local/
+deploy:
+  kubectl: {}
+  logs:
+    prefix: podAndContainer
+
+---
+apiVersion: skaffold/v4beta10
+kind: Config
+metadata:
+  name: datalab-ui-deps
+manifests:
+  kustomize:
+    paths:
+      - k8s/envs/local-deps/
+deploy:
+  kubectl: {}
+  logs:
+    prefix: podAndContainer

@@ -1,0 +1,15 @@
+# ignore all
+**/*
+
+# except for files needed for the build
+!./public/*
+!./src/*
+!./.dockerignore
+!./.eslintrc.js
+!./babel.config.js
+!./Dockerfile
+!./jsconfig.json
+!./package.json
+!./package-lock.json
+!./README.md
+!./vue.config.js
