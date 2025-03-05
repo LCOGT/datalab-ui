@@ -7,12 +7,7 @@ on:
     types:
       - published
 
-permissions:
-  packages: write
-
 jobs:
   cd:
     uses: LCOGT/reusable-workflows/.github/workflows/continuous-deployment.yaml@main
-    with:
-      skaffoldBuildModules: "datalab-ui"
     secrets: inherit
