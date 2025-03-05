@@ -9,6 +9,8 @@ on:
 
 jobs:
   cd:
+    permissions:
+      packages: write
     uses: LCOGT/reusable-workflows/.github/workflows/continuous-deployment.yaml@main
     secrets: inherit
     with:
