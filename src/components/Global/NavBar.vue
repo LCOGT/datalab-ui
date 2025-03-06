@@ -55,7 +55,7 @@ import ptrlogo from '../../assets/ptr_logo.png'
           >
             <div class="dropdown-content">
               <a
-                href="#"
+                href="https://learn.lco.global"
                 class="dropdown-item learn-site-item"
               >Learn</a>
               <a
