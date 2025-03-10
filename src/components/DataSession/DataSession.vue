@@ -109,11 +109,17 @@ function processOperations() {
   })
 }
 
-function stopPollingById(operationID) {
-  if (operationID in operationPollingTimers){
-    clearInterval(operationPollingTimers[operationID])
-    delete operationPollingTimers[operationID]
-  }
+function stopPollingById(operationIDs) {
+  const ids = Array.isArray(operationIDs) ? operationIDs : [operationIDs]
+
+  ids.forEach(id => {
+    if (operationPollingTimers[id]) {
+      clearInterval(operationPollingTimers[id])
+      delete operationPollingTimers[id]
+    }
+  })
+
+  refreshOperations()
 }
 
 async function pollOperationCompletion(operation) {
@@ -250,7 +256,7 @@ watch(
               :selected-operation="selectedOperation"
               @operation-completed="addCompletedOperation"
               @select-operation="selectOperation"
-              @operation-was-deleted="refreshOperations"
+              @operation-was-deleted="stopPollingById"
               @view-graph="tab = 'graph'"
             />
             <v-btn
