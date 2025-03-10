@@ -109,7 +109,12 @@ function leafletSetup(){
     toggle: false,
   })
 
-  // Geoman settings setup
+  // Geoman settings
+  imageMap.pm.setGlobalOptions({
+    hideMiddleMarkers: true,
+  })
+
+  // Geoman controls
   imageMap.pm.addControls({
     position: 'topleft',
     drawMarker: false,
@@ -166,7 +171,7 @@ function handleEdit() {
 function requestLineProfile(latLngs) {
   // Check that there are two points to calculate the line length
   if (latLngs.length != 2){
-    alerts.setAlert('error', 'Please draw a line with two points')
+    alerts.setAlert('error', 'Cannot calculate line profile without two points')
     return
   }
 
