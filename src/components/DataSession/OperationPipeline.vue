@@ -50,10 +50,10 @@ function openDeleteOperationDialog(operation) {
   showDeleteDialog.value = true
 }
 
-function itemDeleted(){
+function itemDeleted(deletedIds) {
   // Reset the selected operation after its deleted, otherwise the next operation will be selected 
   emit('selectOperation', -1)
-  emit('operationWasDeleted')
+  emit('operationWasDeleted', deletedIds)
 }
 
 function operationStateToClass(operation) {
@@ -114,7 +114,7 @@ function operationStateToClass(operation) {
     v-model="showDeleteDialog"
     :session-id="sessionId"
     :operations="deleteOperations"
-    @item-was-deleted="itemDeleted()"
+    @item-was-deleted="itemDeleted"
   />
 </template>
 

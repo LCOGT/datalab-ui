@@ -24,7 +24,8 @@ const emit = defineEmits(['update:modelValue', 'itemWasDeleted'])
 const DIALOG_TITLE = 'DELETE OPERATION(S)'
 
 function itemDeleted(){
-  emit('itemWasDeleted', props.operationId)
+  const deletedIds = _.map(props.operations, 'id')
+  emit('itemWasDeleted', deletedIds)
   emit('update:modelValue', false)
 }
 
