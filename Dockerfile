@@ -9,7 +9,7 @@ RUN npm run build
 
 FROM ghcr.io/static-web-server/static-web-server:2-alpine
 
-COPY --from=build /app /app
+COPY --from=build /app/dist /app/dist
 WORKDIR /app
 
 RUN <<EOF cat > /etc/sws.toml
