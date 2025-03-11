@@ -7,7 +7,6 @@
 !./.dockerignore
 !./.eslintrc.js
 !./babel.config.js
-!./Dockerfile
 !./jsconfig.json
 !./package.json
 !./package-lock.json
