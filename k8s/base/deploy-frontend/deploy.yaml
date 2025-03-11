@@ -17,48 +17,12 @@ spec:
       securityContext:
         fsGroup: 1000
       volumes:
-        - name: dist
-          emptyDir:
-            sizeLimit: 256Mi
         - name: app-config
           configMap:
             name: app-config
-        - name: sws-config
-          configMap:
-            name: sws-config
-      initContainers:
-        - name: copy-static-files
-          image: datalab-ui
-          command:
-            - "sh"
-            - "-c"
-            - "cp -r /app/dist/* /app/volume"
-          securityContext:
-            runAsNonRoot: true
-            runAsUser: 1000
-            runAsGroup: 1000
-            readOnlyRootFilesystem: true
-          resources:
-            requests:
-              cpu: 1000m
-              memory: 256Mi
-            limits:
-              cpu: 2000m
-              memory: 512Mi
-          volumeMounts:
-            - name: dist
-              mountPath: /app/volume
       containers:
         - name: default
-          image: ghcr.io/static-web-server/static-web-server:2
-          command:
-            - /static-web-server
-            - --config-file=/sws/sws.toml
-            - --root=/app/dist
-            - --health
-            - --port=8080
-            - --host=0.0.0.0
-            - --page-fallback=/app/dist/index.html
+          image: datalab-ui
           securityContext:
             runAsNonRoot: true
             runAsUser: 1000
@@ -72,12 +36,8 @@ spec:
               cpu: 2000m
               memory: 512Mi
           volumeMounts:
-            - name: dist
-              mountPath: /app/dist
             - name: app-config
               mountPath: /app/dist/config
-            - name: sws-config
-              mountPath: /sws
           ports:
             - name: frontend
               containerPort: 8080

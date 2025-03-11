@@ -14,6 +14,3 @@ configMapGenerator:
   - name: app-config
     files:
       - config.json
-  - name: sws-config
-    files:
-      - sws.toml
