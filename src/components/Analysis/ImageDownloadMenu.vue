@@ -26,7 +26,7 @@ const alertStore = useAlertsStore()
 const analysisStore = useAnalysisStore()
 
 function downloadBase64File(base64Data, filename, fileType='file'){
-  downloadFile('data:image/png;base64,' + base64Data, filename, fileType)
+  downloadFile('data:image/jpeg;base64,' + base64Data, filename, fileType)
 }
 
 function downloadFile(file, filename, fileType='file'){
@@ -70,13 +70,13 @@ function downloadFile(file, filename, fileType='file'){
       v-if="props.jpgUrl"
       key="3"
       class="file-download"
-      text=".PNG"
+      text=".JPG"
       @click="downloadFile(props.jpgUrl, props.imageName, 'JPG')"
     />
     <v-btn
       key="4"
       class="file-download"
-      text="Scaled .PNG"
+      text="Scaled .JPG"
       @click="$emit('analysisAction', 'get-jpg', {'basename': props.imageName, 'zmin': analysisStore.scaledZmin, 'zmax': analysisStore.scaledZmax}, downloadBase64File)"
     />
   </v-speed-dial>
