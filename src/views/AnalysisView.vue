@@ -86,6 +86,9 @@ function handleAnalysisOutput(response, action, action_callback){
   case 'get-tif':
     action_callback(response.tif_url, props.image.basename, 'TIF')
     break
+  case 'get-jpg':
+    action_callback(response.jpg_base64, props.image.basename, 'base64')
+    break
   default:
     console.error('Invalid action:', action)
     break
@@ -137,6 +140,8 @@ async function instantiateScalerWorker(){
 }
 
 function updateScaling(min, max){
+  analysisStore.scaledZmin = min
+  analysisStore.scaledZmax = max
   imgWorker.postMessage({scalePoints: [min, max]})
 }
 

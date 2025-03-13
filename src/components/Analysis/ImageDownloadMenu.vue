@@ -1,5 +1,6 @@
 <script setup>
 import { useAlertsStore } from '@/stores/alerts'
+import { useAnalysisStore } from '@/stores/analysis'
 
 const props = defineProps({
   imageName: {
@@ -22,15 +23,18 @@ const props = defineProps({
 defineEmits(['analysisAction'])
 
 const alertStore = useAlertsStore()
+const analysisStore = useAnalysisStore()
 
-function downloadLink(link, filename, fileType='file'){
+function downloadBase64File(base64Data, filename, fileType='file'){
+  downloadFile('data:image/jpeg;base64,' + base64Data, filename, fileType)
+}
+
+function downloadFile(file, filename, fileType='file'){
   try{
     const a = document.createElement('a')
-    a.href = link
+    a.href = file
     a.download = filename
-    document.body.appendChild(a)
     a.click()
-    document.body.removeChild(a)
   } catch (error) {
     alertStore.setAlert('error', `Failed to download ${fileType} file`)
   }
@@ -54,25 +58,32 @@ function downloadLink(link, filename, fileType='file'){
       key="1"
       class="file-download"
       text=".FITS"
-      @click="downloadLink(props.fitsUrl, props.imageName, 'FITs')"
+      @click="downloadFile(props.fitsUrl, props.imageName, 'FITs')"
     />
     <v-btn
       key="2"
       class="file-download"
       text=".TIF"
-      @click="$emit('analysisAction', 'get-tif', {'basename': props.imageName}, downloadLink)"
+      @click="$emit('analysisAction', 'get-tif', {'basename': props.imageName}, downloadFile)"
     />
     <v-btn
       v-if="props.jpgUrl"
       key="3"
       class="file-download"
       text=".JPG"
-      @click="downloadLink(props.jpgUrl, props.imageName, 'JPG')"
+      @click="downloadFile(props.jpgUrl, props.imageName, 'JPG')"
+    />
+    <v-btn
+      key="4"
+      class="file-download"
+      text="Scaled .JPG"
+      @click="$emit('analysisAction', 'get-jpg', {'basename': props.imageName, 'zmin': analysisStore.scaledZmin, 'zmax': analysisStore.scaledZmax}, downloadBase64File)"
     />
   </v-speed-dial>
 </template>
 <style scoped>
 .file-download {
+  color: var(--off-white);
   background-color: var(--light-blue);
 }
 </style>
