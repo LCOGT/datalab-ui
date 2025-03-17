@@ -47,32 +47,21 @@ const sliderRange = ref([0, props.bins.length-1])
 const backgroundColor = 'var(--light-gray)'
 
 const gradient = computed(() => {
-  // This function computes a "gradient" for the histogram sparkline, showing the selected region as highlighted
-  let gradientArray = []
-  for (let i = 0; i < props.bins.length; i++) {
-    if (i > (sliderRange.value[0]+1) && i < (sliderRange.value[1]-1)) {
-      gradientArray.push(props.selectedColor)
-    }
-    else {
-      gradientArray.push(backgroundColor)
-    }
-  }
+  const { bins, selectedColor } = props
+  const [start, end] = sliderRange.value
+  
+  // Initialize array with background color
+  const gradientArray = new Array(bins.length).fill(backgroundColor)
+  
+  // Fill selected range efficiently
+  gradientArray.fill(selectedColor, Math.max(0, start), Math.min(bins.length, end + 1))
+
   return gradientArray
 })
 
 function sliderToBinValue(sliderValue) {
-  // This converts from sliderRange coordinates to scaleRange coordinates
-  if (props.bins.length >= sliderValue) {
-    return props.bins[sliderValue]
-  }
-}
-
-// Convert the slider value (bins) to the scale value (zMin/zMax)
-function labelSliderToScaleValue(sliderValue) {
-  if (sliderValue == sliderRange.value[0]) {
-    return scaleRange.value[0]
-  }
-  return scaleRange.value[1]
+  // Ensure sliderValue is within bounds before indexing bins
+  return props.bins[sliderValue] ?? props.bins[props.bins.length - 1]
 }
 
 /**
@@ -83,49 +72,48 @@ function labelSliderToScaleValue(sliderValue) {
  * @returns {number}
  */
 function scaleToSliderValue(scaleValue) {
-  // Determine whether start or end of the bin array is closer to the scale value and start from there
-  const startIndex = Math.abs(scaleValue - props.zMin) > Math.abs(scaleValue - props.zMax) ? props.bins.length - 1 : 0
-  const stepDirection = startIndex === 0 ? 1 : -1
+  const { bins } = props
+  let left = 0, right = bins.length - 1
 
-  let previousDistance = Math.abs(scaleValue - props.bins[startIndex])
-
-  // Iterate until you find the closest bin to the scale value
-  for (let i = startIndex + stepDirection; i >= 0 && i < props.bins.length; i += stepDirection) {
-    let distance = Math.abs(scaleValue - props.bins[i])
-    if (distance > previousDistance) return i - stepDirection
-    else previousDistance = distance
+  while (left <= right) {
+    const mid = Math.floor((left + right) / 2)
+    if (bins[mid] === scaleValue) return mid
+    if (bins[mid] < scaleValue) left = mid + 1
+    else right = mid - 1
   }
 
-  // If no closer bin found, return the start or end of the bin array
-  return startIndex === 0 ? props.bins.length - 1 : 0
+  // Return the closest index
+  return Math.abs(bins[left] - scaleValue) < Math.abs(bins[right] - scaleValue) ? left : right
 }
 
 function updateScaleRange() {
   // This is called when the range slider control is moved
   scaleRange.value[0] = sliderToBinValue(sliderRange.value[0])
   scaleRange.value[1] = sliderToBinValue(sliderRange.value[1])
-  emit('updateScaling', scaleRange.value[0], scaleRange.value[1])
+  emit('updateScaling', ...scaleRange.value)
 }
 
 function updateLowerScale(value) {
   // This is called when a change is made on the lower point number control
-  scaleRange.value = [Number(value), scaleRange.value[1]]
-  sliderRange.value[0] = scaleToSliderValue(Number(value))
-  emit('updateScaling', scaleRange.value[0], scaleRange.value[1])
+  value = Number(value)
+  scaleRange.value[0] = value
+  sliderRange.value[0] = scaleToSliderValue(value)
+  emit('updateScaling', ...scaleRange.value)
 }
 
 function updateUpperScale(value) {
   // This is called when a change is made on the upper point number control
-  scaleRange.value = [scaleRange.value[0], Number(value)]
-  sliderRange.value[1] = scaleToSliderValue(Number(value))
-  emit('updateScaling', scaleRange.value[0], scaleRange.value[1])
+  value = Number(value)
+  scaleRange.value[1] = value
+  sliderRange.value[1] = scaleToSliderValue(value)
+  emit('updateScaling', ...scaleRange.value)
 }
 
 function zScaleImage() {
   // This is called to reset the ranges to the zMin/zMax
   scaleRange.value = [props.zMin, props.zMax]
   sliderRange.value = [scaleToSliderValue(props.zMin), scaleToSliderValue(props.zMax)]
-  emit('updateScaling', scaleRange.value[0], scaleRange.value[1])
+  emit('updateScaling', ...scaleRange.value)
 }
 
 watch(
@@ -195,16 +183,11 @@ watch(
       :track-fill-color="selectedColor"
       thumb-color="var(--dark-green)"
       thumb-size="16"
-      thumb-label="always"
       :max="props.bins.length-1"
       strict
       hide-details
       @update:model-value="updateScaleRange"
-    >
-      <template #thumb-label="{ modelValue }">
-        {{ labelSliderToScaleValue(modelValue) }}
-      </template>
-    </v-range-slider>
+    />
   </div>
 </template>
 <style scoped>
