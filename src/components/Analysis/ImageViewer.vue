@@ -34,9 +34,7 @@ onMounted(() => leafletSetup())
 
 watch(() => props.catalog, () => createCatalogLayer())
 
-watch(() => analysisStore.imageUrl, async (newImageUrl, oldImageUrl) => {
-  if (!newImageUrl || newImageUrl === oldImageUrl) return
-
+watch(() => analysisStore.imageUrl, async (newImageUrl) => {
   if (!imageName) {
     await loadImageOverlay(newImageUrl)
     imageName = analysisStore.image.basename

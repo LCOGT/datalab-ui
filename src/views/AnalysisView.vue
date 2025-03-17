@@ -115,25 +115,26 @@ function showHeaderDialog() {
   }
 }
 
-// instantiate the scaler worker when new rawData is available
 async function instantiateScalerWorker(){
   // Load the image scale data if it is not already loaded
   try { await analysisStore.loadScaleData() } 
   catch (error) { return console.error('Failed to load scale data:', error) }
 
   // Create a new offscreen canvas for the worker
-  const imgScalingCanvas = document.createElement('canvas')
-  imgScalingCanvas.width = analysisStore.imageWidth
-  imgScalingCanvas.height = analysisStore.imageHeight
-  const offscreen = imgScalingCanvas.transferControlToOffscreen()
+  const offscreen = new OffscreenCanvas(analysisStore.imageWidth, analysisStore.imageHeight)
 
-  // Send the offscreen canvas and raw image data to the worker
-  imgWorker.postMessage({canvas: offscreen, width: analysisStore.imageWidth, height: analysisStore.imageHeight}, [offscreen])
-  imgWorker.postMessage({imageData: structuredClone(analysisStore.rawData)})
+  // Post the image data to the worker
+  imgWorker.postMessage({
+    canvas: offscreen,
+    width: analysisStore.imageWidth,
+    height: analysisStore.imageHeight,
+    imageData: structuredClone(analysisStore.rawData)
+  }, [offscreen])
 
-  // Callback function for when worker completes, updates leaflet image
+  // Image creation for leaflet map, clean up the old image url
   imgWorker.onmessage = () => {
-    imgScalingCanvas.toBlob((blob) => {
+    offscreen.convertToBlob().then((blob) => {
+      if (analysisStore.imageUrl) URL.revokeObjectURL(analysisStore.imageUrl)
       analysisStore.imageUrl = URL.createObjectURL(blob)
     })
   }
