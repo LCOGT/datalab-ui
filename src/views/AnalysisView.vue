@@ -38,6 +38,8 @@ const positionAngle = ref()
 const headerDialog = ref(false)
 const headerData = ref({})
 const imgWorker = new Worker('drawImageWorker.js')
+let imgWorkerProcessing = false
+let imgWorkerNextScale = null
 
 const filteredCatalog = computed(() => {
   if(catalogToggle.value){
@@ -136,6 +138,8 @@ async function instantiateScalerWorker(){
 
   // Image creation for leaflet map, clean up the old image url
   imgWorker.onmessage = () => {
+    imgWorkerProcessing = false
+    updateScaling()
     imgScalingCanvas.toBlob((blob) => {
       if (analysisStore.imageUrl) URL.revokeObjectURL(analysisStore.imageUrl)
       analysisStore.imageUrl = URL.createObjectURL(blob)
@@ -144,9 +148,17 @@ async function instantiateScalerWorker(){
 }
 
 function updateScaling(min, max){
-  analysisStore.scaledZmin = min
-  analysisStore.scaledZmax = max
-  imgWorker.postMessage({scalePoints: [min, max]})
+  if(min && max){
+    analysisStore.scaledZmin = min
+    analysisStore.scaledZmax = max
+    imgWorkerNextScale = [min, max]
+  }
+
+  if (imgWorkerNextScale && !imgWorkerProcessing){
+    imgWorkerProcessing = true
+    imgWorker.postMessage({scalePoints: [...imgWorkerNextScale]})
+    imgWorkerNextScale = null
+  }
 }
 
 </script>
