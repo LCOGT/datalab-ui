@@ -121,7 +121,10 @@ async function instantiateScalerWorker(){
   catch (error) { return console.error('Failed to load scale data:', error) }
 
   // Create a new offscreen canvas for the worker
-  const offscreen = new OffscreenCanvas(analysisStore.imageWidth, analysisStore.imageHeight)
+  const imgScalingCanvas = document.createElement('canvas')
+  imgScalingCanvas.width = analysisStore.imageWidth
+  imgScalingCanvas.height = analysisStore.imageHeight
+  const offscreen = imgScalingCanvas.transferControlToOffscreen()
 
   // Post the image data to the worker
   imgWorker.postMessage({
@@ -133,7 +136,7 @@ async function instantiateScalerWorker(){
 
   // Image creation for leaflet map, clean up the old image url
   imgWorker.onmessage = () => {
-    offscreen.convertToBlob().then((blob) => {
+    imgScalingCanvas.toBlob((blob) => {
       if (analysisStore.imageUrl) URL.revokeObjectURL(analysisStore.imageUrl)
       analysisStore.imageUrl = URL.createObjectURL(blob)
     })

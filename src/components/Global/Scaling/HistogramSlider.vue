@@ -178,6 +178,7 @@ watch(
     <v-range-slider
       v-model="sliderRange"
       step="1"
+      :ripple="false"
       track-size="0"
       :track-color="backgroundColor"
       :track-fill-color="selectedColor"
