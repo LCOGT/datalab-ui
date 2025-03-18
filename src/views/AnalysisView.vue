@@ -231,7 +231,6 @@ function updateScaling(min, max){
         <v-expand-transition>
           <v-sheet
             v-if="analysisStore.imageScaleReady"
-            transition="fade-transition"
             class="side-panel-item"
             rounded
           >
