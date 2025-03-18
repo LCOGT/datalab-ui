@@ -42,7 +42,7 @@ export const useAnalysisStore = defineStore('analysis', {
         return
       }
 
-      const url = this.imageUrl || this.image.largeCachedUrl
+      const url = this.imageUrl
       const img = new Image()
       img.src = url
       return new Promise((resolve) => {
