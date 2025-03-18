@@ -36,13 +36,8 @@ export const useAnalysisStore = defineStore('analysis', {
       if (this.imageWidth && this.imageHeight) {
         return
       }
-      
-      if (!this.imageUrl) {
-        console.error('No image URL provided')
-        return
-      }
 
-      const url = this.imageUrl
+      const url = this.imageUrl || this.image.largeCachedUrl
       const img = new Image()
       img.src = url
       return new Promise((resolve) => {
