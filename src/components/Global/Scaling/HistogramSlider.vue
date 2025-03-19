@@ -53,15 +53,14 @@ const gradient = computed(() => {
   // Initialize array with background color
   const gradientArray = new Array(bins.length).fill(backgroundColor)
   
-  // Fill selected range efficiently
+  // Fill selected range
   gradientArray.fill(selectedColor, Math.max(0, start), Math.min(bins.length, end + 1))
 
   return gradientArray
 })
 
 function sliderToBinValue(sliderValue) {
-  // Ensure sliderValue is within bounds before indexing bins
-  return props.bins[sliderValue] ?? props.bins[props.bins.length - 1]
+  return props.bins[sliderValue] ?? console.error('Slider value out of bounds')
 }
 
 /**
