@@ -34,9 +34,7 @@ onMounted(() => leafletSetup())
 
 watch(() => props.catalog, () => createCatalogLayer())
 
-watch(() => analysisStore.imageUrl, async (newImageUrl, oldImageUrl) => {
-  if (!newImageUrl || newImageUrl === oldImageUrl) return
-
+watch(() => analysisStore.imageUrl, async (newImageUrl) => {
   if (!imageName) {
     await loadImageOverlay(newImageUrl)
     imageName = analysisStore.image.basename
@@ -61,12 +59,12 @@ async function loadImageOverlay(imgSrc) {
   updateImageOverlay(imgSrc)
 
   /**
-     * This code ensures the image fills the map space and sets a minZoom level.
-     * Next tick is used here otherwise the methods will not work due to bugs in leaflets code. 
-     * 
-     * MinZoom needs to be set to a high negative value in the settings to over-fit the whole image
-     * then we fit the image and update the minZoom to the fitted zoom level.
-     */
+   * This code ensures the image fills the map space and sets a minZoom level.
+   * Next tick is used here otherwise the methods will not work due to bugs in leaflets code. 
+   * 
+   * MinZoom needs to be set to a high negative value in the settings to over-fit the whole image
+   * then we fit the image and update the minZoom to the fitted zoom level.
+   */
   nextTick(() => {
     imageMap.invalidateSize()
     imageMap.fitBounds(imageBounds)
@@ -77,9 +75,9 @@ async function loadImageOverlay(imgSrc) {
 
 // Replaces the current overlay (if it exists) with a new image
 function updateImageOverlay(imgSrc){
-  if (imageOverlay) {
+  if (imageOverlay && imageOverlay._url !== imgSrc) {
     imageOverlay.setUrl(imgSrc)
-  } else {
+  } else if (!imageOverlay) {
     imageOverlay = L.imageOverlay(imgSrc, imageBounds).addTo(imageMap)
   }
 }

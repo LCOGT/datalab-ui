@@ -38,6 +38,8 @@ const positionAngle = ref()
 const headerDialog = ref(false)
 const headerData = ref({})
 const imgWorker = new Worker('drawImageWorker.js')
+let imgWorkerProcessing = false
+let imgWorkerNextScale = null
 
 const filteredCatalog = computed(() => {
   if(catalogToggle.value){
@@ -115,7 +117,6 @@ function showHeaderDialog() {
   }
 }
 
-// instantiate the scaler worker when new rawData is available
 async function instantiateScalerWorker(){
   // Load the image scale data if it is not already loaded
   try { await analysisStore.loadScaleData() } 
@@ -127,22 +128,37 @@ async function instantiateScalerWorker(){
   imgScalingCanvas.height = analysisStore.imageHeight
   const offscreen = imgScalingCanvas.transferControlToOffscreen()
 
-  // Send the offscreen canvas and raw image data to the worker
-  imgWorker.postMessage({canvas: offscreen, width: analysisStore.imageWidth, height: analysisStore.imageHeight}, [offscreen])
-  imgWorker.postMessage({imageData: structuredClone(analysisStore.rawData)})
+  // Post the image data to the worker
+  imgWorker.postMessage({
+    canvas: offscreen,
+    width: analysisStore.imageWidth,
+    height: analysisStore.imageHeight,
+    imageData: structuredClone(analysisStore.rawData)
+  }, [offscreen])
 
-  // Callback function for when worker completes, updates leaflet image
+  // Image creation for leaflet map, clean up the old image url
   imgWorker.onmessage = () => {
+    imgWorkerProcessing = false
+    updateScaling()
     imgScalingCanvas.toBlob((blob) => {
+      if (analysisStore.imageUrl) URL.revokeObjectURL(analysisStore.imageUrl)
       analysisStore.imageUrl = URL.createObjectURL(blob)
     })
   }
 }
 
 function updateScaling(min, max){
-  analysisStore.scaledZmin = min
-  analysisStore.scaledZmax = max
-  imgWorker.postMessage({scalePoints: [min, max]})
+  if(min && max){
+    analysisStore.scaledZmin = min
+    analysisStore.scaledZmax = max
+    imgWorkerNextScale = [min, max]
+  }
+
+  if (imgWorkerNextScale && !imgWorkerProcessing){
+    imgWorkerProcessing = true
+    imgWorker.postMessage({scalePoints: [...imgWorkerNextScale]})
+    imgWorkerNextScale = null
+  }
 }
 
 </script>
@@ -227,7 +243,6 @@ function updateScaling(min, max){
         <v-expand-transition>
           <v-sheet
             v-if="analysisStore.imageScaleReady"
-            transition="fade-transition"
             class="side-panel-item"
             rounded
           >
