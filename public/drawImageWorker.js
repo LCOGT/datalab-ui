@@ -1,4 +1,4 @@
-var context, imageData, sharedArrayBuffer, sharedArray, gammaTable, imageDataObject, scalePointMessage
+var context, imageData, sharedArrayBuffer, sharedArray, gammaTable, outputImage, scalePointMessage
 let hasImageData = false
 let hasCanvas = false
  
@@ -15,7 +15,7 @@ onmessage = function(job) {
   if (payload.canvas) {
     // Init worker with the canvas, width, height, imageData, and sharedArrayBuffer
     context = payload.canvas.getContext('2d')
-    imageDataObject = new ImageData(payload.width, payload.height)
+    outputImage = new ImageData(payload.width, payload.height)
 
     if(payload.sharedArrayBuffer){
       sharedArrayBuffer = payload.sharedArrayBuffer
@@ -61,7 +61,7 @@ function processScalePoints(scalePoints) {
   const scale = 255 / (high16Bit - low16Bit)
   const len = imageData.data.length
 
-  const imageDataArray = imageDataObject.data
+  const outputImageData = outputImage.data
   const srcData = imageData.data
 
   for (let i = 0; i < len; i++) {
@@ -72,11 +72,11 @@ function processScalePoints(scalePoints) {
     if(sharedArray) sharedArray[i] = gammaCorrected
 
     const j = i * 4
-    imageDataArray[j] = gammaCorrected
-    imageDataArray[j + 1] = gammaCorrected
-    imageDataArray[j + 2] = gammaCorrected
-    imageDataArray[j + 3] = 255
+    outputImageData[j] = gammaCorrected
+    outputImageData[j + 1] = gammaCorrected
+    outputImageData[j + 2] = gammaCorrected
+    outputImageData[j + 3] = 255
   }
-  context.putImageData(imageDataObject, 0, 0)
+  context.putImageData(outputImage, 0, 0)
   postMessage({'updateSharedArray': true})
 }
