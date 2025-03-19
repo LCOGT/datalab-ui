@@ -59,7 +59,7 @@ const Login = async () => {
 <template>
   <v-container class="registration-container">
     <v-card
-      color="var(--metal)"
+      color="var(--card-background)"
       class="login-card pa-10"
     >
       <div class="login-title">
@@ -104,15 +104,14 @@ const Login = async () => {
 
 <style scoped>
 .registration-container {
-  height: 100%;
+  margin-top: 50px;
   display: flex;
   justify-content: center;
   align-content: center;
-  align-items: center;
-
 }
 
 .login-card {
+  height: 400px;
   width: 500px;
 }
 

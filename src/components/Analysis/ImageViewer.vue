@@ -191,8 +191,7 @@ function createCatalogLayer(){
   // Function to create a marker for a source
   function createSourceMarker(source){
     return new L.Circle([source.y, source.x], {
-      color: 'var(--tangerine)',
-      fillColor: 'var(--tangerine)',
+      color: 'var(--primary-interactive)',
       fillOpacity: 0.2,
       radius: 10,
       pmIgnore: true, // Ignore this layer for editing
@@ -231,50 +230,55 @@ function fetchCatalog(){
 /* Custom icons for leaflet-geoman */
 .custom-reset-zoom-icon {
   background-image: url('../../assets/images/resize.svg');
+  filter: invert(1);
 }
 
 .leaflet-pm-toolbar .leaflet-pm-icon-delete {
   background-image: url('../../assets/images/delete.svg');
+  filter: invert(1);
 }
 
 .leaflet-pm-toolbar .leaflet-pm-icon-polyline {
   background-image: url('../../assets/images/vector-line.svg');
+  filter: invert(1);
 }
 
 .leaflet-pm-toolbar .leaflet-pm-icon-edit {
   background-image: url('../../assets/images/vector-polyline-edit.svg');
+  filter: invert(1); /* Adjust the color of the background image */
 }
 /* Custom styling for toolbar */
-.leaflet-bar a:hover{
-  background-color: var(--dark-green);
-}
 
 .leaflet-bar a{
-  background-color: var(--light-blue);
-  color: var(--dark-blue);
+  background-color: var(--primary-interactive);
+  color: var(--text);
+  border-bottom: none;
+}
+
+.leaflet-bar a:hover{
+  background-color: var(--secondary-interactive);
+}
+
+.leaflet-bar a:focus{
+  background-color: var(--secondary-interactive);
 }
 
 .leaflet-bar a.leaflet-disabled{
-  background-color: var(--metal);
-  color: var(--dark-blue);
+  background-color: var(--secondary-background);
+  color: var(--disabled-text);
 }
 
 .button-container .leaflet-pm-actions-container .leaflet-pm-action:hover{
-  background-color: var(--dark-green);
+  background-color: var(--secondary-interactive);
 }
 
 .button-container .leaflet-pm-actions-container .leaflet-pm-action{
-  background-color: var(--light-blue);
-  color: var(--dark-blue);
+  background-color: var(--primary-interactive);
+  color: var(--text);
 }
-/* Custom styling for Layer Control */
-.leaflet-control-layers-expanded{
-  background-color: var(--light-blue);
-  color: var(--dark-blue);
-  user-select: none;
-}
+
 .leaflet-container {
-  background-color: var(--metal);
+  background-color: var(--primary-background);
   border-radius: 0.25rem;
 }
 </style>

@@ -83,7 +83,7 @@ function downloadFile(file, filename, fileType='file'){
 </template>
 <style scoped>
 .file-download {
-  color: var(--off-white);
-  background-color: var(--light-blue);
+  color: var(--text);
+  background-color: var(--primary-interactive);
 }
 </style>

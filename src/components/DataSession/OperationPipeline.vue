@@ -75,7 +75,7 @@ function operationStateToClass(operation) {
     OPERATIONS
     <v-btn
       variant="plain"
-      color="var(--light-blue)"
+      color="var(--primary-interactive)"
       density="compact"
       icon="mdi-graph-outline"
       title="View Operations Graph"
@@ -120,7 +120,7 @@ function operationStateToClass(operation) {
 
 <style scoped>
 .operations {
-  color: var(--tan);
+  color: var(--text);
   letter-spacing: 0.05rem;
   font-size: 2rem;
 }
@@ -134,7 +134,7 @@ function operationStateToClass(operation) {
   height: 3rem;
   font-size: 1rem;
   font-weight: 600;
-  color: var(--metal);
+  color: var(--text);
 }
 
 @media (max-width: 1200px) {

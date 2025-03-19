@@ -23,7 +23,7 @@ const filterToColor = (filter) => {
 
   const lowerCaseFilter = filter.trim().toLowerCase()
   const found = filterColorMap.find(({ filters }) => filters.includes(lowerCaseFilter))
-  return found ? found.color : 'var(--light-blue)'
+  return found ? found.color : 'var(--info)'
 }
 
 function siteIDToName(siteID) {

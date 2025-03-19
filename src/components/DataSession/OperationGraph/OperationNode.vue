@@ -61,6 +61,6 @@ function operationStateToClass(state) {
   height: 3rem;
   font-size: 1rem;
   font-weight: 600;
-  color: var(--metal);
+  color: var(--text);
 }
 </style>

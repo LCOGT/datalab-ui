@@ -76,7 +76,6 @@ function launchAnalysis(image){
     item-value="basename"
     :items-per-page="images.length"
     show-select
-    hover
     hide-default-footer
     hide-no-data
     class="data_table"
@@ -115,8 +114,8 @@ function launchAnalysis(image){
   <v-skeleton-loader
     v-else
     type="table"
-    color="var(--dark-blue)"
-    bg-color="var(--metal)"
+    color="var(--secondary-background)"
+    bg-color="var(--primary-background)"
   />
   <v-dialog
     v-model="showAnalysisDialog"
@@ -133,8 +132,8 @@ function launchAnalysis(image){
 <style scoped>
 .data_table {
   font-size: 1rem;
-  color: var(--tan);
-  background-color: var(--metal);
+  color: var(--text);
+  background-color: var(--card-background);
 }
 .list_image{
   width: 8vw;

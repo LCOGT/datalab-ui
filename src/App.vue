@@ -44,7 +44,7 @@ onMounted(async () => {
 
 <style>
 body {
-  background-color: var(--dark-blue);
+  background-color: var(--primary-background);
 }
 
 #app {

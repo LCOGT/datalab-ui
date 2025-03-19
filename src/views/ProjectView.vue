@@ -210,8 +210,8 @@ onMounted(() => {
     />
     <v-switch
       v-model="userDataStore.gridToggle"
-      color="var(--light-blue)"
-      base-color="var(--light-blue)"
+      color="var(--primary-interactive)"
+      base-color="var(--primary-interactive)"
       prepend-icon="mdi-view-list"
       append-icon="mdi-image"
     />
@@ -221,7 +221,7 @@ onMounted(() => {
       v-model="userDataStore.openProposals"
       variant="accordion"
       :multiple="true"
-      bg-color="var(--metal)"
+      bg-color="var(--card-background)"
     >
       <v-expansion-panel
         v-for="proposal in userDataStore.proposals"
@@ -285,10 +285,10 @@ onMounted(() => {
   display: flex;
   gap: 1rem;
   margin: 1rem;
-  color: var(--tan);
+  color: var(--text);
 }
 .v-expansion-panel-title p{
-  color: var(--tan);
+  color: var(--text);
   font-weight: 700;
   font-size: 1.3rem;
 }
@@ -299,18 +299,18 @@ onMounted(() => {
   overflow-y: scroll;
 }
 .no-images{
-  color: var(--tan);
+  color: var(--text);
 }
 .proposal-buttons {
   margin-bottom: 1rem;
   position: fixed;
   bottom: 0;
   right: 0;
-  color: var(--tan);
+  color: var(--text);
 }
 .proposal-button {
   margin-right: 1rem;
-  background-color: var(--light-blue);
+  background-color: var(--primary-interactive);
   font-weight: 700;
   font-size: 1.3rem;
   margin-right: 1rem;
@@ -321,13 +321,13 @@ onMounted(() => {
 .add_button {
   width: 14rem;
   height: 3rem;
-  background-color: var(--light-blue);
-  color: var(--off-white);
+  background-color: var(--primary-interactive);
+  color: var(--text);
 }
 .deselect_button {
   width: 10rem;
   height: 3rem;
   background-color: var(--cancel);
-  color: var(--off-white);
+  color: var(--text);
 }
 </style>

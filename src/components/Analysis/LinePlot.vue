@@ -15,10 +15,10 @@ const props = defineProps({
 
 // chartJs can't use css vars as strings, so we need to get the actual value
 var style = getComputedStyle(document.body)
-const tan = style.getPropertyValue('--tan')
-const darkBlue = style.getPropertyValue('--dark-blue')
-const lightBlue = style.getPropertyValue('--light-blue')
-const darkGreen = style.getPropertyValue('--dark-green')
+const text = style.getPropertyValue('--text')
+const background = style.getPropertyValue('--primary-background')
+const primary = style.getPropertyValue('--primary-interactive')
+const secondary = style.getPropertyValue('--secondary-interactive')
 
 watch(() => [props.yAxisData, props.xAxisLength], () => {
   lineProfileChart ? updateChart() : createChart()
@@ -34,43 +34,43 @@ function createChart (){
           label: 'Flux',
           data: props.yAxisData,
           // Line styling
-          borderColor: lightBlue,
+          borderColor: primary,
           borderWidth: 2,
           borderJoinStyle: 'round',
-          backgroundColor: lightBlue,
+          backgroundColor: primary,
           // Point styling
           pointRadius: 0,
           // Point hover styling
           pointHitRadius: 10,
-          pointHoverBorderColor: darkGreen,
-          pointHoverBackgroundColor: darkGreen,
+          pointHoverBorderColor: secondary,
+          pointHoverBackgroundColor: secondary,
         },
       ],
     },
     options: {
       scales: {
         x: {
-          title: { display: true, text: distanceLabel(), color: tan },
-          border: { color: tan, width: 2 },
-          ticks: { color: tan, autoSkip: true, autoSkipPadding: 10 , maxRotation: 0 },
-          grid: { color: darkBlue },
+          title: { display: true, text: distanceLabel(), color: text },
+          border: { color: text, width: 2 },
+          ticks: { color: text, autoSkip: true, autoSkipPadding: 10 , maxRotation: 0 },
+          grid: { color: background },
         },
         y: {
-          title: { display: true, text: 'Luminosity', color: tan },
-          border: { color: tan, width: 2 },
-          ticks: { color: tan, autoSkip: true, },
-          grid: { color: darkBlue },
+          title: { display: true, text: 'Luminosity', color: text },
+          border: { color: text, width: 2 },
+          ticks: { color: text, autoSkip: true, },
+          grid: { color: background },
         },
       },
       plugins: {
-        title: { display: true, text: 'Line Profile', color: tan },
+        title: { display: true, text: 'Line Profile', color: text },
         legend: { display: false },
         tooltip: {
           titleAlign: 'center',
-          titleColor: tan,
+          titleColor: text,
           bodyAlign: 'center',
-          bodyColor: tan,
-          backgroundColor: darkGreen,
+          bodyColor: text,
+          backgroundColor: secondary,
           displayColors: false,
         },
       },

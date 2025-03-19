@@ -36,7 +36,7 @@ const props = defineProps({
   selectedColor: {
     type: String,
     required: false,
-    default: 'var(--light-blue)'
+    default: 'var(--primary-interactive)'
   },
 })
 
@@ -44,7 +44,7 @@ const emit = defineEmits(['updateScaling'])
 
 const scaleRange = ref([props.bins[0], props.bins[props.bins.length-1]])
 const sliderRange = ref([0, props.bins.length-1])
-const backgroundColor = 'var(--light-gray)'
+const backgroundColor = 'var(--text)'
 
 const gradient = computed(() => {
   const { bins, selectedColor } = props
@@ -132,7 +132,7 @@ watch(
         density="compact"
         type="number"
         variant="outlined"
-        bg-color="var(--dark-blue)"
+        bg-color="var(--primary-background)"
         hide-spin-buttons
         hide-details
         @update:model-value="updateLowerScale"
@@ -146,7 +146,7 @@ watch(
         density="compact"
         type="number"
         variant="outlined"
-        bg-color="var(--dark-blue)"
+        bg-color="var(--primary-background)"
         hide-spin-buttons
         hide-details
         @update:model-value="updateUpperScale"
@@ -154,7 +154,7 @@ watch(
     </v-col>
     <v-col>
       <v-btn
-        color="var(--light-blue)"
+        color="var(--primary-interactive)"
         prepend-icon="mdi-refresh"
         text="Z-Scale"
         rounded="lg"
@@ -181,8 +181,7 @@ watch(
       track-size="0"
       :track-color="backgroundColor"
       :track-fill-color="selectedColor"
-      thumb-color="var(--dark-green)"
-      thumb-size="16"
+      thumb-color="var(--secondary-interactive)"
       :max="props.bins.length-1"
       strict
       hide-details

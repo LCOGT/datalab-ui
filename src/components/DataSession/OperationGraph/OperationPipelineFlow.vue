@@ -136,7 +136,7 @@ onPaneReady(() => {
     :elements-selectable="false"
     class="operation-pipeline-node-flow"
   >
-    <Background pattern-color="var(--light-blue)" />
+    <Background pattern-color="var(--primary-interactive)" />
     <template #node-operation="item">
       <OperationNode
         :id="item.id"
@@ -153,7 +153,7 @@ onPaneReady(() => {
     </template>
     <Panel position="top-right">
       <v-btn
-        color="var(--light-blue)"
+        color="var(--primary-interactive)"
         title="Close Graph"
         density="default"
         icon="mdi-arrow-right-bold"

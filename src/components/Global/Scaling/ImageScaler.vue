@@ -130,11 +130,10 @@ onMounted(async () => {
 <style scoped>
 .image-scaler{
   display: flex;
-  background-color: var(--metal);
 }
 .image-scale-title {
   margin-bottom: 0.5rem;
-  color: var(--tan);
+  color: var(--text);
   font-weight: bold;
 }
 

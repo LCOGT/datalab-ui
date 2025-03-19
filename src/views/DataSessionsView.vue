@@ -122,32 +122,31 @@ function tabActive(index) {
 
 <style scoped>
 .tabs {
-  background-color: var(--metal);
-  border-bottom: 0.1rem solid var(--tan);
+  background-color: var(--primary-background);
+  border-bottom: 0.1rem solid var(--primary-interactive);
 }
 
 .tab {
   font-size: 1.2rem;
   text-decoration: none;
-  color: var(--tan);
+  color: var(--disabled-text);
   font-weight: 600;
-  background-color: var(--metal);
+  background-color: var(--secondary-background);
 }
 
 .tab_button {
-  color: var(--tan);
-  text-decoration: none;
+  color: var(--text);
   margin: 0 0.5rem;
 }
 
 .selected {
-  background-color: var(--light-blue);
-  color: white;
+  background-color: var(--primary-interactive);
+  color: var(--text);
 }
 
 .no-sessions{
   font-weight: 600;
-  color: var(--tan);
+  color: var(--text);
 }
 
 @media (max-width: 1200px) {

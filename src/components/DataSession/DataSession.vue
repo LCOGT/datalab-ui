@@ -262,8 +262,9 @@ watch(
             <v-btn
               variant="flat"
               class="addop_button"
+              prepend-icon="mdi-plus"
             >
-              Add Operation
+              new
               <v-dialog
                 v-model="showWizardDialog"
                 activator="parent"
@@ -293,7 +294,7 @@ watch(
   height:0px;
 }
 .ds-container {
-  background-color: var(--metal);
+  background-color: var(--primary-background);
   display: flex;
 }
 .graph-container {
@@ -303,9 +304,9 @@ watch(
 .addop_button {
   font-size: 1rem;
   align-content: center;
-  background-color: var(--light-blue);
+  background-color: var(--primary-interactive);
   font-weight: 700;
-  color: var(--tan);
+  color: var(--text);
   margin-top: 1rem;
   padding: 25px
 }
