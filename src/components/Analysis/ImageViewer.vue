@@ -191,7 +191,7 @@ function createCatalogLayer(){
   // Function to create a marker for a source
   function createSourceMarker(source){
     return new L.Circle([source.y, source.x], {
-      color: 'var(--primary-interactive)',
+      color: 'var(--info)',
       fillOpacity: 0.2,
       radius: 10,
       pmIgnore: true, // Ignore this layer for editing

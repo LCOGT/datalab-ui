@@ -62,6 +62,7 @@ function tabActive(index) {
       next-icon="mdi-chevron-right"
       prev-icon="mdi-chevron-left"
       show-arrows
+      hide-slider
       center-active
       @update:model-value="onTabChange"
     >
