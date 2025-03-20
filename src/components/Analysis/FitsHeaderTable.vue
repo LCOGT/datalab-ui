@@ -47,10 +47,10 @@ const tableHeaders = ref([
 </template>
 <style scoped>
 .fits-header-sheet{
-  background-color: var(--dark-blue);
-  color: var(--tan);
+  background-color: var(--primary-background);
+  color: var(--text);
 }
 .v-data-table{
-  background-color: var(--dark-blue);
+  background-color: var(--primary-background);
 }
 </style>

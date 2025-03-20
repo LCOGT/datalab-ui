@@ -163,8 +163,8 @@ onMounted(() => {
   width: 40vw;
   align-self: center;
   display: flex !important;
-  background-color: var(--dark-blue);
-  color: var(--tan);
+  background-color: var(--primary-background);
+  color: var(--text);
   padding: 1rem
 }
 .sessions_header {
@@ -175,12 +175,12 @@ onMounted(() => {
 .sessions-list {
   overflow-y: scroll;
   font-size: 1.4rem;
-  color: var(--tan);
-  background-color: var(--dark-blue);
+  color: var(--text);
+  background-color: var(--primary-background);
 }
 .last-modified-text {
   font-size: 0.8rem;
-  color: var(--light-blue);
+  color: var(--info);
   opacity: 0.7;
   float: right;
 }
@@ -197,7 +197,7 @@ onMounted(() => {
   align-content: space-around;
 }
 .create_button {
-  color: var(--light-blue);
+  color: var(--primary-interactive);
   font-weight: 700;
   font-size: 1.4rem;
 }

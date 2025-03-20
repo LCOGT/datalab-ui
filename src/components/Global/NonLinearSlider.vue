@@ -73,8 +73,8 @@ watch(() => [props.max, props.min], () => {
     v-model="sliderRange"
     step="1"
     :max="customScale.length-1"
-    color="var(--light-blue)"
-    thumb-color="var(--dark-green)"
+    color="var(--primary-interactive)"
+    thumb-color="var(--secondary-interactive)"
     strict
     hide-details
     @update:model-value="updateRange"

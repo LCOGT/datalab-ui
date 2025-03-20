@@ -229,7 +229,7 @@ function updateScaling(min, max){
                 title="Toggle Catalog"
                 density="comfortable"
                 icon="mdi-flare"
-                :color="catalogToggle ? 'var(--light-blue)' : 'var(--tan)'"
+                :color="catalogToggle ? 'var(--primary-interactive)' : 'var(--disabled-text)'"
                 @click="() => catalogToggle = !catalogToggle"
               />
               <non-linear-slider
@@ -282,16 +282,16 @@ function updateScaling(min, max){
 <style scoped>
 /* Main Sections */
 .analysis-page{
-  background-color: var(--dark-blue);
-  color: var(--tan);
+  background-color: var(--primary-background);
+  color: var(--text);
   font-family: var(--font-stack);
   max-height: 100vh;
   display: flex;
   flex-direction: column;
 }
 .analysis-toolbar{
-  color: var(--tan);
-  background-color: var(--metal);
+  color: var(--text);
+  background-color: var(--header);
 }
 .analysis-content{
   flex: 1;
@@ -308,8 +308,8 @@ function updateScaling(min, max){
 }
 .side-panel-item{
   padding: 1rem;
-  color: var(--tan);
-  background-color: var(--metal);
+  color: var(--text);
+  background-color: var(--card-background);
   margin-bottom: 1rem;
 }
 .line-plot-sheet {

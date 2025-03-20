@@ -47,7 +47,7 @@ const progressClass = computed(() => {
 .loadBarButton{
   position: relative;
   overflow: hidden;
-  background-color: var(--dark-blue);
+  background-color: var(--secondary-background);
 }
 :slotted(p) {
   z-index: 2;
@@ -66,11 +66,11 @@ const progressClass = computed(() => {
 }
 
 .good-progress-bar {
-  background-color: var(--tan);
+  background-color: var(--success);
   }
 
 .selected .good-progress-bar {
-  background-color: var(--dark-green);
+  background-color: var(--secondary-interactive);
 }
 
 :slotted(.operate-button-in-progress) {
@@ -83,7 +83,7 @@ const progressClass = computed(() => {
 }
 
 :slotted(.operate-button-pending) {
-  color: var(--light-gray)
+  color: var(--disabled-text)
 }
 
 @keyframes gradient-shift {

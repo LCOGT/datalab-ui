@@ -119,8 +119,8 @@ watch(() => props.images, () => {
         <v-skeleton-loader
           v-else
           type="card"
-          color="var(--dark-blue)"
-          bg-color="var(--metal)"
+          color="var(--secondary-background)"
+          bg-color="var(--primary-background)"
         />
       </v-col>
     </template>
@@ -134,8 +134,8 @@ watch(() => props.images, () => {
         <v-skeleton-loader
           type="card"
           class="ma-1"
-          color="var(--dark-blue)"
-          bg-color="var(--metal)"
+          color="var(--secondary-background)"
+          bg-color="var(--primary-background)"
         />
       </v-col>
     </template>
@@ -154,11 +154,11 @@ watch(() => props.images, () => {
 
 <style scoped>
 .selected-image {
-  border: 0.3rem solid var(--dark-green);
+  border: 0.3rem solid var(--primary-interactive);
 }
 
 .image-text-overlay {
-  color: var(--tan);
+  color: var(--text);
   font-weight: bold;
   margin-right: 5px;
   float: right;

@@ -59,7 +59,7 @@ const Login = async () => {
 <template>
   <v-container class="registration-container">
     <v-card
-      color="var(--metal)"
+      color="var(--card-background)"
       class="login-card pa-10"
     >
       <div class="login-title">
@@ -75,6 +75,9 @@ const Login = async () => {
       >
         <v-text-field
           v-model="username"
+          variant="solo-filled"
+          color="var(--primary-interactive)"
+          bg-color="var(--secondary-background)"
           autocomplete="username"
           label="Username"
           :rules="[rules.required]"
@@ -84,6 +87,9 @@ const Login = async () => {
         <v-text-field
           v-model="password"
           autocomplete="current-password"
+          variant="solo-filled"
+          color="var(--primary-interactive)"
+          bg-color="var(--secondary-background)"
           label="Password"
           :type="showPassword ? 'text' : 'password'"
           :append-icon="showPassword ? 'mdi-eye' : 'mdi-eye-off'"
@@ -93,7 +99,7 @@ const Login = async () => {
         />
         <v-btn
           type="submit"
-          color="primary"
+          color="var(--primary-interactive)"
         >
           Login
         </v-btn>
@@ -104,15 +110,14 @@ const Login = async () => {
 
 <style scoped>
 .registration-container {
-  height: 100%;
+  margin-top: 50px;
   display: flex;
   justify-content: center;
   align-content: center;
-  align-items: center;
-
 }
 
 .login-card {
+  height: 400px;
   width: 500px;
 }
 

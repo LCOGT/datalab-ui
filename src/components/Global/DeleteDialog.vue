@@ -43,21 +43,19 @@ function closeDialog() {
       </v-card-title>
       <v-card-text>
         <p class="delete-text">
-          <span v-html="dialogBody"></span>
+          <span v-html="dialogBody" />
         </p>
       </v-card-text>
       <v-card-actions>
         <v-spacer />
         <v-btn
           class="close-btn"
-          variant="text"
           @click="closeDialog()"
         >
-          Go Back
+          go back
         </v-btn>
         <v-btn
           class="delete-btn"
-          variant="text"
           @click="onDelete()"
         >
           Delete
@@ -69,7 +67,7 @@ function closeDialog() {
 
 <style scoped>
 .delete-card {
-  background-color: var(--metal);
+  background-color: var(--primary-background);
 }
 .delete-item-text {
   color: var(--cancel);
@@ -79,12 +77,12 @@ function closeDialog() {
   font-size: 1.3rem;
 }
 .delete-text {
-  color: var(--tan);
+  color: var(--text);
   font-family: var(--font-stack);
   font-size: 1.2rem;
 }
 .close-btn {
-  color: var(--light-blue);
+  color: var(--primary-interactive);
   font-size: 1rem;
 }
 .delete-btn {

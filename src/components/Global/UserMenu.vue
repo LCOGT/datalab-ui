@@ -19,14 +19,15 @@ function logOut() {
     <v-menu>
       <template #activator="{ props }">
         <v-btn
+          variant="text"
           class="nav-text"
           :text="userDataStore.username"
           v-bind="props"
-          append-icon="mdi-account-circle"
+          append-icon="mdi-chevron-down"
         />
       </template>
       <v-card
-        color="var(--metal)"
+        color="var(--card-background)"
         class="nav-text"
       >
         <v-list-item>
@@ -42,8 +43,6 @@ function logOut() {
 </template>
 <style scoped>
   .nav-text {
-  color: var(--tan);
-  font-weight: 600;
-  font-size: 1rem;
+  color: var(--text);
   }
 </style>

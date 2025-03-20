@@ -83,18 +83,18 @@ const selectedOperationInputs = computed(() => {
 
 const goForwardText = computed(() => {
   if (page.value == 'select') {
-    return 'Configure Operation'
+    return 'Select'
   }
   else if (page.value == 'configure'){
     if (operationRequiresInputScaling.value) {
       return 'Set Image Scaling'
     }
     else{
-      return 'Add Operation'
+      return 'Start Operation'
     }
   }
   else{
-    return 'Add Operation'
+    return 'Start Operation'
   }
 })
 
@@ -308,14 +308,13 @@ function selectImage(inputKey, basename) {
     <v-card-actions class="buttons-container">
       <v-spacer />
       <v-btn
-        variant="text"
         class="goback-btn"
+        prepend-icon="mdi-arrow-left"
         @click="goBack"
       >
-        Go Back
+        Back
       </v-btn>
       <v-btn
-        variant="text"
         class="gofwd-btn"
         :disabled="disableGoForward"
         @click="goForward"
@@ -328,16 +327,16 @@ function selectImage(inputKey, basename) {
 
 <style scoped>
 .wizard-background {
-  background-color: var(--dark-blue);
+  background-color: var(--primary-background);
   height: 100vh;
 }
 
 .wizard-toolbar {
-  background-color: var(--metal);
+  background-color: var(--header);
 }
 
 .wizard-title {
-  color: var(--tan);
+  color: var(--text);
   font-family: var(--font-headers);
   text-transform: uppercase;
   font-weight: 600;
@@ -347,23 +346,23 @@ function selectImage(inputKey, basename) {
 }
 
 .wizard-list {
-  background-color: var(--metal);
+  background-color: var(--header);
 }
 
 .wizard-subheader {
-  color: var(--tan);
+  color: var(--text);
   font-weight: 500;
   letter-spacing: 0.05rem;
   font-size: 1.4rem;
 }
 
 .wizard-operations {
-  color: var(--tan);
+  color: var(--text);
 }
 
 .selected-operation {
-  color: var(--tan);
-  background-color: var(--metal);
+  color: var(--text);
+  background-color: var(--card-background);
   text-transform: uppercase;
   font-family: var(--font-stack);
   font-size: 3rem;
@@ -380,13 +379,13 @@ function selectImage(inputKey, basename) {
 
 .input-images {
   font-family: var(--font-stack);
-  color: var(--tan);
+  color: var(--text);
   font-size: 1.5rem;
   text-transform: uppercase;
 }
 
 .selected-image {
-  border: 0.3rem solid var(--dark-green);
+  border: 0.3rem solid var(--secondary-interactive);
 }
 
 .buttons-container {
@@ -401,7 +400,7 @@ function selectImage(inputKey, basename) {
 }
 
 .gofwd-btn {
-  background-color: var(--light-blue);
+  background-color: var(--primary-interactive);
   font-size: 1.2rem;
 }
 </style>
