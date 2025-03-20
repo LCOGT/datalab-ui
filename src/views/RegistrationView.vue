@@ -75,6 +75,9 @@ const Login = async () => {
       >
         <v-text-field
           v-model="username"
+          variant="solo-filled"
+          color="var(--primary-interactive)"
+          bg-color="var(--secondary-background)"
           autocomplete="username"
           label="Username"
           :rules="[rules.required]"
@@ -84,6 +87,9 @@ const Login = async () => {
         <v-text-field
           v-model="password"
           autocomplete="current-password"
+          variant="solo-filled"
+          color="var(--primary-interactive)"
+          bg-color="var(--secondary-background)"
           label="Password"
           :type="showPassword ? 'text' : 'password'"
           :append-icon="showPassword ? 'mdi-eye' : 'mdi-eye-off'"
@@ -93,7 +99,7 @@ const Login = async () => {
         />
         <v-btn
           type="submit"
-          color="primary"
+          color="var(--primary-interactive)"
         >
           Login
         </v-btn>

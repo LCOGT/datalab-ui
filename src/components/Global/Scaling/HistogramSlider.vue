@@ -131,8 +131,8 @@ watch(
         label="z-min"
         density="compact"
         type="number"
-        variant="outlined"
-        bg-color="var(--primary-background)"
+        variant="solo-filled"
+        bg-color="var(--card-background)"
         hide-spin-buttons
         hide-details
         @update:model-value="updateLowerScale"
@@ -145,8 +145,8 @@ watch(
         label="z-max"
         density="compact"
         type="number"
-        variant="outlined"
-        bg-color="var(--primary-background)"
+        variant="solo-filled"
+        bg-color="var(--card-background)"
         hide-spin-buttons
         hide-details
         @update:model-value="updateUpperScale"

@@ -172,6 +172,9 @@ onMounted(() => {
       prepend-inner-icon="$calendar"
       :hide-actions="true"
       hide-details="auto"
+      color="var(--primary-interactive)"
+      bg-color="var(--card-background)"
+      variant="solo-filled"
     />
     <v-date-input
       v-model="endDate"
@@ -182,24 +185,36 @@ onMounted(() => {
       prepend-inner-icon="$calendar"
       :hide-actions="true"
       hide-details="auto"
+      color="var(--primary-interactive)"
+      bg-color="var(--card-background)"
+      variant="solo-filled"
     />
     <v-text-field
       v-model="observationId"
       label="Observation ID"
       clearable
       hide-details
+      color="var(--primary-interactive)"
+      bg-color="var(--card-background)"
+      variant="solo-filled"
     />
     <v-text-field
       v-model="ra"
       label="RA"
       clearable
       hide-details
+      color="var(--primary-interactive)"
+      bg-color="var(--card-background)"
+      variant="solo-filled"
     />
     <v-text-field
       v-model="dec"
       label="DEC"
       clearable
       hide-details
+      color="var(--primary-interactive)"
+      bg-color="var(--card-background)"
+      variant="solo-filled"
     />
     <v-text-field
       v-model="search"
@@ -207,6 +222,9 @@ onMounted(() => {
       label="Sources"
       clearable
       hide-details
+      color="var(--primary-interactive)"
+      bg-color="var(--card-background)"
+      variant="solo-filled"
     />
     <v-switch
       v-model="userDataStore.gridToggle"
@@ -226,6 +244,7 @@ onMounted(() => {
       <v-expansion-panel
         v-for="proposal in userDataStore.proposals"
         :key="proposal.id"
+        color="var(--secondary-background)"
       >
         <v-expansion-panel-title @click="loadProposals('reduction_level=91')">
           <p>{{ proposal.title }}</p>

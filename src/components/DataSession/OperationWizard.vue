@@ -83,18 +83,18 @@ const selectedOperationInputs = computed(() => {
 
 const goForwardText = computed(() => {
   if (page.value == 'select') {
-    return 'Configure Operation'
+    return 'Select'
   }
   else if (page.value == 'configure'){
     if (operationRequiresInputScaling.value) {
       return 'Set Image Scaling'
     }
     else{
-      return 'Add Operation'
+      return 'Start Operation'
     }
   }
   else{
-    return 'Add Operation'
+    return 'Start Operation'
   }
 })
 
@@ -308,14 +308,13 @@ function selectImage(inputKey, basename) {
     <v-card-actions class="buttons-container">
       <v-spacer />
       <v-btn
-        variant="text"
         class="goback-btn"
+        prepend-icon="mdi-arrow-left"
         @click="goBack"
       >
-        Go Back
+        Back
       </v-btn>
       <v-btn
-        variant="text"
         class="gofwd-btn"
         :disabled="disableGoForward"
         @click="goForward"
