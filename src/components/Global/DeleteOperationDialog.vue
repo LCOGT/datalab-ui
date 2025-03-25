@@ -1,5 +1,5 @@
 <script setup>
-import { defineProps, defineEmits, computed } from 'vue'
+import { computed } from 'vue'
 import { deleteOperations } from '../../utils/api'
 import DeleteDialog from '@/components/Global/DeleteDialog.vue'
 import _ from 'lodash'

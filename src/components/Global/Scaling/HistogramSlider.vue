@@ -1,5 +1,5 @@
 <script setup>
-import { ref, defineProps, defineEmits, computed, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 
 // This component draws a sparkline histogram with range slider controls on top of it.
 // It has two coordinate systems - sliderRange which is a linear system of bins for the
