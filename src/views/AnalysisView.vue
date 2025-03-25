@@ -177,7 +177,7 @@ function updateScaling(min, max){
       <image-download-menu
         :image-name="image.basename"
         :fits-url="image.url || image.fits_url"
-        :jpg-url="analysisStore.imageUrl"
+        :jpg-url="image.largeCachedUrl"
         @analysis-action="requestAnalysis"
       />
       <v-btn

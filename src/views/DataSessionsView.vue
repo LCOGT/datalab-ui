@@ -98,7 +98,6 @@ function tabActive(index) {
         <data-session
           :data="ds"
           :active="tabActive(index)"
-          @reload-session="loadSessions()"
         />
       </v-window-item>
     </v-window>

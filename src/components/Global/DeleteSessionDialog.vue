@@ -1,6 +1,5 @@
 <!-- eslint-disable vue/require-prop-types -->
 <script setup>
-import { defineProps, defineEmits } from 'vue'
 import { fetchApiCall } from '../../utils/api'
 import { useConfigurationStore } from '@/stores/configuration'
 import DeleteDialog from '@/components/Global/DeleteDialog.vue'

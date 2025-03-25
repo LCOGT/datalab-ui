@@ -70,8 +70,8 @@ function downloadFile(file, filename, fileType='file'){
       v-if="props.jpgUrl"
       key="3"
       class="file-download"
-      text=".JPG"
-      @click="downloadFile(props.jpgUrl, props.imageName, 'JPG')"
+      text="Small .JPG"
+      @click="downloadFile(props.jpgUrl, props.imageName, 'Small JPG')"
     />
     <v-btn
       key="4"
