@@ -28,13 +28,12 @@ const images = ref([...props.data.input_data])
 const showWizardDialog = ref(false)
 const tab = ref('main')
 const operationPollingTimers = {}
-
+const selectedOperation = ref(-1)
 const dataSessionsUrl = store.datalabApiBaseUrl + 'datasessions/'
-const imagesPerRow = 4
+const IMAGES_PER_ROW = 4
 const POLL_WAIT_TIME = 5000
 
 var operationMap = {}
-var selectedOperation = ref(-1)
 
 const filteredImages = computed(() => {
   // If no operation is selected, return all images, otherwise filter by selected operation
@@ -256,7 +255,7 @@ watch(
         </v-col>
         <image-grid
           :images="filteredImages"
-          :column-span="calculateColumnSpan(filteredImages.length, imagesPerRow)"
+          :column-span="calculateColumnSpan(filteredImages.length, IMAGES_PER_ROW)"
         />
       </v-container>
     </v-tabs-window-item>
