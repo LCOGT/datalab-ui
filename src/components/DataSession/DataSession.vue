@@ -93,6 +93,15 @@ function stopPollingById(operationIDs) {
   refreshOperations()
 }
 
+function operationDeleted(operationIDs){
+  // Stop polling for deleted operations
+  stopPollingById(operationIDs)
+  // Remove outputFiles with matching operationIDs from images
+  images.value = images.value.filter(image => {
+    return !operationIDs.some(id => image.operation == id)
+  })
+}
+
 async function pollOperationCompletion(operation) {
   // Success Callback for checking operation status
   const updateOperationStatus = (response) => {
@@ -243,7 +252,7 @@ watch(
             :selected-operation="selectedOperation"
             @operation-completed="addCompletedOperation"
             @select-operation="selectOperation"
-            @operation-was-deleted="stopPollingById"
+            @operation-was-deleted="operationDeleted"
             @view-graph="tab = 'graph'"
           />
           <v-btn
