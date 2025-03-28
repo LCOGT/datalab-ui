@@ -2,7 +2,6 @@
 import { ref } from 'vue'
 import LoadBarButton from '@/components/DataSession/LoadBarButton.vue'
 import DeleteOperationDialog from '@/components/Global/DeleteOperationDialog.vue'
-import _ from 'lodash'
 
 const emit = defineEmits(['operationCompleted', 'selectOperation', 'operationWasDeleted', 'viewGraph'])
 
@@ -46,7 +45,7 @@ function openDeleteOperationDialog(operation) {
   let childrenIds = new Set()
   recursiveFindChildren(operation.id, childrenIds)
   childrenIds.add(operation.id)
-  deleteOperations.value = _.filter(props.operations, function(o) {return childrenIds.has(o.id)})
+  deleteOperations.value = props.operations.filter(o => childrenIds.has(o.id))
   showDeleteDialog.value = true
 }
 
