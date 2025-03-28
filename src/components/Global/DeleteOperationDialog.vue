@@ -2,7 +2,6 @@
 import { computed } from 'vue'
 import { deleteOperations } from '../../utils/api'
 import DeleteDialog from '@/components/Global/DeleteDialog.vue'
-import _ from 'lodash'
 
 const props = defineProps({
   modelValue: {
@@ -24,7 +23,7 @@ const emit = defineEmits(['update:modelValue', 'itemWasDeleted'])
 const DIALOG_TITLE = 'DELETE OPERATION(S)'
 
 function itemDeleted(){
-  const deletedIds = _.map(props.operations, 'id')
+  const deletedIds = props.operations.map(op => op.id)
   emit('itemWasDeleted', deletedIds)
   emit('update:modelValue', false)
 }
@@ -46,7 +45,7 @@ const bodyText = computed(() => {
     :model-value="modelValue"
     :dialog-title="DIALOG_TITLE"
     :dialog-body="bodyText"
-    :on-delete="() => {deleteOperations(props.sessionId, _.map(props.operations, 'id'), itemDeleted)}"
+    :on-delete="() => {deleteOperations(props.sessionId, props.operations.map(op => op.id), itemDeleted)}"
     @update:model-value="emit('update:modelValue', $event)"
   />
 </template>

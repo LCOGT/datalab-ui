@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import OperationPipeline from './OperationPipeline.vue'
 import OperationPipelineFlow from './OperationGraph/OperationPipelineFlow.vue'
 import { fetchApiCall, handleError } from '@/utils/api.js'
@@ -8,7 +8,6 @@ import { useConfigurationStore } from '@/stores/configuration'
 import { useAlertsStore } from '@/stores/alerts'
 import ImageGrid from '@/components/Global/ImageGrid.vue'
 import OperationWizard from '@/components/DataSession/OperationWizard.vue'
-import _ from 'lodash'
 
 const props = defineProps({
   data: {
@@ -26,17 +25,24 @@ const alertStore = useAlertsStore()
 
 const operations = ref([...props.data.operations])
 const images = ref([...props.data.input_data])
-const filteredImages = ref([...images.value])
 const showWizardDialog = ref(false)
 const tab = ref('main')
 const operationPollingTimers = {}
-
+const selectedOperation = ref(-1)
 const dataSessionsUrl = store.datalabApiBaseUrl + 'datasessions/'
-const imagesPerRow = 4
+const IMAGES_PER_ROW = 4
 const POLL_WAIT_TIME = 5000
 
 var operationMap = {}
-var selectedOperation = ref(-1)
+
+const filteredImages = computed(() => {
+  // If no operation is selected, return all images, otherwise filter by selected operation
+  if (selectedOperation.value === -1) {
+    return images.value
+  } else {
+    return images.value.filter(image => image.operation === selectedOperation.value)
+  }
+})
 
 function imagesContainsFile(file) {
   return images.value.some(image => image.basename == file.basename && image.source == file.source && image.operation == file.operation)
@@ -49,9 +55,6 @@ function addCompletedOperation(operation) {
       outputFile.operationIndex = operation.index
       if (!imagesContainsFile(outputFile)) {
         images.value.push(outputFile)
-        if (selectedOperation.value == -1 || selectedOperation.value == outputFile.operation) {
-          filteredImages.value.push(outputFile)
-        }
       }
     })
   }
@@ -63,17 +66,6 @@ function selectOperation(operationId) {
   }
   else {
     selectedOperation.value = operationId
-  }
-  reconcileFilteredImages()
-}
-
-function reconcileFilteredImages() {
-  // This updates the filteredImages after changes in the operations list, or changes in selection of an operation.
-  if (selectedOperation.value == -1) {
-    filteredImages.value = [...images.value]
-  }
-  else {
-    filteredImages.value = images.value.filter(image => image.operation == selectedOperation.value)
   }
 }
 
@@ -88,27 +80,6 @@ async function addOperation(operationDefinition) {
   await fetchApiCall({ url: url, method: 'POST', body: operationDefinition, successCallback: postOperationSuccess, failCallback: handleError })
 }
 
-function processOperations() {
-  // Look through the input_data for file arrays and set dependency set on each operation
-  operationMap = {}
-  operations.value.forEach((operation, index) => {
-    operationMap[operation.id] = operation
-    // Set the operation index based on its list position in the response (1 indexed)
-    operation.index = index + 1
-    operation.dependencies = new Set()
-    Object.values(operation.input_data).forEach(inputParam => {
-      if (_.isArray(inputParam)) {
-        inputParam.forEach(inputValue => {
-          if (inputValue.basename && inputValue.source == 'datalab' && inputValue.operation) {
-            // This operation depends on another operation so add that to dependencies
-            operation.dependencies.add(inputValue.operation)
-          }
-        })
-      }
-    })
-  })
-}
-
 function stopPollingById(operationIDs) {
   const ids = Array.isArray(operationIDs) ? operationIDs : [operationIDs]
 
@@ -120,6 +91,15 @@ function stopPollingById(operationIDs) {
   })
 
   refreshOperations()
+}
+
+function operationDeleted(operationIDs){
+  // Stop polling for deleted operations
+  stopPollingById(operationIDs)
+  // Remove outputFiles with matching operationIDs from images
+  images.value = images.value.filter(image => {
+    return !operationIDs.some(id => image.operation == id)
+  })
 }
 
 async function pollOperationCompletion(operation) {
@@ -161,20 +141,14 @@ async function pollOperationCompletion(operation) {
 function startOperationPolling() {
   operations.value.forEach(operation => {
     if (operation.status != 'COMPLETED') {
-      if (_.every(Array.from(operation.dependencies), function(id) {
-        return id in operationMap && operationMap[id].status == 'COMPLETED'
-      })){
+      if (Array.from(operation.dependencies).every(id =>
+        id in operationMap && operationMap[id].status == 'COMPLETED'
+      )){
         if (!operationPollingTimers[operation.id]) {
           operationPollingTimers[operation.id] = setInterval(() => pollOperationCompletion(operation), POLL_WAIT_TIME)
         }
       }
     }
-  })
-}
-
-function stopOperationPolling() {
-  Object.keys(operationPollingTimers).forEach(operationID => {
-    stopPollingById(operationID)
   })
 }
 
@@ -196,6 +170,27 @@ async function refreshOperations() {
   await fetchApiCall({ url: url, method: 'GET', successCallback: onRefreshOperations, failCallback: handleError })
 }
 
+function processOperations() {
+  // Look through the input_data for file arrays and set dependency set on each operation
+  operationMap = {}
+  operations.value.forEach((operation, index) => {
+    operationMap[operation.id] = operation
+    // Set the operation index based on its list position in the response (1 indexed)
+    operation.index = index + 1
+    operation.dependencies = new Set()
+    Object.values(operation.input_data).forEach(inputParam => {
+      if (Array.isArray(inputParam)) {
+        inputParam.forEach(inputValue => {
+          if (inputValue.basename && inputValue.source == 'datalab' && inputValue.operation) {
+            // This operation depends on another operation so add that to dependencies
+            operation.dependencies.add(inputValue.operation)
+          }
+        })
+      }
+    })
+  })
+}
+
 watch(
   () => props.active, (active, previousActive) => {
     if (active && !previousActive) {
@@ -204,9 +199,10 @@ watch(
       refreshOperations()
     }
     else {
-      // If this tab becomes inactive from active, then make sure we stop
-      // polling for operation changes
-      stopOperationPolling()
+      // Stop all polling timers for inactive tabs
+      Object.keys(operationPollingTimers).forEach(operationID => {
+        stopPollingById(operationID)
+      })
     }
   }, { immediate: true }
 )
@@ -256,7 +252,7 @@ watch(
             :selected-operation="selectedOperation"
             @operation-completed="addCompletedOperation"
             @select-operation="selectOperation"
-            @operation-was-deleted="stopPollingById"
+            @operation-was-deleted="operationDeleted"
             @view-graph="tab = 'graph'"
           />
           <v-btn
@@ -268,7 +264,7 @@ watch(
         </v-col>
         <image-grid
           :images="filteredImages"
-          :column-span="calculateColumnSpan(filteredImages.length, imagesPerRow)"
+          :column-span="calculateColumnSpan(filteredImages.length, IMAGES_PER_ROW)"
         />
       </v-container>
     </v-tabs-window-item>
