@@ -1,7 +1,6 @@
 <script setup>
 import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { useScalingStore } from '@/stores/scaling'
-import _ from 'lodash'
 
 // This component uses a web worker to redraw a scaled raw image when
 // the scale points change
@@ -63,7 +62,7 @@ onUnmounted(() => {
 watch(
   () => props.scalePoints, () => {
     // This triggers the web worker to recompute and redraw the scaled image to screen
-    worker.postMessage({scalePoints: _.cloneDeep(props.scalePoints)})
+    worker.postMessage({ scalePoints: structuredClone(props.scalePoints)})
   },
   { immediate: false }
 )
@@ -72,7 +71,7 @@ watch(
   () => props.imageData, () => {
     // This should only be called once, but might not happen when component is created
     if (props.imageData) {
-      worker.postMessage({imageData: _.cloneDeep(props.imageData)})
+      worker.postMessage({imageData: structuredClone(props.imageData)})
     }
   },
   { immediate: false }

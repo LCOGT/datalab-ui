@@ -4,7 +4,7 @@ import { useConfigurationStore } from '@/stores/configuration'
 import { useUserDataStore } from '@/stores/userData'
 import { fetchApiCall, handleError } from '../utils/api'
 import DataSession from '@/components/DataSession/DataSession.vue'
-import DeleteSessionDialog from '@/components/Global/DeleteSessionDialog.vue'
+import DeleteSessionDialog from '@/components/DataSession/DeleteSessionDialog.vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
