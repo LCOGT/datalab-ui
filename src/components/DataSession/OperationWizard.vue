@@ -22,7 +22,6 @@ const dataSessionsUrl = store.datalabApiBaseUrl
 const availableOperations = ref({})
 const selectedOperation = ref('')
 const selectedOperationInput = ref({})
-const selectedImages = ref({})
 const IMAGES_PER_ROW = 3
 
 const WIZARD_PAGES = {
@@ -102,6 +101,7 @@ onMounted(async () => {
 function updateScaling(imageName, zmin, zmax) {
   // When input image scaling is updated, we set it inside the operation input object
   // that will then be sent to the server when we add the operation
+  // TODO since we removed selectedImages we need to find the right input key and the image in there to add this to
   selectedOperationInput.value[imageName][0].zmin = zmin
   selectedOperationInput.value[imageName][0].zmax = zmax
 }
@@ -162,29 +162,18 @@ function submitOperation() {
   emit('closeWizard')
 }
 
-function setOperationInputImages() {
-  for (const inputKey in selectedImages.value) {
-    let input = []
-    selectedImages.value[inputKey].forEach(basename => {
-      input.push(props.images.find(image => image.basename == basename))
-    })
-    selectedOperationInput.value[inputKey] = input
-  }
-}
-
 function selectImage(inputKey, basename) {
-  const inputImages = selectedImages.value[inputKey]
+  const inputKeyImages = selectedOperationInput.value[inputKey]
   const input = inputDescriptions.value[inputKey]
+  const image = props.images.find(image => image.basename == basename)
 
   // If the image is already selected, remove it from the list
-  if (inputImages.includes(basename)) {
-    inputImages.splice(inputImages.indexOf(basename), 1)
-    setOperationInputImages()
+  if (inputKeyImages.includes(image)) {
+    inputKeyImages.splice(inputKeyImages.indexOf(image), 1)
   }
   // If image not selected and maxImages isn't reached, add to the list
-  else if (!input.maximum || inputImages.length < input.maximum) {
-    inputImages.push(basename)
-    setOperationInputImages()
+  else if (!input.maximum || inputKeyImages.length < input.maximum) {
+    inputKeyImages.push(image)
   }
   else {
     alert.setAlert('warning', `${input.name} can only have ${input.maximum} image(s) selected`)
@@ -194,16 +183,12 @@ function selectImage(inputKey, basename) {
 function selectOperation(name) {
   selectedOperation.value = availableOperations.value[name]
   selectedOperationInput.value = {}
-  selectedImages.value = {}
   for (const [key, value] of Object.entries(inputDescriptions.value)) {
     if ('default' in value) {
       selectedOperationInput.value[key] = value.default
     }
     else {
-      selectedOperationInput.value[key] = null
-    }
-    if (value.type == 'file') {
-      selectedImages.value[key] = []
+      selectedOperationInput.value[key] = []
     }
   }
 }
@@ -277,8 +262,9 @@ function selectOperation(name) {
               {{ inputDescription.name }}
             </div>
             <image-grid
+              v-if="selectedOperationInput[inputKey]"
               :images="inputDescription.filter ? sortImagesByFilter(inputDescription.filter) : props.images"
-              :selected-images="selectedImages[inputKey]"
+              :selected-images="selectedOperationInput[inputKey].map(image => image.basename)"
               :column-span="calculateColumnSpan(images.length, IMAGES_PER_ROW)"
               :allow-selection="true"
               @select-image="selectImage(inputKey, $event)"
