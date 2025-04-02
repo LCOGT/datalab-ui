@@ -32,19 +32,7 @@ const WIZARD_PAGES = {
 }
 const page = ref(WIZARD_PAGES.SELECT)
 
-const selectedOperationDescription = computed(() => {
-  if (availableOperations.value && selectedOperation.value) {
-    return availableOperations.value[selectedOperation.value].description
-  }
-  return ''
-})
-
-const selectedOperationInputs = computed(() => {
-  if (availableOperations.value && selectedOperation.value) {
-    return availableOperations.value[selectedOperation.value].inputs
-  }
-  return {}
-})
+const inputDescriptions = computed(() => { return selectedOperation.value.inputs })
 
 const goForwardText = computed(() => {
   if (page.value == WIZARD_PAGES.SELECT) {
@@ -77,14 +65,14 @@ const wizardTitle = computed(() => {
     return 'SELECT OPERATION'
   }
   else {
-    return 'Configure ' + selectedOperation.value + ' Operation'
+    return 'Configure ' + selectedOperation.value.name + ' Operation'
   }
 })
 
 const isInputComplete = computed(() => {
   for (const inputKey in selectedOperationInput.value) {
     const input = selectedOperationInput.value[inputKey]
-    const minimum = selectedOperationInputs.value[inputKey].minimum
+    const minimum = inputDescriptions.value[inputKey].minimum
     if ( input === undefined || input === null || (minimum ? input.length < minimum : input.length == 0)) {
       return false
     }
@@ -93,8 +81,8 @@ const isInputComplete = computed(() => {
 })
 
 const operationRequiresInputScaling = computed(() => {
-  for (const inputKey in selectedOperationInputs.value) {
-    if (selectedOperationInputs.value[inputKey].include_custom_scale) {
+  for (const inputKey in inputDescriptions.value) {
+    if (inputDescriptions.value[inputKey].include_custom_scale) {
       return true
     }
   }
@@ -132,8 +120,8 @@ function sortImagesByFilter(filters){
 function goForward() {
   if (page.value == WIZARD_PAGES.SELECT) {
     // if there are no images for a filter required by the operation, do not proceed
-    for (const inputKey in selectedOperationInputs.value) {
-      const inputField = selectedOperationInputs.value[inputKey]
+    for (const inputKey in inputDescriptions.value) {
+      const inputField = inputDescriptions.value[inputKey]
       if (inputField.type == 'file' && props.images.length == 0){
         return
       }
@@ -164,7 +152,7 @@ function goBack() {
 
 function submitOperation() {
   let operationDefinition = {
-    'name': selectedOperation.value,
+    'name': selectedOperation.value.name,
     'input_data': {
       ...selectedOperationInput.value
     }
@@ -185,7 +173,7 @@ function setOperationInputImages() {
 
 function selectImage(inputKey, basename) {
   const inputImages = selectedImages.value[inputKey]
-  const input = selectedOperationInputs.value[inputKey]
+  const input = inputDescriptions.value[inputKey]
 
   // If the image is already selected, remove it from the list
   if (inputImages.includes(basename)) {
@@ -203,10 +191,10 @@ function selectImage(inputKey, basename) {
 }
 
 function selectOperation(name) {
-  selectedOperation.value = name
+  selectedOperation.value = availableOperations.value[name]
   selectedOperationInput.value = {}
   selectedImages.value = {}
-  for (const [key, value] of Object.entries(selectedOperationInputs.value)) {
+  for (const [key, value] of Object.entries(inputDescriptions.value)) {
     if ('default' in value) {
       selectedOperationInput.value[key] = value.default
     }
@@ -243,7 +231,7 @@ function selectOperation(name) {
               :key="i"
               :value="name"
               :title="name"
-              :active="name == selectedOperation"
+              :active="name == selectedOperation.name"
               class="wizard-operations"
               @click="selectOperation(name)"
             />
@@ -251,12 +239,12 @@ function selectOperation(name) {
         </v-col>
         <v-col cols="8">
           <v-card
-            :title="selectedOperation"
+            :title="selectedOperation.name"
             class="selected-operation"
           >
             <v-card-text>
               <span class="operation-description">
-                {{ selectedOperationDescription }}
+                {{ selectedOperation.description }}
               </span>
             </v-card-text>
           </v-card>
@@ -269,7 +257,7 @@ function selectOperation(name) {
         class="wizard-card"
       >
         <div
-          v-for="(inputDescription, inputKey) in selectedOperationInputs"
+          v-for="(inputDescription, inputKey) in inputDescriptions"
           :key="inputKey"
           class="operation-input-wrapper"
         >
@@ -305,7 +293,7 @@ function selectOperation(name) {
       >
         <div v-if="isInputComplete">
           <image-scaling-group
-            :input-description="selectedOperationInputs"
+            :input-description="inputDescriptions"
             :inputs="selectedOperationInput"
             @update-scaling="updateScaling"
           />
