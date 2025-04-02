@@ -184,19 +184,20 @@ function setOperationInputImages() {
 
 function selectImage(inputKey, basename) {
   const inputImages = selectedImages.value[inputKey]
-  const maxImages = selectedOperationInputs.value[inputKey].maximum
+  const input = selectedOperationInputs.value[inputKey]
 
+  // If the image is already selected, remove it from the list
   if (inputImages.includes(basename)) {
     inputImages.splice(inputImages.indexOf(basename), 1)
     setOperationInputImages()
   }
-  else if (!maxImages || inputImages.length < maxImages){
+  // If image not selected and maxImages isn't reached, add to the list
+  else if (!input.maximum || inputImages.length < input.maximum) {
     inputImages.push(basename)
     setOperationInputImages()
   }
-  else{
-    alert.setAlert('warning', 'Maximum number of images selected')
-    console.log('Maximum number of images selected in input', inputKey)
+  else {
+    alert.setAlert('warning', `${input.name} can only have ${input.maximum} image(s) selected`)
   }
 }
 
