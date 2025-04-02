@@ -32,47 +32,6 @@ const WIZARD_PAGES = {
 }
 const page = ref(WIZARD_PAGES.SELECT)
 
-onMounted(async () => {
-  const url = dataSessionsUrl + 'available_operations/'
-  await fetchApiCall({ url: url, method: 'GET', successCallback: (data) => { availableOperations.value = data }, failCallback: handleError })
-  if (Object.keys(availableOperations.value).length > 0) {
-    selectOperation(Object.keys(availableOperations.value)[0])
-  }
-})
-
-function updateScaling(imageName, zmin, zmax) {
-  // When input image scaling is updated, we set it inside the operation input object
-  // that will then be sent to the server when we add the operation
-  selectedOperationInput.value[imageName][0].zmin = zmin
-  selectedOperationInput.value[imageName][0].zmax = zmax
-}
-
-function selectOperation(name) {
-  selectedOperation.value = name
-  selectedOperationInput.value = {}
-  selectedImages.value = {}
-  for (const [key, value] of Object.entries(selectedOperationInputs.value)) {
-    if ('default' in value) {
-      selectedOperationInput.value[key] = value.default
-    }
-    else {
-      selectedOperationInput.value[key] = null
-    }
-    if (value.type == 'file') {
-      selectedImages.value[key] = []
-    }
-  }
-}
-
-function goBack() {
-  if (page.value == WIZARD_PAGES.SELECT) {
-    emit('closeWizard')
-  }
-  else {
-    page.value = WIZARD_PAGES.SELECT
-  }
-}
-
 const selectedOperationDescription = computed(() => {
   if (availableOperations.value && selectedOperation.value) {
     return availableOperations.value[selectedOperation.value].description
@@ -142,6 +101,21 @@ const operationRequiresInputScaling = computed(() => {
   return false
 })
 
+onMounted(async () => {
+  const url = dataSessionsUrl + 'available_operations/'
+  await fetchApiCall({ url: url, method: 'GET', successCallback: (data) => { availableOperations.value = data }, failCallback: handleError })
+  if (Object.keys(availableOperations.value).length > 0) {
+    selectOperation(Object.keys(availableOperations.value)[0])
+  }
+})
+
+function updateScaling(imageName, zmin, zmax) {
+  // When input image scaling is updated, we set it inside the operation input object
+  // that will then be sent to the server when we add the operation
+  selectedOperationInput.value[imageName][0].zmin = zmin
+  selectedOperationInput.value[imageName][0].zmax = zmax
+}
+
 function sortImagesByFilter(filters){
   // Trim and lowercase all filters
   for (const filter in filters){
@@ -175,6 +149,15 @@ function goForward() {
   }
   else {
     submitOperation()
+  }
+}
+
+function goBack() {
+  if (page.value == WIZARD_PAGES.SELECT) {
+    emit('closeWizard')
+  }
+  else {
+    page.value = WIZARD_PAGES.SELECT
   }
 }
 
@@ -214,6 +197,23 @@ function selectImage(inputKey, basename) {
   else{
     alert.setAlert('warning', 'Maximum number of images selected')
     console.log('Maximum number of images selected in input', inputKey)
+  }
+}
+
+function selectOperation(name) {
+  selectedOperation.value = name
+  selectedOperationInput.value = {}
+  selectedImages.value = {}
+  for (const [key, value] of Object.entries(selectedOperationInputs.value)) {
+    if ('default' in value) {
+      selectedOperationInput.value[key] = value.default
+    }
+    else {
+      selectedOperationInput.value[key] = null
+    }
+    if (value.type == 'file') {
+      selectedImages.value[key] = []
+    }
   }
 }
 
