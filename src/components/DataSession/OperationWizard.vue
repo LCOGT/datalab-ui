@@ -24,7 +24,13 @@ const selectedOperation = ref('')
 const selectedOperationInput = ref({})
 const selectedImages = ref({})
 const imagesPerRow = ref(3)
-const page = ref('select')
+
+const WIZARD_PAGES = {
+  SELECT: 'select',
+  CONFIGURE: 'configure',
+  SCALING: 'scaling'
+}
+const page = ref(WIZARD_PAGES.SELECT)
 
 onMounted(async () => {
   const url = dataSessionsUrl + 'available_operations/'
@@ -59,11 +65,11 @@ function selectOperation(name) {
 }
 
 function goBack() {
-  if (page.value == 'select') {
+  if (page.value == WIZARD_PAGES.SELECT) {
     emit('closeWizard')
   }
   else {
-    page.value = 'select'
+    page.value = WIZARD_PAGES.SELECT
   }
 }
 
@@ -82,10 +88,10 @@ const selectedOperationInputs = computed(() => {
 })
 
 const goForwardText = computed(() => {
-  if (page.value == 'select') {
-    return 'Select'
+  if (page.value == WIZARD_PAGES.SELECT) {
+    return WIZARD_PAGES.SELECT
   }
-  else if (page.value == 'configure'){
+  else if (page.value == WIZARD_PAGES.CONFIGURE){
     if (operationRequiresInputScaling.value) {
       return 'Set Image Scaling'
     }
@@ -99,7 +105,7 @@ const goForwardText = computed(() => {
 })
 
 const disableGoForward = computed(() => {
-  if (page.value == 'select') {
+  if (page.value == WIZARD_PAGES.SELECT) {
     return selectedOperation.value === ''
   }
   else{
@@ -108,7 +114,7 @@ const disableGoForward = computed(() => {
 })
 
 const wizardTitle = computed(() => {
-  if (page.value == 'select') {
+  if (page.value == WIZARD_PAGES.SELECT) {
     return 'SELECT OPERATION'
   }
   else {
@@ -149,7 +155,7 @@ function sortImagesByFilter(filters){
 }
 
 function goForward() {
-  if (page.value == 'select') {
+  if (page.value == WIZARD_PAGES.SELECT) {
     // if there are no images for a filter required by the operation, do not proceed
     for (const inputKey in selectedOperationInputs.value) {
       const inputField = selectedOperationInputs.value[inputKey]
@@ -157,11 +163,11 @@ function goForward() {
         return
       }
     }
-    page.value = 'configure'
+    page.value = WIZARD_PAGES.CONFIGURE
   }
-  else if (page.value == 'configure'){
+  else if (page.value == WIZARD_PAGES.CONFIGURE){
     if (operationRequiresInputScaling.value) {
-      page.value = 'scaling'
+      page.value = WIZARD_PAGES.SCALING
     }
     else {
       submitOperation()
@@ -220,7 +226,7 @@ function selectImage(inputKey, basename) {
         {{ wizardTitle }}
       </v-toolbar-title>
     </v-toolbar>
-    <v-card-text v-show="page == 'select'">
+    <v-card-text v-show="page == WIZARD_PAGES.SELECT">
       <v-row>
         <v-col cols="4">
           <v-list
@@ -257,7 +263,7 @@ function selectImage(inputKey, basename) {
     </v-card-text>
     <v-slide-y-reverse-transition hide-on-leave>
       <v-card-text
-        v-show="page == 'configure'"
+        v-show="page == WIZARD_PAGES.CONFIGURE"
         class="wizard-card"
       >
         <div
@@ -292,7 +298,7 @@ function selectImage(inputKey, basename) {
     </v-slide-y-reverse-transition>
     <v-slide-y-reverse-transition hide-on-leave>
       <v-card-text
-        v-show="page == 'scaling'"
+        v-show="page == WIZARD_PAGES.SCALING"
         class="wizard-card"
       >
         <div v-if="isInputComplete">
