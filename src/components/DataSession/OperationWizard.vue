@@ -51,21 +51,21 @@ const goForwardText = computed(() => {
   }
 })
 
-const disableGoForward = computed(() => {
-  if (page.value == WIZARD_PAGES.SELECT) {
-    return selectedOperation.value === ''
-  }
-  else{
-    return !isInputComplete.value
-  }
-})
-
 const wizardTitle = computed(() => {
   if (page.value == WIZARD_PAGES.SELECT) {
     return 'SELECT OPERATION'
   }
   else {
     return 'Configure ' + selectedOperation.value.name + ' Operation'
+  }
+})
+
+const disableGoForward = computed(() => {
+  if (page.value == WIZARD_PAGES.SELECT) {
+    return selectedOperation.value === ''
+  }
+  else{
+    return !isInputComplete.value
   }
 })
 
