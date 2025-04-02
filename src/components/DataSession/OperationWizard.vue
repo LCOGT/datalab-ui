@@ -23,7 +23,7 @@ const availableOperations = ref({})
 const selectedOperation = ref('')
 const selectedOperationInput = ref({})
 const selectedImages = ref({})
-const imagesPerRow = ref(3)
+const IMAGES_PER_ROW = 3
 
 const WIZARD_PAGES = {
   SELECT: 'select',
@@ -288,7 +288,7 @@ function selectOperation(name) {
             <image-grid
               :images="inputDescription.filter ? sortImagesByFilter(inputDescription.filter) : props.images"
               :selected-images="selectedImages[inputKey]"
-              :column-span="calculateColumnSpan(images.length, imagesPerRow)"
+              :column-span="calculateColumnSpan(images.length, IMAGES_PER_ROW)"
               :allow-selection="true"
               @select-image="selectImage(inputKey, $event)"
             />
