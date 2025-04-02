@@ -102,6 +102,7 @@ const operationRequiresInputScaling = computed(() => {
 })
 
 onMounted(async () => {
+  // Fetch available operations from the server
   const url = dataSessionsUrl + 'available_operations/'
   await fetchApiCall({ url: url, method: 'GET', successCallback: (data) => { availableOperations.value = data }, failCallback: handleError })
   if (Object.keys(availableOperations.value).length > 0) {
@@ -235,7 +236,7 @@ function selectOperation(name) {
             class="wizard-list"
           >
             <v-list-subheader class="wizard-subheader">
-              OPERATION
+              OPERATIONS
             </v-list-subheader>
             <v-list-item
               v-for="(name, i) in Object.keys(availableOperations)"
