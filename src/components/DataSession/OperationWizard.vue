@@ -21,7 +21,7 @@ const dataSessionsUrl = store.datalabApiBaseUrl
 
 const availableOperations = ref({})
 const selectedOperation = ref('')
-const selectedOperationInput = ref({})
+const operationInputs = ref({})
 const IMAGES_PER_ROW = 3
 
 const WIZARD_PAGES = {
@@ -69,8 +69,8 @@ const disableGoForward = computed(() => {
 })
 
 const isInputComplete = computed(() => {
-  for (const inputKey in selectedOperationInput.value) {
-    const input = selectedOperationInput.value[inputKey]
+  for (const inputKey in operationInputs.value) {
+    const input = operationInputs.value[inputKey]
     const minimum = inputDescriptions.value[inputKey].minimum
     if ( input === undefined || input === null || (minimum ? input.length < minimum : input.length == 0)) {
       return false
@@ -101,9 +101,8 @@ onMounted(async () => {
 function updateScaling(imageName, zmin, zmax) {
   // When input image scaling is updated, we set it inside the operation input object
   // that will then be sent to the server when we add the operation
-  // TODO since we removed selectedImages we need to find the right input key and the image in there to add this to
-  selectedOperationInput.value[imageName][0].zmin = zmin
-  selectedOperationInput.value[imageName][0].zmax = zmax
+  operationInputs.value[imageName][0].zmin = zmin
+  operationInputs.value[imageName][0].zmax = zmax
 }
 
 function sortImagesByFilter(filters){
@@ -123,7 +122,7 @@ function goForward() {
     // if there are no images for a filter required by the operation, do not proceed
     for (const inputKey in inputDescriptions.value) {
       const inputField = inputDescriptions.value[inputKey]
-      if (inputField.type == 'file' && props.images.length == 0){
+      if (inputField.type == 'fits' && props.images.length == 0){
         return
       }
     }
@@ -155,7 +154,7 @@ function submitOperation() {
   let operationDefinition = {
     'name': selectedOperation.value.name,
     'input_data': {
-      ...selectedOperationInput.value
+      ...operationInputs.value
     }
   }
   emit('addOperation', operationDefinition)
@@ -163,7 +162,7 @@ function submitOperation() {
 }
 
 function selectImage(inputKey, basename) {
-  const inputKeyImages = selectedOperationInput.value[inputKey]
+  const inputKeyImages = operationInputs.value[inputKey]
   const input = inputDescriptions.value[inputKey]
   const image = props.images.find(image => image.basename == basename)
 
@@ -182,13 +181,13 @@ function selectImage(inputKey, basename) {
 
 function selectOperation(name) {
   selectedOperation.value = availableOperations.value[name]
-  selectedOperationInput.value = {}
+  operationInputs.value = {}
   for (const [key, value] of Object.entries(inputDescriptions.value)) {
     if ('default' in value) {
-      selectedOperationInput.value[key] = value.default
+      operationInputs.value[key] = value.default
     }
     else {
-      selectedOperationInput.value[key] = []
+      operationInputs.value[key] = []
     }
   }
 }
@@ -248,13 +247,13 @@ function selectOperation(name) {
           class="operation-input-wrapper"
         >
           <v-text-field
-            v-if="inputDescription.type !== 'file'"
-            v-model="selectedOperationInput[inputKey]"
+            v-if="inputDescription.type == 'text'"
+            v-model="operationInputs[inputKey]"
             :label="inputDescription.name"
             :type="inputDescription.type"
             class="operation-input"
           />
-          <div v-else-if="inputDescription.type == 'file'">
+          <div v-else-if="inputDescription.type == 'fits'">
             <div
               v-if="inputDescription.name"
               class="input-images"
@@ -262,9 +261,9 @@ function selectOperation(name) {
               {{ inputDescription.name }}
             </div>
             <image-grid
-              v-if="selectedOperationInput[inputKey]"
+              v-if="operationInputs[inputKey]"
               :images="inputDescription.filter ? sortImagesByFilter(inputDescription.filter) : props.images"
-              :selected-images="selectedOperationInput[inputKey].map(image => image.basename)"
+              :selected-images="operationInputs[inputKey].map(image => image.basename)"
               :column-span="calculateColumnSpan(images.length, IMAGES_PER_ROW)"
               :allow-selection="true"
               @select-image="selectImage(inputKey, $event)"
@@ -281,7 +280,7 @@ function selectOperation(name) {
         <div v-if="isInputComplete">
           <image-scaling-group
             :input-description="inputDescriptions"
-            :inputs="selectedOperationInput"
+            :inputs="operationInputs"
             @update-scaling="updateScaling"
           />
         </div>
