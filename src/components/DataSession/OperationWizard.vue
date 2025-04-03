@@ -72,7 +72,8 @@ const isInputComplete = computed(() => {
   for (const inputKey in operationInputs.value) {
     const input = operationInputs.value[inputKey]
     const minimum = inputDescriptions.value[inputKey].minimum
-    if ( input === undefined || input === null || (minimum ? input.length < minimum : input.length == 0)) {
+    const lessThanMinimumInputs = minimum ? input.length < minimum : input.length == 0
+    if ( input === undefined || input === null || lessThanMinimumInputs) {
       return false
     }
   }
@@ -105,16 +106,36 @@ function updateScaling(imageName, zmin, zmax) {
   operationInputs.value[imageName][0].zmax = zmax
 }
 
-function sortImagesByFilter(filters){
+function sortImagesByFilter(filters, images){
   // Trim and lowercase all filters
   for (const filter in filters){
     filters[filter] = filters[filter].trim().toLowerCase()
   }
   // Place desired filters at the front, followed by the rest
   return [
-    ...props.images.filter(image => filters.includes(image.filter?.trim().toLowerCase())),
-    ...props.images.filter(image => !filters.includes(image.filter?.trim().toLowerCase()))
+    ...images.filter(image => filters.includes(image.filter?.trim().toLowerCase())),
+    ...images.filter(image => !filters.includes(image.filter?.trim().toLowerCase()))
   ]
+}
+
+function validatedImages(inputDescription) {
+  try {
+    const validatedImages = props.images.filter(image => {
+      // archive images have no type (assigned in backend outputs) so we accept null for 'fits' format
+      const inputIsFormatFitsAndArchiveImage = inputDescription.format == 'fits' && image.type == null
+      return (inputIsFormatFitsAndArchiveImage || image.type == inputDescription.format)
+    })
+
+    // If the input has a filter, sort the images by that filter
+    if(inputDescription.filter) 
+      return sortImagesByFilter(inputDescription.filter, validatedImages)
+    else
+      return validatedImages
+
+  } catch (error) {
+    console.log('Error validating images:', error)
+    return props.images // fallback to all images
+  }
 }
 
 function goForward() {
@@ -262,7 +283,7 @@ function selectOperation(name) {
             </div>
             <image-grid
               v-if="operationInputs[inputKey]"
-              :images="inputDescription.filter ? sortImagesByFilter(inputDescription.filter) : props.images"
+              :images="validatedImages(inputDescription)"
               :selected-images="operationInputs[inputKey].map(image => image.basename)"
               :column-span="calculateColumnSpan(images.length, IMAGES_PER_ROW)"
               :allow-selection="true"
@@ -277,7 +298,7 @@ function selectOperation(name) {
         v-show="page == WIZARD_PAGES.SCALING"
         class="wizard-card"
       >
-        <div v-if="isInputComplete">
+        <div v-if="isInputComplete && inputDescriptions">
           <image-scaling-group
             :input-description="inputDescriptions"
             :inputs="operationInputs"
