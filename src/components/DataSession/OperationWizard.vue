@@ -21,71 +21,23 @@ const dataSessionsUrl = store.datalabApiBaseUrl
 
 const availableOperations = ref({})
 const selectedOperation = ref('')
-const selectedOperationInput = ref({})
-const selectedImages = ref({})
-const imagesPerRow = ref(3)
-const page = ref('select')
+const operationInputs = ref({})
+const IMAGES_PER_ROW = 3
 
-onMounted(async () => {
-  const url = dataSessionsUrl + 'available_operations/'
-  await fetchApiCall({ url: url, method: 'GET', successCallback: (data) => { availableOperations.value = data }, failCallback: handleError })
-  if (Object.keys(availableOperations.value).length > 0) {
-    selectOperation(Object.keys(availableOperations.value)[0])
-  }
-})
-
-function updateScaling(imageName, zmin, zmax) {
-  // When input image scaling is updated, we set it inside the operation input object
-  // that will then be sent to the server when we add the operation
-  selectedOperationInput.value[imageName][0].zmin = zmin
-  selectedOperationInput.value[imageName][0].zmax = zmax
+const WIZARD_PAGES = {
+  SELECT: 'select',
+  CONFIGURE: 'configure',
+  SCALING: 'scaling'
 }
+const page = ref(WIZARD_PAGES.SELECT)
 
-function selectOperation(name) {
-  selectedOperation.value = name
-  selectedOperationInput.value = {}
-  selectedImages.value = {}
-  for (const [key, value] of Object.entries(selectedOperationInputs.value)) {
-    if ('default' in value) {
-      selectedOperationInput.value[key] = value.default
-    }
-    else {
-      selectedOperationInput.value[key] = null
-    }
-    if (value.type == 'file') {
-      selectedImages.value[key] = []
-    }
-  }
-}
-
-function goBack() {
-  if (page.value == 'select') {
-    emit('closeWizard')
-  }
-  else {
-    page.value = 'select'
-  }
-}
-
-const selectedOperationDescription = computed(() => {
-  if (availableOperations.value && selectedOperation.value) {
-    return availableOperations.value[selectedOperation.value].description
-  }
-  return ''
-})
-
-const selectedOperationInputs = computed(() => {
-  if (availableOperations.value && selectedOperation.value) {
-    return availableOperations.value[selectedOperation.value].inputs
-  }
-  return {}
-})
+const inputDescriptions = computed(() => { return selectedOperation.value.inputs })
 
 const goForwardText = computed(() => {
-  if (page.value == 'select') {
-    return 'Select'
+  if (page.value == WIZARD_PAGES.SELECT) {
+    return WIZARD_PAGES.SELECT
   }
-  else if (page.value == 'configure'){
+  else if (page.value == WIZARD_PAGES.CONFIGURE){
     if (operationRequiresInputScaling.value) {
       return 'Set Image Scaling'
     }
@@ -98,8 +50,17 @@ const goForwardText = computed(() => {
   }
 })
 
+const wizardTitle = computed(() => {
+  if (page.value == WIZARD_PAGES.SELECT) {
+    return 'SELECT OPERATION'
+  }
+  else {
+    return 'Configure ' + selectedOperation.value.name + ' Operation'
+  }
+})
+
 const disableGoForward = computed(() => {
-  if (page.value == 'select') {
+  if (page.value == WIZARD_PAGES.SELECT) {
     return selectedOperation.value === ''
   }
   else{
@@ -107,20 +68,12 @@ const disableGoForward = computed(() => {
   }
 })
 
-const wizardTitle = computed(() => {
-  if (page.value == 'select') {
-    return 'SELECT OPERATION'
-  }
-  else {
-    return 'Configure ' + selectedOperation.value + ' Operation'
-  }
-})
-
 const isInputComplete = computed(() => {
-  for (const inputKey in selectedOperationInput.value) {
-    const input = selectedOperationInput.value[inputKey]
-    const minimum = selectedOperationInputs.value[inputKey].minimum
-    if ( input === undefined || input === null || (minimum ? input.length < minimum : input.length == 0)) {
+  for (const inputKey in operationInputs.value) {
+    const input = operationInputs.value[inputKey]
+    const minimum = inputDescriptions.value[inputKey].minimum
+    const lessThanMinimumInputs = minimum ? input.length < minimum : input.length == 0
+    if ( input === undefined || input === null || lessThanMinimumInputs) {
       return false
     }
   }
@@ -128,40 +81,77 @@ const isInputComplete = computed(() => {
 })
 
 const operationRequiresInputScaling = computed(() => {
-  for (const inputKey in selectedOperationInputs.value) {
-    if (selectedOperationInputs.value[inputKey].include_custom_scale) {
+  for (const inputKey in inputDescriptions.value) {
+    if (inputDescriptions.value[inputKey].include_custom_scale) {
       return true
     }
   }
   return false
 })
 
-function sortImagesByFilter(filters){
+onMounted(async () => {
+  // Fetch available operations from the server
+  const url = dataSessionsUrl + 'available_operations/'
+  await fetchApiCall({ url: url, method: 'GET', successCallback: (data) => { availableOperations.value = data }, failCallback: handleError })
+  if (Object.keys(availableOperations.value).length > 0) {
+    // Select the first operation by default
+    selectOperation(Object.keys(availableOperations.value)[0])
+  }
+})
+
+function updateScaling(imageName, zmin, zmax) {
+  // When input image scaling is updated, we set it inside the operation input object
+  // that will then be sent to the server when we add the operation
+  operationInputs.value[imageName][0].zmin = zmin
+  operationInputs.value[imageName][0].zmax = zmax
+}
+
+function sortImagesByFilter(filters, images){
   // Trim and lowercase all filters
   for (const filter in filters){
     filters[filter] = filters[filter].trim().toLowerCase()
   }
   // Place desired filters at the front, followed by the rest
   return [
-    ...props.images.filter(image => filters.includes(image.filter?.trim().toLowerCase())),
-    ...props.images.filter(image => !filters.includes(image.filter?.trim().toLowerCase()))
+    ...images.filter(image => filters.includes(image.filter?.trim().toLowerCase())),
+    ...images.filter(image => !filters.includes(image.filter?.trim().toLowerCase()))
   ]
 }
 
+function validatedImages(inputDescription) {
+  try {
+    const validatedImages = props.images.filter(image => {
+      // archive images have no type (assigned in backend outputs) so we accept null for 'fits' format
+      const inputIsFormatFitsAndArchiveImage = inputDescription.format == 'fits' && image.type == null
+      return (inputIsFormatFitsAndArchiveImage || image.type == inputDescription.format)
+    })
+
+    // If the input has a filter, sort the images by that filter
+    if(inputDescription.filter) 
+      return sortImagesByFilter(inputDescription.filter, validatedImages)
+    else
+      return validatedImages
+
+  } catch (error) {
+    console.log('Error validating images:', error)
+    return props.images // fallback to all images
+  }
+}
+
 function goForward() {
-  if (page.value == 'select') {
+  if (page.value == WIZARD_PAGES.SELECT) {
     // if there are no images for a filter required by the operation, do not proceed
-    for (const inputKey in selectedOperationInputs.value) {
-      const inputField = selectedOperationInputs.value[inputKey]
-      if (inputField.type == 'file' && props.images.length == 0){
+    for (const inputKey in inputDescriptions.value) {
+      const inputField = inputDescriptions.value[inputKey]
+      if (inputField.type == 'fits' && props.images.length == 0){
         return
       }
     }
-    page.value = 'configure'
+    page.value = WIZARD_PAGES.CONFIGURE
   }
-  else if (page.value == 'configure'){
+  else if (page.value == WIZARD_PAGES.CONFIGURE){
     if (operationRequiresInputScaling.value) {
-      page.value = 'scaling'
+      page.value = WIZARD_PAGES.SCALING
     }
     else {
       submitOperation()
@@ -172,42 +162,54 @@ function goForward() {
   }
 }
 
+function goBack() {
+  if (page.value == WIZARD_PAGES.SELECT) {
+    emit('closeWizard')
+  }
+  else {
+    page.value = WIZARD_PAGES.SELECT
+  }
+}
+
 function submitOperation() {
   let operationDefinition = {
-    'name': selectedOperation.value,
+    'name': selectedOperation.value.name,
     'input_data': {
-      ...selectedOperationInput.value
+      ...operationInputs.value
     }
   }
   emit('addOperation', operationDefinition)
   emit('closeWizard')
 }
 
-function setOperationInputImages() {
-  for (const inputKey in selectedImages.value) {
-    let input = []
-    selectedImages.value[inputKey].forEach(basename => {
-      input.push(props.images.find(image => image.basename == basename))
-    })
-    selectedOperationInput.value[inputKey] = input
+function selectImage(inputKey, basename) {
+  const inputKeyImages = operationInputs.value[inputKey]
+  const input = inputDescriptions.value[inputKey]
+  const image = props.images.find(image => image.basename == basename)
+
+  // If the image is already selected, remove it from the list
+  if (inputKeyImages.includes(image)) {
+    inputKeyImages.splice(inputKeyImages.indexOf(image), 1)
+  }
+  // If image not selected and maxImages isn't reached, add to the list
+  else if (!input.maximum || inputKeyImages.length < input.maximum) {
+    inputKeyImages.push(image)
+  }
+  else {
+    alert.setAlert('warning', `${input.name} can only have ${input.maximum} image(s) selected`)
   }
 }
 
-function selectImage(inputKey, basename) {
-  const inputImages = selectedImages.value[inputKey]
-  const maxImages = selectedOperationInputs.value[inputKey].maximum
-
-  if (inputImages.includes(basename)) {
-    inputImages.splice(inputImages.indexOf(basename), 1)
-    setOperationInputImages()
-  }
-  else if (!maxImages || inputImages.length < maxImages){
-    inputImages.push(basename)
-    setOperationInputImages()
-  }
-  else{
-    alert.setAlert('warning', 'Maximum number of images selected')
-    console.log('Maximum number of images selected in input', inputKey)
+function selectOperation(name) {
+  selectedOperation.value = availableOperations.value[name]
+  operationInputs.value = {}
+  for (const [key, value] of Object.entries(inputDescriptions.value)) {
+    if ('default' in value) {
+      operationInputs.value[key] = value.default
+    }
+    else {
+      operationInputs.value[key] = []
+    }
   }
 }
 
@@ -220,7 +222,7 @@ function selectImage(inputKey, basename) {
         {{ wizardTitle }}
       </v-toolbar-title>
     </v-toolbar>
-    <v-card-text v-show="page == 'select'">
+    <v-card-text v-show="page == WIZARD_PAGES.SELECT">
       <v-row>
         <v-col cols="4">
           <v-list
@@ -228,14 +230,14 @@ function selectImage(inputKey, basename) {
             class="wizard-list"
           >
             <v-list-subheader class="wizard-subheader">
-              OPERATION
+              OPERATIONS
             </v-list-subheader>
             <v-list-item
               v-for="(name, i) in Object.keys(availableOperations)"
               :key="i"
               :value="name"
               :title="name"
-              :active="name == selectedOperation"
+              :active="name == selectedOperation.name"
               class="wizard-operations"
               @click="selectOperation(name)"
             />
@@ -243,12 +245,12 @@ function selectImage(inputKey, basename) {
         </v-col>
         <v-col cols="8">
           <v-card
-            :title="selectedOperation"
+            :title="selectedOperation.name"
             class="selected-operation"
           >
             <v-card-text>
               <span class="operation-description">
-                {{ selectedOperationDescription }}
+                {{ selectedOperation.description }}
               </span>
             </v-card-text>
           </v-card>
@@ -257,22 +259,22 @@ function selectImage(inputKey, basename) {
     </v-card-text>
     <v-slide-y-reverse-transition hide-on-leave>
       <v-card-text
-        v-show="page == 'configure'"
+        v-show="page == WIZARD_PAGES.CONFIGURE"
         class="wizard-card"
       >
         <div
-          v-for="(inputDescription, inputKey) in selectedOperationInputs"
+          v-for="(inputDescription, inputKey) in inputDescriptions"
           :key="inputKey"
           class="operation-input-wrapper"
         >
           <v-text-field
-            v-if="inputDescription.type !== 'file'"
-            v-model="selectedOperationInput[inputKey]"
+            v-if="inputDescription.type == 'text'"
+            v-model="operationInputs[inputKey]"
             :label="inputDescription.name"
             :type="inputDescription.type"
             class="operation-input"
           />
-          <div v-else-if="inputDescription.type == 'file'">
+          <div v-else-if="inputDescription.type == 'fits'">
             <div
               v-if="inputDescription.name"
               class="input-images"
@@ -280,9 +282,10 @@ function selectImage(inputKey, basename) {
               {{ inputDescription.name }}
             </div>
             <image-grid
-              :images="inputDescription.filter ? sortImagesByFilter(inputDescription.filter) : props.images"
-              :selected-images="selectedImages[inputKey]"
-              :column-span="calculateColumnSpan(images.length, imagesPerRow)"
+              v-if="operationInputs[inputKey]"
+              :images="validatedImages(inputDescription)"
+              :selected-images="operationInputs[inputKey].map(image => image.basename)"
+              :column-span="calculateColumnSpan(images.length, IMAGES_PER_ROW)"
               :allow-selection="true"
               @select-image="selectImage(inputKey, $event)"
             />
@@ -292,13 +295,13 @@ function selectImage(inputKey, basename) {
     </v-slide-y-reverse-transition>
     <v-slide-y-reverse-transition hide-on-leave>
       <v-card-text
-        v-show="page == 'scaling'"
+        v-show="page == WIZARD_PAGES.SCALING"
         class="wizard-card"
       >
-        <div v-if="isInputComplete">
+        <div v-if="isInputComplete && inputDescriptions">
           <image-scaling-group
-            :input-description="selectedOperationInputs"
-            :inputs="selectedOperationInput"
+            :input-description="inputDescriptions"
+            :inputs="operationInputs"
             @update-scaling="updateScaling"
           />
         </div>
