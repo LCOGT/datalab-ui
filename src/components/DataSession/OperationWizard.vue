@@ -122,8 +122,8 @@ function validatedImages(inputDescription) {
   try {
     const validatedImages = props.images.filter(image => {
       // archive images have no type (assigned in backend outputs) so we accept null for 'fits' format
-      const inputIsFormatFitsAndArchiveImage = inputDescription.format == 'fits' && image.type == null
-      return (inputIsFormatFitsAndArchiveImage || image.type == inputDescription.format)
+      const inputIsFormatFitsAndArchiveImage = inputDescription.type == 'fits' && image.type == null
+      return (inputIsFormatFitsAndArchiveImage || image.type == inputDescription.type)
     })
 
     // If the input has a filter, sort the images by that filter
