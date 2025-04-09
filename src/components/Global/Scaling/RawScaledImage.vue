@@ -40,6 +40,7 @@ var offscreen = null
 const sharedArrayBuffer = new SharedArrayBuffer(Uint8ClampedArray.BYTES_PER_ELEMENT * props.maxSize * props.maxSize)
 var sharedArray = new Uint8ClampedArray(sharedArrayBuffer)
 const worker = new Worker('drawImageWorker.js')
+const isCanvasReady = ref(false)
 
 onMounted(() => {
   // Seed the web worker with initial data including a reference to the offscreen canvas
@@ -51,6 +52,7 @@ onMounted(() => {
   if (props.compositeName != 'default') {
     worker.onmessage = () => {
       store.updateImageArray(props.compositeName, props.filter, sharedArray, props.maxSize)
+      isCanvasReady.value = true
     }
   }
 })
@@ -79,16 +81,32 @@ watch(
 
 </script>
 <template>
-  <canvas
-    ref="imageCanvas"
-    class="raw-scaled-canvas"
-    :width="props.maxSize"
-    :height="props.maxSize"
-  />
+  <div>
+    <canvas
+      ref="imageCanvas"
+      :width="props.maxSize"
+      :height="props.maxSize"
+    />
+    <v-progress-circular
+      v-if="!isCanvasReady"
+      color="var(--success)"
+      indeterminate
+      :size="80"
+      :width="10"
+    />
+  </div>
 </template>
 <style scoped>
-.raw-scaled-canvas{
+div{
+  position: relative;
+}
+canvas{
   width: 200px;
   height: 200px;
+}
+.v-progress-circular {
+  position: absolute;
+  top: 35%;
+  right: 25%;
 }
 </style>

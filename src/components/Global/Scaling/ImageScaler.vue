@@ -103,7 +103,6 @@ onMounted(async () => {
 <template>
   <div class="image-scaler">
     <raw-scaled-image
-      class="mr-4"
       :max-size="props.maxSize"
       :image-data="rawData"
       :scale-points="sliderRange"
@@ -130,6 +129,7 @@ onMounted(async () => {
 <style scoped>
 .image-scaler{
   display: flex;
+  gap: 1.5rem;
 }
 .image-scale-title {
   margin-bottom: 0.5rem;

@@ -298,13 +298,12 @@ function selectOperation(name) {
         v-show="page == WIZARD_PAGES.SCALING"
         class="wizard-card"
       >
-        <div v-if="isInputComplete && inputDescriptions">
-          <image-scaling-group
-            :input-description="inputDescriptions"
-            :inputs="operationInputs"
-            @update-scaling="updateScaling"
-          />
-        </div>
+        <image-scaling-group
+          v-if="isInputComplete && inputDescriptions"
+          :input-description="inputDescriptions"
+          :inputs="operationInputs"
+          @update-scaling="updateScaling"
+        />
       </v-card-text>
     </v-slide-y-reverse-transition>
 
