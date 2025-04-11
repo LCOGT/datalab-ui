@@ -20,7 +20,6 @@ const props = defineProps({
 })
 
 const store = useScalingStore()
-const isLoading = ref(false) // not being used yet
 const imageCanvas = ref(null)
 var context = null
 
@@ -56,20 +55,13 @@ watch(
 <template>
   <canvas
     ref="imageCanvas"
+    class="composite-canvas elevation-8 rounded-md"
     :width="props.width"
     :height="props.height"
   />
-  <v-progress-circular
-    v-show="isLoading"
-    color="primary"
-    size="200"
-    indeterminate
-  />
 </template>
 <style scoped>
-.v-progress-circular {
-  position:fixed;
-  bottom: 40%;
-  left: 60%;
+.composite-canvas{
+  background-color: var(--card-background);
 }
 </style>
