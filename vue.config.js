@@ -23,5 +23,12 @@ module.exports = defineConfig({
       })
       return definitions
     })
+  },
+  pages: {
+    index: {
+      // entry for the page
+      entry: 'src/main.js',
+      title: 'DataLab @ Photon Ranch'
+    }
   }
 })

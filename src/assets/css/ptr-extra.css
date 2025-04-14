@@ -89,3 +89,10 @@ p {
 	text-transform: uppercase;
 	background-color: var(--green);
 }
+
+.navbar-link:not(.is-arrowless):after {
+	border-color: var(--grey-level3);
+	inset-inline-end: 1.125em;
+	margin-top: -0.375em;
+	font-size: 50%;
+}
