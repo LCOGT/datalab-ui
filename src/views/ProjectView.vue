@@ -145,7 +145,7 @@ watch(() => search.value, async () => {
 })
 
 onMounted(() => {
-  // Check so Observe@PTR can open the relevant proposal
+  // Check so Explore@PTR can open the relevant proposal
   if(route.query.proposalId){
     const proposalIndexToOpen = userDataStore.proposals.findIndex(proposal => proposal.id == route.query.proposalId)
     if(proposalIndexToOpen != -1)

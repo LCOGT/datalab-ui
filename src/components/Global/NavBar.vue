@@ -50,7 +50,7 @@ function toggleMobileMenu () {
                 <v-icon icon="mdi-chevron-right" />
               </span></a>
               <a href="https://photonranch.lco.global" class="navbar-item observe-site-item">
-              <span>Observe</span>
+              <span>Explore</span>
               <span class="icon is-small">
                 <v-icon icon="mdi-chevron-right" />
               </span></a>
@@ -110,5 +110,11 @@ function toggleMobileMenu () {
     background-color: var(--green);
     color: var(--grey-level3);
   }
+  .navbar-link:not(.is-arrowless):after {
+        border-color: var(--grey-level3);
+        inset-inline-end: 1.125em;
+        margin-top: -0.375em;
+        font-size: 50%;
+    }
 }
 </style>
