@@ -67,14 +67,20 @@ const textClass = computed(() => {
 <style scoped>
 .loadBarButton {
   position: relative;
+  display: flex;
+  width: 15vw;
+  justify-content: flex-start;
   overflow: hidden;
   background-color: var(--secondary-background);
 }
 
 .loadBarButton p {
-  font-size: 1rem;
-  z-index: 2;
   position: relative;
+  font-size: 0.8rem;
+  font-weight: 600;
+  z-index: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .progress-bar {
@@ -91,7 +97,7 @@ const textClass = computed(() => {
 }
 
 .good-progress-bar {
-  background-color: var(--success);
+  background-color: var(--primary-interactive);
 }
 
 .selected .good-progress-bar {
@@ -99,7 +105,7 @@ const textClass = computed(() => {
 }
 
 .operate-button-in-progress {
-  background: linear-gradient(90deg, rgb(245, 118, 0), rgb(255, 90, 95), rgb(255, 0, 0));
+  background: linear-gradient(90deg, #227d35, #43ae30, var(--success));
   background-size: 200% auto;
   color: transparent;
   background-clip: text;

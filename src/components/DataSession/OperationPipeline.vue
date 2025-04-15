@@ -71,12 +71,10 @@ function itemDeleted(deletedIds) {
   <v-row
     v-for="operation in operations"
     :key="operation.id"
-    justify="center"
     class="operation mb-2"
   >
     <load-bar-button
       :class="{selected: operation.id == props.selectedOperation}"
-      class="operation_button"
       :progress="operation.operation_progress ?? 0"
       :state="operation.state"
       :error="operation.message ?? ''"
@@ -88,8 +86,11 @@ function itemDeleted(deletedIds) {
     <v-slide-x-transition hide-on-leave>
       <v-btn
         v-if="operation.id == props.selectedOperation"
-        variant="plain"
-        icon="mdi-close"
+        class="delete-operation-button"
+        variant="text"
+        size="small"
+        prepend-icon="mdi-trash-can"
+        text="Delete"
         color="var(--cancel)"
         @click="openDeleteOperationDialog(operation)"
       />
@@ -107,10 +108,9 @@ function itemDeleted(deletedIds) {
 .operations-title {
   font-size: 1.5rem;
   color: var(--text);
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
 }
-
-.operation_button {
-  width: 15vw;
+.delete-operation-button{
+  justify-content: flex-start;
 }
 </style>
