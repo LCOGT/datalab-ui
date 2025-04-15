@@ -66,9 +66,11 @@ const textClass = computed(() => {
 </template>
 <style scoped>
 .loadBarButton {
+  width: 100%;
+  height: 3rem;
+  font-size: 1rem;
   position: relative;
   display: flex;
-  width: 15vw;
   justify-content: flex-start;
   overflow: hidden;
   background-color: var(--secondary-background);
