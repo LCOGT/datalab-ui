@@ -55,22 +55,9 @@ function itemDeleted(deletedIds) {
   emit('operationWasDeleted', deletedIds)
 }
 
-function operationStateToClass(operation) {
-  if (operation.status === 'PENDING') {
-    return 'operate-button-pending'
-  }
-  else if (operation.status === 'IN_PROGRESS') {
-    return 'operate-button-in-progress'
-  }
-  else {
-    return ''
-  }
-}
-
-
 </script>
 <template>
-  <h3 class="operations">
+  <h3 class="operations-title">
     OPERATIONS
     <v-btn
       variant="plain"
@@ -93,12 +80,11 @@ function operationStateToClass(operation) {
       :progress="operation.operation_progress ?? 0"
       :state="operation.state"
       :error="operation.message ?? ''"
+      :index="operation.index"
+      :text="operation.name"
+      :status="operation.status"
       @click="selectOperation(operation.id)"
-    >
-      <p :class="operationStateToClass(operation)">
-        {{ operation.index }}: {{ operation.name }}
-      </p>
-    </load-bar-button>
+    />
     <v-slide-x-transition hide-on-leave>
       <v-btn
         v-if="operation.id == props.selectedOperation"
@@ -118,55 +104,13 @@ function operationStateToClass(operation) {
 </template>
 
 <style scoped>
-.operations {
+.operations-title {
+  font-size: 1.5rem;
   color: var(--text);
-  letter-spacing: 0.05rem;
-  font-size: 2rem;
-}
-
-.operation{
-  margin-top: 1rem;
+  margin-bottom: 1rem;
 }
 
 .operation_button {
-  width: 12rem;
-  height: 3rem;
-  font-size: 1rem;
-  font-weight: 600;
-  color: var(--text);
-}
-
-@media (max-width: 1200px) {
-  .operations {
-    font-size: 1.3rem;
-  }
-
-  .addop_button {
-    font-size: 1rem;
-    height: 5vh;
-  }
-
-  .operation_button {
-    width: 13vw;
-    height: 4.5vh;
-    font-size: 0.8rem;
-  }
-}
-
-@media (max-width: 900px) {
-  .operations {
-    font-size: 1.2rem;
-  }
-
-  .addop_button {
-    font-size: 0.9rem;
-    height: 4vh;
-  }
-
-  .operation_button {
-    width: 15vw;
-    height: 3vh;
-    font-size: 0.7rem;
-  }
+  width: 15vw;
 }
 </style>
