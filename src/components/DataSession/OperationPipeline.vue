@@ -111,6 +111,7 @@ function itemDeleted(deletedIds) {
   margin-bottom: 1.5rem;
 }
 .delete-operation-button{
+  margin-top: 0.5rem;
   justify-content: flex-start;
 }
 </style>
