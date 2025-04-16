@@ -19,7 +19,6 @@ const props = defineProps({
 const emit = defineEmits(['analysisAction'])
 
 let imageMap = null
-let imageName = null
 let imageBounds = null
 let imageOverlay = null
 let lineLayer = null
@@ -30,23 +29,18 @@ const leafletDiv = ref(null)
 const alerts = useAlertsStore()
 const analysisStore = useAnalysisStore()
 
-onMounted(() => leafletSetup())
+onMounted(() => {
+  leafletSetup()
+})
 
 watch(() => props.catalog, () => createCatalogLayer())
 
 watch(() => analysisStore.imageUrl, async (newImageUrl) => {
-  if (!imageName) {
-    await loadImageOverlay(newImageUrl)
-    imageName = analysisStore.image.basename
-  } 
-  else {
-    updateImageOverlay(newImageUrl)
-  }
-}
-)
+  imageOverlay ? imageOverlay.setUrl(newImageUrl) : initImageOverlay(newImageUrl)
+})
 
 // Loads image overlay and sets bounds
-async function loadImageOverlay(imgSrc) {
+async function initImageOverlay(imgSrc) {
   const img = await loadImage(imgSrc)
   imageWidth.value = img.width
   imageHeight.value = img.height
@@ -55,15 +49,11 @@ async function loadImageOverlay(imgSrc) {
   if (!props.catalog.length) fetchCatalog()
 
   imageBounds = [[0, 0], [imageHeight.value, imageWidth.value]]
-
-  updateImageOverlay(imgSrc)
+  imageOverlay = L.imageOverlay(imgSrc, imageBounds).addTo(imageMap)
 
   /**
-   * This code ensures the image fills the map space and sets a minZoom level.
-   * Next tick is used here otherwise the methods will not work due to bugs in leaflets code. 
-   * 
-   * MinZoom needs to be set to a high negative value in the settings to over-fit the whole image
-   * then we fit the image and update the minZoom to the fitted zoom level.
+   * Fills map space with image, set max/min zoom
+   * Next tick is used here otherwise the methods will not work due to bugs in leaflets code.
    */
   nextTick(() => {
     imageMap.invalidateSize()
@@ -73,16 +63,8 @@ async function loadImageOverlay(imgSrc) {
   })
 }
 
-// Replaces the current overlay (if it exists) with a new image
-function updateImageOverlay(imgSrc){
-  if (imageOverlay && imageOverlay._url !== imgSrc) {
-    imageOverlay.setUrl(imgSrc)
-  } else if (!imageOverlay) {
-    imageOverlay = L.imageOverlay(imgSrc, imageBounds).addTo(imageMap)
-  }
-}
-
 function leafletSetup(){
+  console.log('leafletSetup creating map, controls, listeners')
   // Create leaflet map (here referred to as image)
   imageMap = L.map(leafletDiv.value, {
     maxZoom: 5,
