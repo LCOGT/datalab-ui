@@ -2,13 +2,23 @@
 import {computed} from 'vue'
 
 const props = defineProps({
+  text: {
+    type: String,
+    required: true,
+  },
+  index: {
+    type: Number,
+    required: false,
+    default: 0
+  },
+  status: {
+    type: String,
+    required: false,
+    default: ''
+  },
   progress: {
     type: Number,
     required: true,
-  },
-  state: {
-    type: String,
-    default: '',
   },
   error: {
     type: String,
@@ -21,8 +31,18 @@ const progressPercent = computed(() => {
   return props.error ? 100.0: props.progress * 100.0
 })
 
-const progressClass = computed(() => {
-  return props.error ? 'progress-bar error-progress-bar': 'progress-bar good-progress-bar'
+const progressBg = computed(() => {
+  return props.error ? 'progress-bar error-progress-bar' : 'progress-bar good-progress-bar'
+})
+
+const textClass = computed(() => {
+  if (props.status === 'PENDING') {
+    return 'operate-button-pending'
+  } else if (props.status === 'IN_PROGRESS') {
+    return 'operate-button-in-progress'
+  } else {
+    return ''
+  }
 })
 
 </script>
@@ -36,21 +56,34 @@ const progressClass = computed(() => {
     >
       {{ props.error }}
     </v-tooltip>
-    <slot />
+    <p :class="textClass">
+      {{ index ? `${index}. ${text}` : text }}
+    </p>
     <div
-      :class="progressClass"
+      :class="progressBg"
       :style="{ width: progressPercent + '%' }"
     />
   </v-btn>
 </template>
 <style scoped>
-.loadBarButton{
+.loadBarButton {
+  width: 100%;
+  height: 3rem;
+  font-size: 1rem;
   position: relative;
+  display: flex;
+  justify-content: flex-start;
   overflow: hidden;
   background-color: var(--secondary-background);
 }
-:slotted(p) {
+
+.loadBarButton p {
+  position: relative;
+  font-size: 0.8rem;
+  font-weight: 600;
   z-index: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .progress-bar {
@@ -58,7 +91,8 @@ const progressClass = computed(() => {
   top: 0;
   left: 0;
   height: 100%;
-  transition: 0.3s;
+  transition: width 0.3s;
+  z-index: 1;
 }
 
 .error-progress-bar {
@@ -66,24 +100,24 @@ const progressClass = computed(() => {
 }
 
 .good-progress-bar {
-  background-color: var(--success);
-  }
+  background-color: var(--primary-interactive);
+}
 
 .selected .good-progress-bar {
   background-color: var(--secondary-interactive);
 }
 
-:slotted(.operate-button-in-progress) {
-  background: linear-gradient(90deg, rgb(245, 118, 0),  rgb(255,90,95), rgb(255, 0, 0));
-  background-size: 200%, auto;
+.operate-button-in-progress {
+  background: linear-gradient(90deg, #227d35, #43ae30, var(--success));
+  background-size: 200% auto;
   color: transparent;
   background-clip: text;
   -webkit-background-clip: text;
   animation: gradient-shift 3s infinite linear;
 }
 
-:slotted(.operate-button-pending) {
-  color: var(--disabled-text)
+.operate-button-pending {
+  color: var(--disabled-text);
 }
 
 @keyframes gradient-shift {

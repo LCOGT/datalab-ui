@@ -299,14 +299,12 @@ watch(
   padding: 2rem;
   margin-right: 1rem;
   border-radius: 10px;
+  max-width: 300px;
 }
 .addop_button {
-  font-size: 1rem;
-  align-content: center;
-  background-color: var(--primary-interactive);
-  font-weight: 700;
+  margin-top: 1.5rem;
+  background-color: var(--secondary-interactive);
+  font-weight: 500;
   color: var(--text);
-  margin-top: 1rem;
-  padding: 25px
 }
 </style>
