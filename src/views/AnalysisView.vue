@@ -39,7 +39,6 @@ const headerDialog = ref(false)
 const headerData = ref({})
 const imgWorker = new Worker('drawImageWorker.js')
 let imgWorkerProcessing = false
-let imgWorkerNextScale = null
 
 const filteredCatalog = computed(() => {
   if(catalogToggle.value){
@@ -139,7 +138,6 @@ async function instantiateScalerWorker(){
   // Image creation for leaflet map, clean up the old image url
   imgWorker.onmessage = () => {
     imgWorkerProcessing = false
-    updateScaling(analysisStore.zmin, analysisStore.zmax) // This inits on first load but probably shouldn't be here
     imgScalingCanvas.toBlob((blob) => {
       if (analysisStore.imageUrl) URL.revokeObjectURL(analysisStore.imageUrl)
       analysisStore.imageUrl = URL.createObjectURL(blob)
@@ -151,13 +149,11 @@ function updateScaling(min, max){
   if(min && max){
     analysisStore.zmin = min
     analysisStore.zmax = max
-    imgWorkerNextScale = [min, max]
   }
 
-  if (imgWorkerNextScale && !imgWorkerProcessing){
+  if (!imgWorkerProcessing){
     imgWorkerProcessing = true
-    imgWorker.postMessage({scalePoints: [...imgWorkerNextScale]})
-    imgWorkerNextScale = null
+    imgWorker.postMessage({scalePoints: [analysisStore.zmin, analysisStore.zmax]})
   }
 }
 

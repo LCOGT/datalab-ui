@@ -31,38 +31,33 @@ onmessage = function(job) {
     }
 
     hasCanvas = true
-    tryProcessScalePoints()
   }
 
   if (payload.imageData) {
     imageData = payload.imageData
     hasImageData = true
-    tryProcessScalePoints()
   }
 
   if (payload.scalePoints) {
     scalePointMessage = payload.scalePoints
-    tryProcessScalePoints()
   }
+
+  tryProcessScalePoints()
 }
 
 function tryProcessScalePoints() {
-  if(hasImageData && hasCanvas && scalePointMessage) {
-    // optimization to process only most recent queued scale
+  if(hasImageData && hasCanvas && scalePointMessage.length) {
     processScalePoints(scalePointMessage)
-    scalePointMessage = null
   }
 }
 
 function processScalePoints(scalePoints) {
   // Re-compute the image and redraw it to the canvas
+  const len = imageData.data.length
   const low16Bit = parseInt(scalePoints[0])
   const high16Bit = parseInt(scalePoints[1])
-  const scale = 255 / (high16Bit - low16Bit)
-  const len = imageData.data.length
-
-  const outputImageData = outputImage.data
   const srcData = imageData.data
+  const scale = 255 / (high16Bit - low16Bit)
 
   for (let i = 0; i < len; i++) {
     const clippedValue = Math.max(low16Bit, Math.min(high16Bit, srcData[i]))
@@ -71,12 +66,15 @@ function processScalePoints(scalePoints) {
 
     if(sharedArray) sharedArray[i] = gammaCorrected
 
+    const outputImageData = outputImage.data
     const j = i * 4
+
     outputImageData[j] = gammaCorrected
     outputImageData[j + 1] = gammaCorrected
     outputImageData[j + 2] = gammaCorrected
     outputImageData[j + 3] = 255
   }
+
   context.putImageData(outputImage, 0, 0)
   postMessage({'updateSharedArray': true})
 }
