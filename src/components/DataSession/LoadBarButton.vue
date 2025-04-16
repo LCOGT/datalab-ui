@@ -8,7 +8,8 @@ const props = defineProps({
   },
   index: {
     type: Number,
-    required: true,
+    required: false,
+    default: 0
   },
   status: {
     type: String,
@@ -56,7 +57,7 @@ const textClass = computed(() => {
       {{ props.error }}
     </v-tooltip>
     <p :class="textClass">
-      {{ index + ". " + text }}
+      {{ index ? `${index}. ${text}` : text }}
     </p>
     <div
       :class="progressBg"
