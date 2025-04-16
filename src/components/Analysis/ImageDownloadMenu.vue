@@ -77,7 +77,7 @@ function downloadFile(file, filename, fileType='file'){
       key="4"
       class="file-download"
       text="Scaled .JPG"
-      @click="$emit('analysisAction', 'get-jpg', {'basename': props.imageName, 'zmin': analysisStore.scaledZmin, 'zmax': analysisStore.scaledZmax}, downloadBase64File)"
+      @click="$emit('analysisAction', 'get-jpg', {'basename': props.imageName, 'zmin': analysisStore.zmin, 'zmax': analysisStore.zmax}, downloadBase64File)"
     />
   </v-speed-dial>
 </template>

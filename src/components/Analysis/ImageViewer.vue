@@ -35,7 +35,7 @@ onMounted(() => {
 
 watch(() => props.catalog, () => createCatalogLayer())
 
-watch(() => analysisStore.imageUrl, async (newImageUrl) => {
+watch(() => analysisStore.imageUrl, (newImageUrl) => {
   imageOverlay ? imageOverlay.setUrl(newImageUrl) : initImageOverlay(newImageUrl)
 })
 
