@@ -39,6 +39,7 @@ const headerDialog = ref(false)
 const headerData = ref({})
 const imgWorker = new Worker('drawImageWorker.js')
 let imgWorkerProcessing = false
+let imgWorkerNextScale = null
 
 const filteredCatalog = computed(() => {
   if(catalogToggle.value){
@@ -149,11 +150,13 @@ function updateScaling(min, max){
   if(min && max){
     analysisStore.zmin = min
     analysisStore.zmax = max
+    imgWorkerNextScale = [min, max]
   }
 
-  if (!imgWorkerProcessing){
+  if (imgWorkerNextScale && !imgWorkerProcessing){
     imgWorkerProcessing = true
-    imgWorker.postMessage({scalePoints: [analysisStore.zmin, analysisStore.zmax]})
+    imgWorker.postMessage({scalePoints: [...imgWorkerNextScale]})
+    imgWorkerNextScale = null
   }
 }
 
