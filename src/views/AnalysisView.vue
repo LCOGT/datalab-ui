@@ -249,8 +249,8 @@ function updateScaling(min, max){
               :histogram="analysisStore.histogram"
               :bins="analysisStore.bins"
               :max-value="analysisStore.maxPixelValue"
-              :z-min="analysisStore.zmin"
-              :z-max="analysisStore.zmax"
+              :z-min="Number(analysisStore.zmin)"
+              :z-max="Number(analysisStore.zmax)"
               @update-scaling="updateScaling"
             />
           </v-sheet>

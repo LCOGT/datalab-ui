@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, watch, computed, onMounted } from 'vue'
 
 // This component draws a sparkline histogram with range slider controls on top of it.
 // It has two coordinate systems - sliderRange which is a linear system of bins for the
@@ -61,6 +61,17 @@ const gradient = computed(() => {
   return gradientArray
 })
 
+onMounted(() => {
+  zScaleImage()
+})
+
+watch(() => scaleRange.value, (newValue) => {
+  // This is called when the scale range is changed
+  sliderRange.value[0] = scaleToSliderValue(newValue[0])
+  sliderRange.value[1] = scaleToSliderValue(newValue[1])
+  emit('updateScaling', ...scaleRange.value)
+}, { deep: true })
+
 /**
  * Maps a scale value (zmin/zmax) to a slider value (0 to bins.length-1)
  * So when a scale value is changed with the number fields,
@@ -94,32 +105,12 @@ function updateScaleRange() {
   emit('updateScaling', ...scaleRange.value)
 }
 
-function updateLowerScale(value) {
-  // This is called when a change is made on the lower point number control
-  value = Number(value)
-  scaleRange.value[0] = value
-  sliderRange.value[0] = scaleToSliderValue(value)
-  emit('updateScaling', ...scaleRange.value)
-}
-
-function updateUpperScale(value) {
-  // This is called when a change is made on the upper point number control
-  value = Number(value)
-  scaleRange.value[1] = value
-  sliderRange.value[1] = scaleToSliderValue(value)
-  emit('updateScaling', ...scaleRange.value)
-}
-
 function zScaleImage() {
   // This is called to reset the ranges to the zMin/zMax
   scaleRange.value = [initZmin.value, initZmax.value]
   sliderRange.value = [scaleToSliderValue(initZmin.value), scaleToSliderValue(initZmax.value)]
   emit('updateScaling', ...scaleRange.value)
 }
-
-onMounted(() => {
-  zScaleImage()
-})
 
 </script>
 <template>
@@ -135,7 +126,6 @@ onMounted(() => {
         bg-color="var(--card-background)"
         hide-spin-buttons
         hide-details
-        @update:model-value="updateLowerScale"
       />
     </v-col>
     <v-col>
@@ -149,7 +139,6 @@ onMounted(() => {
         bg-color="var(--card-background)"
         hide-spin-buttons
         hide-details
-        @update:model-value="updateUpperScale"
       />
     </v-col>
     <v-col>
