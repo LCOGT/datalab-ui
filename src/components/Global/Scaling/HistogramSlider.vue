@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 
 // This component draws a sparkline histogram with range slider controls on top of it.
 // It has two coordinate systems - sliderRange which is a linear system of bins for the
@@ -44,6 +44,8 @@ const emit = defineEmits(['updateScaling'])
 
 const scaleRange = ref([props.bins[0], props.bins[props.bins.length-1]])
 const sliderRange = ref([0, props.bins.length-1])
+const initZmin = ref(props.zMin)
+const initZmax = ref(props.zMax)
 const backgroundColor = 'var(--text)'
 
 const gradient = computed(() => {
@@ -58,10 +60,6 @@ const gradient = computed(() => {
 
   return gradientArray
 })
-
-function sliderToBinValue(sliderValue) {
-  return props.bins[sliderValue] ?? console.error('Slider value out of bounds')
-}
 
 /**
  * Maps a scale value (zmin/zmax) to a slider value (0 to bins.length-1)
@@ -83,6 +81,10 @@ function scaleToSliderValue(scaleValue) {
 
   // Return the closest index
   return Math.abs(bins[left] - scaleValue) < Math.abs(bins[right] - scaleValue) ? left : right
+}
+
+function sliderToBinValue(sliderValue) {
+  return props.bins[sliderValue] ?? console.error('Slider value out of bounds')
 }
 
 function updateScaleRange() {
@@ -110,16 +112,14 @@ function updateUpperScale(value) {
 
 function zScaleImage() {
   // This is called to reset the ranges to the zMin/zMax
-  scaleRange.value = [props.zMin, props.zMax]
-  sliderRange.value = [scaleToSliderValue(props.zMin), scaleToSliderValue(props.zMax)]
+  scaleRange.value = [initZmin.value, initZmax.value]
+  sliderRange.value = [scaleToSliderValue(initZmin.value), scaleToSliderValue(initZmax.value)]
   emit('updateScaling', ...scaleRange.value)
 }
 
-watch(
-  () => props.zMax, () => {
-    zScaleImage()
-  }, { immediate: true }
-)
+onMounted(() => {
+  zScaleImage()
+})
 
 </script>
 <template>

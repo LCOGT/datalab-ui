@@ -64,7 +64,6 @@ async function initImageOverlay(imgSrc) {
 }
 
 function leafletSetup(){
-  console.log('leafletSetup creating map, controls, listeners')
   // Create leaflet map (here referred to as image)
   imageMap = L.map(leafletDiv.value, {
     maxZoom: 5,
