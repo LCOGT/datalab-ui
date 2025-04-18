@@ -11,8 +11,6 @@ export const useAnalysisStore = defineStore('analysis', {
     rawData: null, // raw data from the analysis/raw_data endpoint
     zmin: null, // minimum z value of the raw data
     zmax: null, // maximum z value of the raw data
-    scaledZmin: null, // minimum z value of the scaled data
-    scaledZmax: null, // maximum z value of the scaled data
     imageUrl: '', // URL of the image to display
     imageWidth: null, // width of the image in pixels
     imageHeight: null, // height of the image in pixels

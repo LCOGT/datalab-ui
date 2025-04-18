@@ -137,20 +137,19 @@ async function instantiateScalerWorker(){
   }, [offscreen])
 
   // Image creation for leaflet map, clean up the old image url
-  imgWorker.onmessage = () => {
+  imgWorker.onmessage = (event) => {
     imgWorkerProcessing = false
-    updateScaling()
-    imgScalingCanvas.toBlob((blob) => {
-      if (analysisStore.imageUrl) URL.revokeObjectURL(analysisStore.imageUrl)
-      analysisStore.imageUrl = URL.createObjectURL(blob)
-    })
+    if(event.data.blob){
+      URL.revokeObjectURL(analysisStore.imageUrl)
+      analysisStore.imageUrl = URL.createObjectURL(event.data.blob)
+    }
   }
 }
 
 function updateScaling(min, max){
   if(min && max){
-    analysisStore.scaledZmin = min
-    analysisStore.scaledZmax = max
+    analysisStore.zmin = min
+    analysisStore.zmax = max
     imgWorkerNextScale = [min, max]
   }
 
@@ -250,8 +249,8 @@ function updateScaling(min, max){
               :histogram="analysisStore.histogram"
               :bins="analysisStore.bins"
               :max-value="analysisStore.maxPixelValue"
-              :z-min="analysisStore.zmin"
-              :z-max="analysisStore.zmax"
+              :z-min="Number(analysisStore.zmin)"
+              :z-max="Number(analysisStore.zmax)"
               @update-scaling="updateScaling"
             />
           </v-sheet>
