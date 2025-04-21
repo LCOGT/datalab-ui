@@ -5,9 +5,7 @@ import { useUserDataStore } from '@/stores/userData'
 import { fetchApiCall, handleError } from '../utils/api'
 import DataSession from '@/components/DataSession/DataSession.vue'
 import DeleteSessionDialog from '@/components/DataSession/DeleteSessionDialog.vue'
-import { useRouter } from 'vue-router'
 
-const router = useRouter()
 const configurationStore = useConfigurationStore()
 const userDataStore = useUserDataStore()
 const dataSessions = ref([])
@@ -78,16 +76,11 @@ function tabActive(index) {
           variant="plain"
           size="small"
           icon="mdi-close"
+          color="var(--cancel)"
           class="tab_button"
           @click="openDeleteDialog(ds.id)"
         />
       </v-tab>
-      <v-btn
-        variant="plain"
-        icon="mdi-plus-box"
-        class="tab_button"
-        @click="router.push({ name: 'ProjectView' })"
-      />
     </v-tabs>
     <v-window v-model="userDataStore.activeSessionId">
       <v-window-item
