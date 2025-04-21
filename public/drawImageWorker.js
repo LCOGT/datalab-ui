@@ -18,6 +18,7 @@ onmessage = function(job) {
     context = canvas.getContext('2d')
     outputImage = new ImageData(payload.width, payload.height)
 
+    // Used for RGB stack, not used in grayscale scaling
     if(payload.sharedArrayBuffer){
       sharedArrayBuffer = payload.sharedArrayBuffer
       sharedArray = new Uint8ClampedArray(sharedArrayBuffer) 
@@ -76,7 +77,7 @@ async function processScalePoints(scalePoints) {
     outputImageData[j + 3] = 255
   }
 
-  context.putImageData(outputImage, 0, 0)
+  await context.putImageData(outputImage, 0, 0)
   const blob = await canvas.convertToBlob()
   postMessage({ blob: blob})
 }
