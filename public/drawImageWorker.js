@@ -47,9 +47,9 @@ onmessage = function(job) {
   tryProcessScalePoints()
 }
 
-async function tryProcessScalePoints() {
+function tryProcessScalePoints() {
   if(hasImageData && hasCanvas && scalePointMessage.length) {
-    await processScalePoints(scalePointMessage)
+    processScalePoints(scalePointMessage)
   }
 }
 
@@ -77,7 +77,7 @@ async function processScalePoints(scalePoints) {
     outputImageData[j + 3] = 255
   }
 
-  await context.putImageData(outputImage, 0, 0)
+  context.putImageData(outputImage, 0, 0)
 
   // RGB uses sharedArrayBuffer, grayscale creates a blob
   if(!sharedArrayBuffer){
