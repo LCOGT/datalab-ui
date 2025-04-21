@@ -78,6 +78,13 @@ async function processScalePoints(scalePoints) {
   }
 
   await context.putImageData(outputImage, 0, 0)
-  const blob = await canvas.convertToBlob()
-  postMessage({ blob: blob})
+
+  // RGB uses sharedArrayBuffer, grayscale creates a blob
+  if(!sharedArrayBuffer){
+    const blob = await canvas.convertToBlob()
+    postMessage({ blob: blob})
+  }
+  else {
+    postMessage({'updateSharedArray': true})
+  }
 }
