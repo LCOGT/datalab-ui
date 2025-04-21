@@ -65,6 +65,13 @@ onMounted(() => {
   zScaleImage()
 })
 
+// In case the zMax or zMin change, update the initZmax/Zmin
+watch([() => props.zMax, () => props.zMin], () => {
+  initZmax.value = props.zMax
+  initZmin.value = props.zMin
+  zScaleImage()
+})
+
 watch(() => scaleRange.value, (newValue) => {
   // This is called when the scale range is changed
   sliderRange.value[0] = scaleToSliderValue(newValue[0])
