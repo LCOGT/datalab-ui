@@ -147,11 +147,7 @@ async function instantiateScalerWorker(){
 }
 
 function updateScaling(min, max){
-  if(min && max){
-    analysisStore.zmin = min
-    analysisStore.zmax = max
-    imgWorkerNextScale = [min, max]
-  }
+  imgWorkerNextScale = [min, max]
 
   if (imgWorkerNextScale && !imgWorkerProcessing){
     imgWorkerProcessing = true
