@@ -11,7 +11,7 @@ const props = defineProps({
 </script>
 <template>
   <p
-    class="filter-badge"
+    class="filter-badge rounded d-flex pa-2 justify-center align-center"
     :style="{ backgroundColor: filterToColor(props.filter) }"
   >
     {{ props.filter }}
@@ -19,12 +19,10 @@ const props = defineProps({
 </template>
 <style scoped>
 .filter-badge {
-  border-radius: 10px;
   color: var(--text);
-  padding: 6px 10px;
-  display: inline-block;
   user-select: none;
   font-size: smaller;
   font-weight: bolder;
+  max-width: 2.2rem;
 }
 </style>
