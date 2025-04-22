@@ -137,22 +137,14 @@ async function instantiateScalerWorker(){
   }, [offscreen])
 
   // Image creation for leaflet map, clean up the old image url
-  imgWorker.onmessage = () => {
+  imgWorker.onmessage = (event) => {
     imgWorkerProcessing = false
-    updateScaling()
-    imgScalingCanvas.toBlob((blob) => {
-      if (analysisStore.imageUrl) URL.revokeObjectURL(analysisStore.imageUrl)
-      analysisStore.imageUrl = URL.createObjectURL(blob)
-    })
+    analysisStore.imageUrl = URL.createObjectURL(event.data.blob)
   }
 }
 
 function updateScaling(min, max){
-  if(min && max){
-    analysisStore.scaledZmin = min
-    analysisStore.scaledZmax = max
-    imgWorkerNextScale = [min, max]
-  }
+  imgWorkerNextScale = [min, max]
 
   if (imgWorkerNextScale && !imgWorkerProcessing){
     imgWorkerProcessing = true
@@ -199,7 +191,7 @@ function updateScaling(min, max){
       <div class="side-panel-container">
         <v-sheet
           v-if="image.site_id || image.telescope_id || image.instrument_id || image.observation_date"
-          class="side-panel-item pa-4"
+          class="side-panel-item pa-4 d-flex ga-6 justify-space-evenly"
           rounded
         >
           <p v-if="image.site_id">
@@ -242,32 +234,49 @@ function updateScaling(min, max){
         </v-expand-transition>
         <v-expand-transition>
           <v-sheet
-            v-if="analysisStore.imageScaleReady"
             class="side-panel-item"
             rounded
           >
             <histogram-slider
+              v-if="analysisStore.imageScaleReady"
               :histogram="analysisStore.histogram"
               :bins="analysisStore.bins"
               :max-value="analysisStore.maxPixelValue"
-              :z-min="analysisStore.zmin"
-              :z-max="analysisStore.zmax"
+              :z-min="Number(analysisStore.zmin)"
+              :z-max="Number(analysisStore.zmax)"
               @update-scaling="updateScaling"
+            />
+            <div
+              v-else
+              class="d-flex ga-4 align-center justify-center"
+            >
+              <p class="d-block">
+                Histogram
+              </p>
+              <v-progress-linear
+                color="var(--success)"
+                :height="6"
+                indeterminate
+                rounded
+              />
+            </div>
+          </v-sheet>
+        </v-expand-transition>
+        <v-expand-transition>
+          <v-sheet
+            v-show="lineProfile.length"
+            class="side-panel-item line-plot-sheet"
+            rounded
+          >
+            <line-plot
+              :y-axis-data="lineProfile"
+              :x-axis-length="lineProfileLength"
+              :start-coords="startCoords"
+              :end-coords="endCoords"
+              :position-angle="positionAngle"
             />
           </v-sheet>
         </v-expand-transition>
-        <v-sheet
-          class="side-panel-item line-plot-sheet"
-          rounded
-        >
-          <line-plot
-            :y-axis-data="lineProfile"
-            :x-axis-length="lineProfileLength"
-            :start-coords="startCoords"
-            :end-coords="endCoords"
-            :position-angle="positionAngle"
-          />
-        </v-sheet>
       </div>
     </div>
   </v-sheet>

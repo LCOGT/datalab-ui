@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, watch, computed, onMounted } from 'vue'
 
 // This component draws a sparkline histogram with range slider controls on top of it.
 // It has two coordinate systems - sliderRange which is a linear system of bins for the
@@ -44,6 +44,8 @@ const emit = defineEmits(['updateScaling'])
 
 const scaleRange = ref([props.bins[0], props.bins[props.bins.length-1]])
 const sliderRange = ref([0, props.bins.length-1])
+const initZmin = ref(props.zMin)
+const initZmax = ref(props.zMax)
 const backgroundColor = 'var(--text)'
 
 const gradient = computed(() => {
@@ -59,9 +61,23 @@ const gradient = computed(() => {
   return gradientArray
 })
 
-function sliderToBinValue(sliderValue) {
-  return props.bins[sliderValue] ?? console.error('Slider value out of bounds')
-}
+onMounted(() => {
+  zScaleImage()
+})
+
+// In case the zMax or zMin change, update the initZmax/Zmin
+watch([() => props.zMax, () => props.zMin], () => {
+  initZmax.value = props.zMax
+  initZmin.value = props.zMin
+  zScaleImage()
+})
+
+watch(() => scaleRange.value, (newValue) => {
+  // This is called when the scale range is changed
+  sliderRange.value[0] = scaleToSliderValue(newValue[0])
+  sliderRange.value[1] = scaleToSliderValue(newValue[1])
+  emit('updateScaling', ...scaleRange.value)
+}, { deep: true })
 
 /**
  * Maps a scale value (zmin/zmax) to a slider value (0 to bins.length-1)
@@ -85,6 +101,10 @@ function scaleToSliderValue(scaleValue) {
   return Math.abs(bins[left] - scaleValue) < Math.abs(bins[right] - scaleValue) ? left : right
 }
 
+function sliderToBinValue(sliderValue) {
+  return props.bins[sliderValue] ?? console.error('Slider value out of bounds')
+}
+
 function updateScaleRange() {
   // This is called when the range slider control is moved
   scaleRange.value[0] = sliderToBinValue(sliderRange.value[0])
@@ -92,34 +112,12 @@ function updateScaleRange() {
   emit('updateScaling', ...scaleRange.value)
 }
 
-function updateLowerScale(value) {
-  // This is called when a change is made on the lower point number control
-  value = Number(value)
-  scaleRange.value[0] = value
-  sliderRange.value[0] = scaleToSliderValue(value)
-  emit('updateScaling', ...scaleRange.value)
-}
-
-function updateUpperScale(value) {
-  // This is called when a change is made on the upper point number control
-  value = Number(value)
-  scaleRange.value[1] = value
-  sliderRange.value[1] = scaleToSliderValue(value)
-  emit('updateScaling', ...scaleRange.value)
-}
-
 function zScaleImage() {
   // This is called to reset the ranges to the zMin/zMax
-  scaleRange.value = [props.zMin, props.zMax]
-  sliderRange.value = [scaleToSliderValue(props.zMin), scaleToSliderValue(props.zMax)]
+  scaleRange.value = [initZmin.value, initZmax.value]
+  sliderRange.value = [scaleToSliderValue(initZmin.value), scaleToSliderValue(initZmax.value)]
   emit('updateScaling', ...scaleRange.value)
 }
-
-watch(
-  () => props.zMax, () => {
-    zScaleImage()
-  }, { immediate: true }
-)
 
 </script>
 <template>
@@ -135,7 +133,6 @@ watch(
         bg-color="var(--card-background)"
         hide-spin-buttons
         hide-details
-        @update:model-value="updateLowerScale"
       />
     </v-col>
     <v-col>
@@ -149,7 +146,6 @@ watch(
         bg-color="var(--card-background)"
         hide-spin-buttons
         hide-details
-        @update:model-value="updateUpperScale"
       />
     </v-col>
     <v-col>

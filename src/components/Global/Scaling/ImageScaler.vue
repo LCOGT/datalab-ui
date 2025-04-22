@@ -2,7 +2,6 @@
 import { ref, computed, onMounted } from 'vue'
 import { useConfigurationStore } from '@/stores/configuration'
 import { fetchApiCall } from '@/utils/api'
-import { filterToColor } from '@/utils/common'
 import RawScaledImage from './RawScaledImage.vue'
 import HistogramSlider from './HistogramSlider.vue'
 
@@ -115,7 +114,7 @@ onMounted(async () => {
         {{ filterName }} Channel
       </h3>
       <histogram-slider
-        :selected-color="filterToColor(props.image.filter)"
+        :selected-color="filterName.trim().toLowerCase()"
         :histogram="histogram"
         :bins="bins"
         :max-value="maxPixelValue"

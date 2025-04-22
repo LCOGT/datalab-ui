@@ -28,14 +28,14 @@ const filterToColor = (filter) => {
 
 function siteIDToName(siteID) {
   const siteIDMap = {
-    'COJ': 'Siding Spring @ New South Wales',
-    'CPT': 'South African Astronomical @ Cape Town',
-    'TFN': 'Teide @ Tenerife',
-    'LSC': 'Cerro Tololo Inter-American @ Chile',
-    'ELP': 'McDonald @ University of Texas',
-    'OGG': 'Haleakala @ Maui',
-    'TLV': 'Wise @ Tel Aviv University',
-    'NGQ': 'Ali @ Tibet',
+    'COJ': 'COJ @ Siding Spring',
+    'CPT': 'CPT @ South African Astronomical',
+    'TFN': 'TFN @ Teide',
+    'LSC': 'LSC @ Cerro Tololo Inter-American',
+    'ELP': 'ELP @ McDonald',
+    'OGG': 'OGG @ Haleakala',
+    'TLV': 'TLV @ Wise',
+    'NGQ': 'NGQ @ Ali',
   }
 
   return siteIDMap[siteID?.toUpperCase()] || siteID
