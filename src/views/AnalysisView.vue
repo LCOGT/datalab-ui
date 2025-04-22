@@ -139,7 +139,9 @@ async function instantiateScalerWorker(){
   // Image creation for leaflet map, clean up the old image url
   imgWorker.onmessage = (event) => {
     imgWorkerProcessing = false
-    analysisStore.imageUrl = URL.createObjectURL(event.data.blob)
+    if(event.data.blob){
+      analysisStore.imageUrl = URL.createObjectURL(event.data.blob)
+    }
   }
 }
 
