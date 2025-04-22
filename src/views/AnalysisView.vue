@@ -194,7 +194,7 @@ function updateScaling(min, max){
       <div class="side-panel-container">
         <v-sheet
           v-if="image.site_id || image.telescope_id || image.instrument_id || image.observation_date"
-          class="side-panel-item pa-4"
+          class="side-panel-item pa-4 d-flex ga-6 justify-space-evenly"
           rounded
         >
           <p v-if="image.site_id">
