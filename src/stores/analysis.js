@@ -14,6 +14,7 @@ export const useAnalysisStore = defineStore('analysis', {
     imageUrl: '', // URL of the image to display
     imageWidth: null, // width of the image in pixels
     imageHeight: null, // height of the image in pixels
+    imageScaleLoading: false, // flag to indicate if the image scale is loading
   }),
   getters: {
     imageScaleReady: (state) => state.imageWidth && state.imageHeight && state.rawData && state.zmin != null && state.zmax != null,
@@ -23,6 +24,8 @@ export const useAnalysisStore = defineStore('analysis', {
   },
   actions: {
     async loadScaleData() {
+      this.imageScaleLoading = true
+
       if(!this.image){
         console.error('No image object provided')
         return
@@ -32,6 +35,8 @@ export const useAnalysisStore = defineStore('analysis', {
         await this.loadImageDimensions(this.imageUrl || this.image.largeCachedUrl)
         await this.loadRawData()
       }
+
+      this.imageScaleLoading = false
     },
     // Load image dimensions
     loadImageDimensions(url) {
