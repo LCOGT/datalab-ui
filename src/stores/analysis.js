@@ -16,28 +16,28 @@ export const useAnalysisStore = defineStore('analysis', {
     imageHeight: null, // height of the image in pixels
   }),
   getters: {
-    imageScaleReady: (state) => state.imageWidth && state.imageHeight && state.rawData && state.zmin && state.zmax,
+    imageScaleReady: (state) => state.imageWidth && state.imageHeight && state.rawData && state.zmin != null && state.zmax != null,
     histogram: (state) => { return state.rawData.histogram },
     bins: (state) => { return state.rawData.bins },
     maxPixelValue: (state) => { Math.pow(2, state.rawData.bitdepth) - 1 },
   },
   actions: {
     async loadScaleData() {
+      if(!this.image){
+        console.error('No image object provided')
+        return
+      }
+
       if(!this.imageScaleReady){
-        await this.loadImageDimensions()
+        await this.loadImageDimensions(this.imageUrl || this.image.largeCachedUrl)
         await this.loadRawData()
       }
     },
     // Load image dimensions
-    loadImageDimensions() {
-      // Check if image dimensions are already loaded
-      if (this.imageWidth && this.imageHeight) {
-        return
-      }
-
-      const url = this.imageUrl || this.image.largeCachedUrl
+    loadImageDimensions(url) {
       const img = new Image()
       img.src = url
+
       return new Promise((resolve) => {
         img.onload = () => {
           this.imageWidth = img.width
@@ -55,11 +55,6 @@ export const useAnalysisStore = defineStore('analysis', {
       const configStore = useConfigurationStore()
       const datalabApiBaseUrl = configStore.datalabApiBaseUrl
       const url = datalabApiBaseUrl + 'analysis/raw-data/'
-
-      if(!this.image){
-        console.error('No image object provided')
-        return
-      }
 
       const requestBody = {
         'basename': this.image.basename,

@@ -48,7 +48,7 @@ onmessage = function(job) {
 }
 
 function tryProcessScalePoints() {
-  if(hasImageData && hasCanvas && scalePointMessage.length) {
+  if(hasImageData && hasCanvas && scalePointMessage) {
     processScalePoints(scalePointMessage)
   }
 }
