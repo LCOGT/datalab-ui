@@ -249,7 +249,7 @@ function updateScaling(min, max){
               @update-scaling="updateScaling"
             />
             <div
-              v-else
+              v-else-if="analysisStore.imageScaleLoading"
               class="d-flex ga-4 align-center justify-center"
             >
               <p class="d-block">
