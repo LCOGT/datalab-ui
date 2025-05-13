@@ -63,6 +63,7 @@ onUnmounted(() => {
 
 // This function runs when imageViewer emits an analysis-action event and should be extended to handle other analysis types
 function requestAnalysis(action, input, action_callback=null){
+  console.log('Requesting analysis:', action, input)
   const url = configStore.datalabApiBaseUrl + 'analysis/' + action + '/'
   const body = {
     'basename': props.image.basename,
@@ -84,6 +85,9 @@ function handleAnalysisOutput(response, action, action_callback){
     break
   case 'source-catalog':
     catalog.value = response
+    break
+  case 'variable-star':
+    console.log('Variable star analysis response:', response)
     break
   case 'get-tif':
     action_callback(response.tif_url, props.image.basename, 'TIF')

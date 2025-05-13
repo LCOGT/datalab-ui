@@ -234,6 +234,7 @@ function fetchCatalog(){
   >
     <variable-star-dialog
       :coords="variableTargetCoords"
+      @analysis-action="(action, input) => emit('analysisAction', action, input)"
       @close-dialog="showVariableStarDialog = false"
     />
   </v-dialog>

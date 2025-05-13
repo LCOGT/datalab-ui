@@ -6,7 +6,8 @@ import { useConfigurationStore } from '@/stores/configuration'
 import { useAnalysisStore } from '@/stores/analysis'
 import { fetchApiCall } from '../../utils/api'
 
-defineEmits(['closeDialog'])
+const emit = defineEmits(['closeDialog', 'analysisAction'])
+
 const props = defineProps({
   coords: {
     type: Object,
@@ -25,19 +26,27 @@ let queryUrl = ''
 watch([startDate, endDate], () => {
   const baseUrl = configStore.datalabArchiveApiUrl + 'frames/'
   const timeUrlParam = `start=${startDate.value.toISOString()}&end=${endDate.value.toISOString()}`
+  const filterUrlParam = `primary_optical_element=${analysisStore.imageFilter}`
   const proposalUrlParam = `proposal_id=${analysisStore.imageProposalId}`
   const coversUrlParam = `covers=POINT(${props.coords.ra} ${props.coords.dec})`
-  queryUrl = baseUrl + '?' + timeUrlParam + '&' + proposalUrlParam + '&' + coversUrlParam
+  queryUrl = baseUrl + '?' + timeUrlParam + '&' + proposalUrlParam + '&' + coversUrlParam + '&' + filterUrlParam
 
   fetchApiCall({url: queryUrl, method: 'GET', 
     successCallback: (data) => {
-      matchingImages.value = data.count
+      matchingImages.value = data
     },
     failCallback: (error) => {
       console.error('Failed to fetch frames:', error)
     }
   })
 }, { immediate: true })
+
+function dispatchVariableAnalysis() {
+  const variableStarActionName = 'variable-star'
+  emit ('analysisAction', variableStarActionName, {
+    basenames: matchingImages.value.results.map((image) => image.basename),
+  })
+}
 
 </script>
 <template>
@@ -71,7 +80,7 @@ watch([startDate, endDate], () => {
       />
     </div>
     <p class="imageCountText">
-      {{ matchingImages }} Images in time range
+      {{ matchingImages.count }} Images in date range
     </p>
     <div class="buttons d-flex ga-4 justify-end">
       <v-btn
@@ -82,7 +91,7 @@ watch([startDate, endDate], () => {
       <v-btn
         color="var(--primary-interactive)"
         text="Analyze"
-        @click="console.log(queryUrl)"
+        @click="dispatchVariableAnalysis"
       />
     </div>
   </v-card>

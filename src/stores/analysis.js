@@ -21,7 +21,8 @@ export const useAnalysisStore = defineStore('analysis', {
     histogram: (state) => { return state.rawData.histogram },
     bins: (state) => { return state.rawData.bins },
     maxPixelValue: (state) => { Math.pow(2, state.rawData.bitdepth) - 1 },
-    imageProposalId: (state) => { return state.image.proposal_id}
+    imageProposalId: (state) => { return state.image.proposal_id},
+    imageFilter: (state) => { return state.image.FILTER }
   },
   actions: {
     async loadScaleData() {
