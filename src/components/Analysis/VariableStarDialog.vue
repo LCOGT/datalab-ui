@@ -45,7 +45,8 @@ function dispatchVariableAnalysis() {
   const variableStarActionName = 'variable-star'
   emit ('analysisAction', variableStarActionName, {
     basenames: matchingImages.value.results.map((image) => image.basename),
-  })
+    coords: props.coords,
+  }) 
 }
 
 </script>

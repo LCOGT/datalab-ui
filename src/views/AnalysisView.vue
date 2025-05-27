@@ -63,7 +63,6 @@ onUnmounted(() => {
 
 // This function runs when imageViewer emits an analysis-action event and should be extended to handle other analysis types
 function requestAnalysis(action, input, action_callback=null){
-  console.log('Requesting analysis:', action, input)
   const url = configStore.datalabApiBaseUrl + 'analysis/' + action + '/'
   const body = {
     'basename': props.image.basename,
