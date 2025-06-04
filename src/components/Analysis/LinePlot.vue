@@ -16,7 +16,6 @@ const props = defineProps({
 // chartJs can't use css vars as strings, so we need to get the actual value
 var style = getComputedStyle(document.body)
 const text = style.getPropertyValue('--text')
-const background = style.getPropertyValue('--primary-background')
 const primary = style.getPropertyValue('--primary-interactive')
 const secondary = style.getPropertyValue('--secondary-interactive')
 
@@ -53,26 +52,16 @@ function createChart (){
           title: { display: true, text: distanceLabel(), color: text },
           border: { color: text, width: 2 },
           ticks: { color: text, autoSkip: true, autoSkipPadding: 10 , maxRotation: 0 },
-          grid: { color: background },
         },
         y: {
           title: { display: true, text: 'Luminosity', color: text },
           border: { color: text, width: 2 },
           ticks: { color: text, autoSkip: true, },
-          grid: { color: background },
         },
       },
       plugins: {
-        title: { display: true, text: 'Line Profile', color: text },
         legend: { display: false },
-        tooltip: {
-          titleAlign: 'center',
-          titleColor: text,
-          bodyAlign: 'center',
-          bodyColor: text,
-          backgroundColor: secondary,
-          displayColors: false,
-        },
+        tooltip: { displayColors: false },
       },
     },
   })
@@ -101,10 +90,10 @@ function generateLabels() {
 
 function distanceLabel(){
   if(props.xAxisLength){ 
-    return 'Distance ' + (props.xAxisLength.toFixed(6) + ' (arcseconds)') 
+    return (props.xAxisLength.toFixed(6) + ' Arcseconds') 
   }
   else { 
-    return 'Distance ' + (props.yAxisData.length + ' (pixels)') 
+    return (props.yAxisData.length + ' Pixels')
   }
 }
 </script>

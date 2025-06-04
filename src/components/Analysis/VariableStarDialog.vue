@@ -44,9 +44,17 @@ watch([startDate, endDate], () => {
 function dispatchVariableAnalysis() {
   const variableStarActionName = 'variable-star'
   emit ('analysisAction', variableStarActionName, {
-    basenames: matchingImages.value.results.map((image) => image.basename),
-    coords: props.coords,
-  }) 
+    images: matchingImages.value.results.map((image) => {
+      return {
+        id: image.id,
+        basename: image.basename,
+        observation_date: image.observation_date,
+      }
+    }),
+    target_coords: props.coords,
+  })
+  analysisStore.lightCurveLoading = true
+  emit('closeDialog')
 }
 
 </script>

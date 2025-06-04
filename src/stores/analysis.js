@@ -7,7 +7,9 @@ import { fetchApiCall } from '@/utils/api.js'
  */
 export const useAnalysisStore = defineStore('analysis', {
   state: () => ({
+    // General Analysis State
     image: null, // image archive object
+    // Histogram Editing
     rawData: null, // raw data from the analysis/raw_data endpoint
     zmin: null, // minimum z value of the raw data
     zmax: null, // maximum z value of the raw data
@@ -15,16 +17,23 @@ export const useAnalysisStore = defineStore('analysis', {
     imageWidth: null, // width of the image in pixels
     imageHeight: null, // height of the image in pixels
     imageScaleLoading: false, // flag to indicate if the image scale is loading
+    // Variable Star Analysis
+    lightCurve: null, // light curve data for a source
+    lightCurveTarget: null, // target for the light curve
+    lightCurveLoading: false, // flag to indicate if the light curve is loading
   }),
   getters: {
+    // General
+    imageProposalId: (state) => { return state.image.proposal_id},
+    imageFilter: (state) => { return state.image.FILTER },
+    // Histogram Editing
     imageScaleReady: (state) => state.imageWidth && state.imageHeight && state.rawData && state.zmin != null && state.zmax != null,
     histogram: (state) => { return state.rawData.histogram },
     bins: (state) => { return state.rawData.bins },
     maxPixelValue: (state) => { Math.pow(2, state.rawData.bitdepth) - 1 },
-    imageProposalId: (state) => { return state.image.proposal_id},
-    imageFilter: (state) => { return state.image.FILTER }
   },
   actions: {
+    // Histogram Editing
     async loadScaleData() {
       this.imageScaleLoading = true
 
@@ -40,7 +49,6 @@ export const useAnalysisStore = defineStore('analysis', {
 
       this.imageScaleLoading = false
     },
-    // Load image dimensions
     loadImageDimensions(url) {
       const img = new Image()
       img.src = url

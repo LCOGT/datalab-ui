@@ -12,6 +12,7 @@ import ImageDownloadMenu from '@/components/Analysis/ImageDownloadMenu.vue'
 import FitsHeaderTable from '@/components/Analysis/FitsHeaderTable.vue'
 import ImageViewer from '@/components/Analysis/ImageViewer.vue'
 import LinePlot from '@/components/Analysis/LinePlot.vue'
+import VariableStarPlot from '@/components/Analysis/VariableStarPlot.vue'
 
 const props = defineProps({
   image: {
@@ -87,6 +88,9 @@ function handleAnalysisOutput(response, action, action_callback){
     break
   case 'variable-star':
     console.log('Variable star analysis response:', response)
+    analysisStore.lightCurve = response.light_curve
+    analysisStore.lightCurveTarget = response.target_coords
+    analysisStore.lightCurveLoading = false
     break
   case 'get-tif':
     action_callback(response.tif_url, props.image.basename, 'TIF')
@@ -282,6 +286,15 @@ function updateScaling(min, max){
             />
           </v-sheet>
         </v-expand-transition>
+        <v-expand-transition>
+          <v-sheet
+            v-show="analysisStore.lightCurve !== null"
+            class="side-panel-item variable-star-sheet"
+            rounded
+          >
+            <variable-star-plot />
+          </v-sheet>
+        </v-expand-transition>
       </div>
     </div>
   </v-sheet>
@@ -326,7 +339,7 @@ function updateScaling(min, max){
   background-color: var(--card-background);
   margin-bottom: 1rem;
 }
-.line-plot-sheet {
+.variable-star-sheet {
   height: 100%;
   margin-bottom: 0;
 }

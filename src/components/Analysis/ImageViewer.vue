@@ -174,12 +174,14 @@ function requestLineProfile(latLngs) {
 function createCatalogLayer(){
   // Function to create a marker for a source
   function createSourceMarker(source){
+    // Marker popup text
     const div = document.createElement('div')
     div.innerHTML = `
       <b>Flux:</b> ${source.flux ?? 'N/A'}<br>
       <b>Ra:</b> ${source.ra ?? 'N/A'}<br>
       <b>Dec:</b> ${source.dec ?? 'N/A'}<br>
     `
+    // Marker popup button for variable star analysis
     const button = document.createElement('button')
     button.innerHTML = 'Flux Variance'
     button.className = 'variableAnalysisButton'
@@ -193,6 +195,7 @@ function createCatalogLayer(){
 
     div.appendChild(button)
 
+    // Create a circle marker for the source
     return new L.Circle([source.y, source.x], {
       color: 'var(--info)',
       fillOpacity: 0.2,
