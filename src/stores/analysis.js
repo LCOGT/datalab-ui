@@ -64,7 +64,7 @@ export const useAnalysisStore = defineStore('analysis', {
       const requestBody = {
         'basename': this.image.basename,
         'source': this.image.source,
-        'max_size': Math.max(this.imageWidth, this.imageHeight),
+        'max_size': Math.min(Math.min(this.imageWidth, this.imageHeight), 1024),
       }
 
       await fetchApiCall({url: url, method: 'POST', body: requestBody,
