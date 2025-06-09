@@ -87,7 +87,6 @@ function handleAnalysisOutput(response, action, action_callback){
     catalog.value = response
     break
   case 'variable-star':
-    console.log('Variable star analysis response:', response)
     analysisStore.lightCurve = response.light_curve
     analysisStore.lightCurveTarget = response.target_coords
     analysisStore.lightCurveLoading = false
