@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { siteIDToName } from '@/utils/common'
 
 const search = ref('')
@@ -13,9 +13,16 @@ const props = defineProps({
 
 const headerDataKeyValueList = Object.entries(props.headerData)
 
-const tableHeaders = ref([
+const tableHeaders = [
   { title: 'Key', key:'0' },
   { title: 'Value', sortable: false, key:'1' },
+]
+
+const headerChips = computed(() => [
+  { icon: 'mdi-earth', text: siteIDToName(props.headerData.SITEID) },
+  { icon: 'mdi-telescope', text: props.headerData.TELID },
+  { icon: 'mdi-camera', text: props.headerData.INSTRUME },
+  { icon: 'mdi-clock', text: new Date(props.headerData.DATE).toLocaleString() }
 ])
 
 </script>
@@ -26,13 +33,8 @@ const tableHeaders = ref([
     </h1>
     <div class="d-flex flex-wrap ga-2 mb-4">
       <v-chip
-        v-for="(chip, idx) in [
-          { icon: 'mdi-earth', text: siteIDToName(headerData.SITEID) },
-          { icon: 'mdi-telescope', text: headerData.TELID },
-          { icon: 'mdi-camera', text: headerData.INSTRUME },
-          { icon: 'mdi-clock', text: new Date(headerData.DATE).toLocaleString() }
-        ]"
-        :key="idx"
+        v-for="(chip) in headerChips"
+        :key="chip.icon"
         :prepend-icon="chip.icon"
         color="var(--info)"
         :text="chip.text"
@@ -58,11 +60,11 @@ const tableHeaders = ref([
   </v-sheet>
 </template>
 <style scoped>
-.fits-header-sheet{
+.fits-header-sheet,
+.v-data-table {
   background-color: var(--primary-background);
-  color: var(--text);
 }
-.v-data-table{
-  background-color: var(--primary-background);
+.fits-header-sheet{
+  color: var(--text);
 }
 </style>
