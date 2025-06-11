@@ -29,9 +29,9 @@ const filterToColor = (filter) => {
 function siteIDToName(siteID) {
   const siteIDMap = {
     'COJ': 'COJ @ Siding Spring',
-    'CPT': 'CPT @ South African Astronomical',
+    'CPT': 'CPT @ South Africa',
     'TFN': 'TFN @ Teide',
-    'LSC': 'LSC @ Cerro Tololo Inter-American',
+    'LSC': 'LSC @ Cerro Tololo',
     'ELP': 'ELP @ McDonald',
     'OGG': 'OGG @ Haleakala',
     'TLV': 'TLV @ Wise',

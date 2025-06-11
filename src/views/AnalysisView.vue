@@ -1,7 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { fetchApiCall } from '../utils/api'
-import { siteIDToName } from '@/utils/common'
 import { useConfigurationStore } from '@/stores/configuration'
 import { useAlertsStore } from '@/stores/alerts'
 import { useAnalysisStore } from '@/stores/analysis'
@@ -34,6 +33,7 @@ const startCoords = ref()
 const endCoords = ref()
 const catalogToggle = ref(true)
 const catalog = ref([])
+const analysisTab = ref('line-profile')
 const fluxSliderRange = ref([0, 10000])
 const positionAngle = ref()
 const headerDialog = ref(false)
@@ -82,6 +82,7 @@ function handleAnalysisOutput(response, action, action_callback){
     endCoords.value = response.end_coords
     startCoords.value = response.start_coords
     positionAngle.value = response.position_angle
+    analysisTab.value = 'line-profile'
     break
   case 'source-catalog':
     catalog.value = response
@@ -90,6 +91,7 @@ function handleAnalysisOutput(response, action, action_callback){
     analysisStore.lightCurve = response.light_curve
     analysisStore.lightCurveTarget = response.target_coords
     analysisStore.lightCurveLoading = false
+    analysisTab.value = 'variable-star'
     break
   case 'get-tif':
     action_callback(response.tif_url, props.image.basename, 'TIF')
@@ -173,7 +175,7 @@ function updateScaling(min, max){
         :filter="image.FILTER || image.filter"
         class="ml-2"
       />
-      <v-toolbar-title>{{ image.basename || "Unknown" }}</v-toolbar-title>
+      <v-toolbar-title :text="image.basename || 'Unknown'" />
       <image-download-menu
         :image-name="image.basename"
         :fits-url="image.url || image.fits_url"
@@ -197,24 +199,6 @@ function updateScaling(min, max){
         @analysis-action="requestAnalysis"
       />
       <div class="side-panel-container">
-        <v-sheet
-          v-if="image.site_id || image.telescope_id || image.instrument_id || image.observation_date"
-          class="side-panel-item pa-4 d-flex ga-6 justify-space-evenly"
-          rounded
-        >
-          <p v-if="image.site_id">
-            <v-icon icon="mdi-earth" /> {{ siteIDToName(image.site_id) }}
-          </p>
-          <p v-if="image.telescope_id">
-            <v-icon icon="mdi-telescope" /> {{ image.telescope_id }}
-          </p>
-          <p v-if="image.instrument_id">
-            <v-icon icon="mdi-camera" /> {{ image.instrument_id }}
-          </p>
-          <p v-if="image.observation_date">
-            <v-icon icon="mdi-clock" /> {{ new Date(image.observation_date).toLocaleString() }}
-          </p>
-        </v-sheet>
         <v-expand-transition>
           <v-sheet
             v-if="catalog.length"
@@ -272,26 +256,49 @@ function updateScaling(min, max){
         </v-expand-transition>
         <v-expand-transition>
           <v-sheet
-            v-show="lineProfile.length"
-            class="side-panel-item line-plot-sheet"
-            rounded
+            v-show="lineProfile.length || analysisStore.lightCurve"
+            class="side-panel-item"
           >
-            <line-plot
-              :y-axis-data="lineProfile"
-              :x-axis-length="lineProfileLength"
-              :start-coords="startCoords"
-              :end-coords="endCoords"
-              :position-angle="positionAngle"
-            />
-          </v-sheet>
-        </v-expand-transition>
-        <v-expand-transition>
-          <v-sheet
-            v-show="analysisStore.lightCurve !== null"
-            class="side-panel-item variable-star-sheet"
-            rounded
-          >
-            <variable-star-plot />
+            <v-tabs
+              v-model="analysisTab"
+              slider-color="var(--primary-interactive)"
+              density="compact"
+            >
+              <v-tab
+                v-show="lineProfile.length"
+                prepend-icon="mdi-vector-line"
+                value="line-profile"
+              >
+                Line Profile
+              </v-tab>
+              <v-tab
+                v-show="analysisStore.lightCurve"
+                prepend-icon="mdi-chart-bell-curve"
+                value="variable-star"
+              >
+                Light Curve
+              </v-tab>
+            </v-tabs>
+            <v-tabs-window v-model="analysisTab">
+              <v-tabs-window-item
+                v-show="lineProfile.length"
+                value="line-profile"
+              >
+                <line-plot
+                  :y-axis-data="lineProfile"
+                  :x-axis-length="lineProfileLength"
+                  :start-coords="startCoords"
+                  :end-coords="endCoords"
+                  :position-angle="positionAngle"
+                />
+              </v-tabs-window-item>
+              <v-tabs-window-item
+                v-show="analysisStore.lightCurve"
+                value="variable-star"
+              >
+                <variable-star-plot />
+              </v-tabs-window-item>
+            </v-tabs-window>
           </v-sheet>
         </v-expand-transition>
       </div>
@@ -311,6 +318,7 @@ function updateScaling(min, max){
   background-color: var(--primary-background);
   color: var(--text);
   font-family: var(--font-stack);
+  height: 100vh;
   max-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -323,7 +331,7 @@ function updateScaling(min, max){
   flex: 1;
   display: flex;
   flex-direction: row;
-  padding: 1rem;
+  padding: 0.5rem;
 }
 /* Side Panel */
 .side-panel-container {
@@ -336,10 +344,12 @@ function updateScaling(min, max){
   padding: 1rem;
   color: var(--text);
   background-color: var(--card-background);
-  margin-bottom: 1rem;
+  margin-bottom: 0.5rem;
+  border-radius: 0.25rem;
 }
-.variable-star-sheet {
-  height: 100%;
+
+.side-panel-item:last-of-type {
   margin-bottom: 0;
+  height: 100%;
 }
 </style>

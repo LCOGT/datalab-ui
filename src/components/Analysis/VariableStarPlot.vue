@@ -41,7 +41,7 @@ function createChart() {
   const text = style.getPropertyValue('--text')
   const primary = style.getPropertyValue('--primary-interactive')
   const secondary = style.getPropertyValue('--secondary-interactive')
-  const background = style.getPropertyValue('--disabled-text')
+  const background = style.getPropertyValue('--secondary-background')
   const info = style.getPropertyValue('--info')
 
   lightCurveChart = new Chart(lightCurveCanvas.value, {
@@ -90,7 +90,7 @@ function createChart() {
             unit: 'day',
             tooltipFormat: 'MMM dd hh:mm a',
             displayFormats: {
-              day: 'MMM dd hh:mm a'
+              day: 'M/dd T'
             },
           }
         },
@@ -117,16 +117,8 @@ function createChart() {
 
 </script>
 <template>
-  <h1>Light Curve</h1>
   <canvas
     ref="lightCurveCanvas"
     class="light-curve-plot"
-  />
-  <v-progress-linear
-    v-if="analysisStore.lightCurveLoading"
-    color="var(--success)"
-    :height="6"
-    indeterminate
-    rounded
   />
 </template>

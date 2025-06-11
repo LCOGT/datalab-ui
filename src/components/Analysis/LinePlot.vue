@@ -13,17 +13,18 @@ const props = defineProps({
   positionAngle: { type: Number, default: null },
 })
 
-// chartJs can't use css vars as strings, so we need to get the actual value
-var style = getComputedStyle(document.body)
-const text = style.getPropertyValue('--text')
-const primary = style.getPropertyValue('--primary-interactive')
-const secondary = style.getPropertyValue('--secondary-interactive')
-
 watch(() => [props.yAxisData, props.xAxisLength], () => {
   lineProfileChart ? updateChart() : createChart()
 })
 
 function createChart (){
+  // chartJs can't use css vars as strings, so we need to get the actual value
+  var style = getComputedStyle(document.body)
+  const text = style.getPropertyValue('--text')
+  const primary = style.getPropertyValue('--primary-interactive')
+  const secondary = style.getPropertyValue('--secondary-interactive')
+  const background = style.getPropertyValue('--secondary-background')
+
   lineProfileChart = new Chart(chartRef.value, {
     type: 'line',
     data: {
@@ -52,17 +53,23 @@ function createChart (){
           title: { display: true, text: distanceLabel(), color: text },
           border: { color: text, width: 2 },
           ticks: { color: text, autoSkip: true, autoSkipPadding: 10 , maxRotation: 0 },
+          grid: { color: background },
         },
         y: {
           title: { display: true, text: 'Luminosity', color: text },
           border: { color: text, width: 2 },
           ticks: { color: text, autoSkip: true, },
+          grid: { color: background },
         },
       },
       plugins: {
         legend: { display: false },
-        tooltip: { displayColors: false },
+        tooltip: { mode: 'index', intersect: false },
       },
+      hover: {
+        mode: 'index',
+        intersect: false,
+      }
     },
   })
 }
@@ -104,12 +111,10 @@ function distanceLabel(){
     class="line-plot"
   />
   <div class="line-details">
-    <p v-if="startCoords">
-      <b>Start:</b> RA {{ startCoords[0].toFixed(6) }} DEC {{ startCoords[1].toFixed(6) }}
-    </p>
-    <p v-if="endCoords">
-      <b>End:</b> RA {{ endCoords[0].toFixed(6) }} DEC {{ endCoords[1].toFixed(6) }}
-    </p>
+    <template v-if="startCoords && endCoords">
+      <p><b>Start:</b> RA {{ startCoords[0].toFixed(6) }} DEC {{ startCoords[1].toFixed(6) }}</p>
+      <p><b>End:</b> RA {{ endCoords[0].toFixed(6) }} DEC {{ endCoords[1].toFixed(6) }}</p>
+    </template>
     <p v-if="positionAngle">
       <v-tooltip
         activator="parent"
@@ -121,7 +126,10 @@ function distanceLabel(){
 </template>
 
 <style scoped>
-.line-details{
-  margin-top: 2rem;
+.line-details {
+  margin-top: 1rem;
+}
+.line-details p {
+  font-size: medium;
 }
 </style>

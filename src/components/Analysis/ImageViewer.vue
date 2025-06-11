@@ -183,7 +183,7 @@ function createCatalogLayer(){
     `
     // Marker popup button for variable star analysis
     const button = document.createElement('button')
-    button.innerHTML = 'Flux Variance'
+    button.innerHTML = 'Light Curve'
     button.className = 'variableAnalysisButton'
     button.addEventListener('click',() => {
       showVariableStarDialog.value = true
