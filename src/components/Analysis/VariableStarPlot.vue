@@ -1,7 +1,7 @@
 <script setup>
 import Chart from 'chart.js/auto'
 import 'chartjs-adapter-luxon'
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { useAnalysisStore } from '@/stores/analysis'
 
 const analysisStore = useAnalysisStore()
@@ -9,29 +9,33 @@ const lightCurveCanvas = ref(null)
 let lightCurveChart = null
 const CHART_PADDING = 0.05
 
-watch(() => [analysisStore.lightCurve], () =>{
+watch(() => analysisStore.lightCurve, () =>{
   lightCurveChart ? updateChart() : createChart()
 })
 
-function getChartData() {
+const chartData = computed(() => {
   // We use this function to extract the data from the analysisStore to avoid
   // writing it twice in the chart creation and update functions.
+  const magnitudes = analysisStore.lightCurve.map(({ mag }) => mag)
+  const observationDates = analysisStore.lightCurve.map(({ observation_date }) => observation_date)
+  const errorBars = analysisStore.lightCurve.map(({ mag, magerr }) => [mag - magerr, mag + magerr])
+
   return {
-    labels: analysisStore.lightCurve.map(({ observation_date }) => observation_date),
-    magnitudeData: analysisStore.lightCurve.map(({ mag }) => mag),
-    errorData: analysisStore.lightCurve.map(({ mag, magerr }) => [mag - magerr, mag + magerr]),
-    chartMin: Math.min(...analysisStore.lightCurve.map(({ mag }) => mag)) - CHART_PADDING,
-    chartMax: Math.max(...analysisStore.lightCurve.map(({ mag }) => mag)) + CHART_PADDING
+    labels: observationDates,
+    magnitudeData: magnitudes,
+    errorData: errorBars,
+    chartMin: Math.min(...magnitudes) - CHART_PADDING,
+    chartMax: Math.max(...magnitudes) + CHART_PADDING
   }
-}
+})
 
 function updateChart() {
   // Updates the chart when user runs flux analysis again
-  lightCurveChart.data.labels = getChartData().labels
-  lightCurveChart.data.datasets[0].data = getChartData().magnitudeData
-  lightCurveChart.data.datasets[1].data = getChartData().errorData
-  lightCurveChart.options.scales.y.min = getChartData().chartMin
-  lightCurveChart.options.scales.y.max = getChartData().chartMax
+  lightCurveChart.data.labels = chartData.value.labels
+  lightCurveChart.data.datasets[0].data = chartData.value.magnitudeData
+  lightCurveChart.data.datasets[1].data = chartData.value.errorData
+  lightCurveChart.options.scales.y.min = chartData.value.chartMin
+  lightCurveChart.options.scales.y.max = chartData.value.chartMax
   lightCurveChart.update()
 }
 
@@ -47,11 +51,11 @@ function createChart() {
   lightCurveChart = new Chart(lightCurveCanvas.value, {
     type: 'line',
     data: {
-      labels: getChartData().labels,
+      labels: chartData.value.labels,
       datasets: [
         {
           label: 'Magnitude',
-          data: getChartData().magnitudeData,
+          data: chartData.value.magnitudeData,
           order: 0,
           // Line styling
           borderColor: primary,
@@ -66,7 +70,7 @@ function createChart() {
         },
         {
           label: 'Mag Error',
-          data: getChartData().errorData,
+          data: chartData.value.errorData,
           order: 1,
           type: 'bar',
           // Error bar styling
@@ -95,8 +99,8 @@ function createChart() {
           }
         },
         y: {
-          min: getChartData().chartMin,
-          max: getChartData().chartMax,
+          min: chartData.value.chartMin,
+          max: chartData.value.chartMax,
           title: { display: true, text: 'Magnitude', color: text },
           border: { color: text, width: 2 },
           ticks: { color: text },

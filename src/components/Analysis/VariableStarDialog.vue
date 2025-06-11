@@ -20,16 +20,18 @@ const analysisStore = useAnalysisStore()
 
 const startDate = ref(initializeDate('', -5))
 const endDate = ref( initializeDate(''))
-const matchingImages = ref(0)
-let queryUrl = ''
+const matchingImages = ref({ count: 0, results: [] })
 
 watch([startDate, endDate], () => {
-  const baseUrl = configStore.datalabArchiveApiUrl + 'frames/'
-  const timeUrlParam = `start=${startDate.value.toISOString()}&end=${endDate.value.toISOString()}`
-  const filterUrlParam = `primary_optical_element=${analysisStore.imageFilter}`
-  const proposalUrlParam = `proposal_id=${analysisStore.imageProposalId}`
-  const coversUrlParam = `covers=POINT(${props.coords.ra} ${props.coords.dec})`
-  queryUrl = baseUrl + '?' + timeUrlParam + '&' + proposalUrlParam + '&' + coversUrlParam + '&' + filterUrlParam
+  const { datalabArchiveApiUrl } = configStore
+  const { imageFilter, imageProposalId } = analysisStore
+  const { ra, dec } = props.coords
+
+  const queryUrl = datalabArchiveApiUrl + 'frames/?' + 
+    `start=${startDate.value.toISOString()}&end=${endDate.value.toISOString()}&` +
+    `primary_optical_element=${imageFilter}&` +
+    `proposal_id=${imageProposalId}&` +
+    `covers=POINT(${ra} ${dec})`
 
   fetchApiCall({url: queryUrl, method: 'GET', 
     successCallback: (data) => {
