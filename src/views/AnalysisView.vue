@@ -43,12 +43,13 @@ let imgWorkerProcessing = false
 let imgWorkerNextScale = null
 
 const filteredCatalog = computed(() => {
-  if(catalogToggle.value){
-    return catalog.value.filter((source) => source.flux >= fluxSliderRange.value[0] && source.flux <= fluxSliderRange.value[1])
-  }
-  else{
+  if (!catalogToggle.value) {
     return []
   }
+  return catalog.value.filter(source =>
+    source.flux >= fluxSliderRange.value[0] &&
+    source.flux <= fluxSliderRange.value[1]
+  )
 })
 
 onMounted(() => {
