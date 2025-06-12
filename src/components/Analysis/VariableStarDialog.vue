@@ -1,9 +1,10 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { VDateInput } from 'vuetify/labs/VDateInput'
 import { initializeDate } from '@/utils/common'
 import { useConfigurationStore } from '@/stores/configuration'
 import { useAnalysisStore } from '@/stores/analysis'
+import { useAlertsStore } from '@/stores/alerts'
 import { fetchApiCall } from '../../utils/api'
 
 const emit = defineEmits(['closeDialog', 'analysisAction'])
@@ -17,10 +18,14 @@ const props = defineProps({
 
 const configStore = useConfigurationStore()
 const analysisStore = useAnalysisStore()
+const alertsStore = useAlertsStore()
 
 const startDate = ref(initializeDate('', -5))
 const endDate = ref( initializeDate(''))
 const matchingImages = ref({ count: 0, results: [] })
+
+const ISOStartDate = computed(() => startDate.value.toISOString())
+const ISOEndDate = computed(() => endDate.value.toISOString())
 
 watch([startDate, endDate], () => {
   const { datalabArchiveApiUrl } = configStore
@@ -28,7 +33,7 @@ watch([startDate, endDate], () => {
   const { ra, dec } = props.coords
 
   const queryUrl = datalabArchiveApiUrl + 'frames/?' + 
-    `start=${startDate.value.toISOString()}&end=${endDate.value.toISOString()}&` +
+    `start=${ISOStartDate.value}&end=${ISOEndDate.value}&` +
     `primary_optical_element=${imageFilter}&` +
     `proposal_id=${imageProposalId}&` +
     `covers=POINT(${ra} ${dec})`
@@ -39,6 +44,7 @@ watch([startDate, endDate], () => {
     },
     failCallback: (error) => {
       console.error('Failed to fetch frames:', error)
+      alertsStore.setAlert('error', 'Failed to fetch frames from archive API')
     }
   })
 }, { immediate: true })

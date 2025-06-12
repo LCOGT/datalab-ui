@@ -29,7 +29,7 @@ const filterToColor = (filter) => {
 function siteIDToName(siteID) {
   const siteIDMap = {
     'COJ': 'COJ @ Siding Spring',
-    'CPT': 'CPT @ South Africa',
+    'CPT': 'CPT @ Cape Town',
     'TFN': 'TFN @ Teide',
     'LSC': 'LSC @ Cerro Tololo',
     'ELP': 'ELP @ McDonald',
