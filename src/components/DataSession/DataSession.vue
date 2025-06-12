@@ -115,6 +115,10 @@ async function pollOperationCompletion(operation) {
       case 'PENDING':
         break
       case 'IN_PROGRESS':
+        if (response.output){
+          // This will add output as it is generated in progress
+          addCompletedOperation(operationMap[response.id])
+        }
         break
       case 'COMPLETED':
         addCompletedOperation(operationMap[response.id])
@@ -140,7 +144,7 @@ async function pollOperationCompletion(operation) {
 
 function startOperationPolling() {
   operations.value.forEach(operation => {
-    if (operation.status != 'COMPLETED') {
+    if (operation.status != 'COMPLETED' && operation.status != 'FAILED') {
       if (Array.from(operation.dependencies).every(id =>
         id in operationMap && operationMap[id].status == 'COMPLETED'
       )){
