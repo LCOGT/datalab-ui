@@ -7,6 +7,7 @@ import 'leaflet/dist/leaflet.css'
 import { useAlertsStore } from '@/stores/alerts'
 import { useAnalysisStore } from '@/stores/analysis'
 import { loadImage } from '@/utils/common'
+import VariableStarDialog from './VariableStarDialog.vue'
 
 const props = defineProps({
   catalog: {
@@ -28,6 +29,8 @@ const imageHeight = ref(0)
 const leafletDiv = ref(null)
 const alerts = useAlertsStore()
 const analysisStore = useAnalysisStore()
+const showVariableStarDialog = ref(false)
+const variableTargetCoords = ref({ ra: null, dec: null })
 
 onMounted(() => {
   leafletSetup()
@@ -171,13 +174,35 @@ function requestLineProfile(latLngs) {
 function createCatalogLayer(){
   // Function to create a marker for a source
   function createSourceMarker(source){
+    // Marker popup text
+    const div = document.createElement('div')
+    div.innerHTML = `
+      <b>Flux:</b> ${source.flux ?? 'N/A'}<br>
+      <b>Ra:</b> ${source.ra ?? 'N/A'}<br>
+      <b>Dec:</b> ${source.dec ?? 'N/A'}<br>
+    `
+    // Marker popup button for variable star analysis
+    const button = document.createElement('button')
+    button.innerHTML = 'Light Curve'
+    button.className = 'variableAnalysisButton'
+    button.addEventListener('click',() => {
+      showVariableStarDialog.value = true
+      variableTargetCoords.value = {
+        ra: source.ra,
+        dec: source.dec
+      }
+    })
+
+    div.appendChild(button)
+
+    // Create a circle marker for the source
     return new L.Circle([source.y, source.x], {
       color: 'var(--info)',
       fillOpacity: 0.2,
       radius: 10,
       pmIgnore: true, // Ignore this layer for editing
       snapIgnore: false, // Allow snapping to this layer
-    }).bindPopup(`Flux: ${source.flux ?? 'N/A'}<br>Ra: ${source.ra ?? 'N/A'}<br>Dec: ${source.dec ?? 'N/A'}`)
+    }).bindPopup(div)
   }
 
   const sourceCatalogMarkers = props.catalog.map(createSourceMarker)
@@ -206,6 +231,16 @@ function fetchCatalog(){
     ref="leafletDiv"
     :style="{ width: imageWidth + 'px' }"
   />
+  <v-dialog
+    v-model="showVariableStarDialog"
+    width="600px"
+  >
+    <variable-star-dialog
+      :coords="variableTargetCoords"
+      @analysis-action="(action, input) => emit('analysisAction', action, input)"
+      @close-dialog="showVariableStarDialog = false"
+    />
+  </v-dialog>
 </template>
 <style>
 /* Custom icons for leaflet-geoman */
@@ -261,6 +296,15 @@ function fetchCatalog(){
 .leaflet-container {
   background-color: var(--primary-background);
   border-radius: 0.25rem;
+}
+
+.variableAnalysisButton {
+  background-color: var(--primary-interactive);
+  color: var(--text);
+  border: none;
+  padding: 0.5rem;
+  border-radius: 0.25rem;
+  cursor: pointer;
 }
 </style>
 <style scoped>
