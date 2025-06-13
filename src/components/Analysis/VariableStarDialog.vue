@@ -1,7 +1,6 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
 import { VDateInput } from 'vuetify/labs/VDateInput'
-import { initializeDate } from '@/utils/common'
 import { useConfigurationStore } from '@/stores/configuration'
 import { useAnalysisStore } from '@/stores/analysis'
 import { useAlertsStore } from '@/stores/alerts'
@@ -20,8 +19,9 @@ const configStore = useConfigurationStore()
 const analysisStore = useAnalysisStore()
 const alertsStore = useAlertsStore()
 
-const startDate = ref(initializeDate('', -5))
-const endDate = ref( initializeDate(''))
+const endDate = ref(new Date(analysisStore.headerData.DATE))
+const startDate = ref(new Date(endDate.value))
+startDate.value.setDate(endDate.value.getDate() - 7)
 const matchingImages = ref({ count: 0, results: [] })
 
 const ISOStartDate = computed(() => startDate.value.toISOString())

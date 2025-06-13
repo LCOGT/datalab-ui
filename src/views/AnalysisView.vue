@@ -2,7 +2,6 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { fetchApiCall } from '../utils/api'
 import { useConfigurationStore } from '@/stores/configuration'
-import { useAlertsStore } from '@/stores/alerts'
 import { useAnalysisStore } from '@/stores/analysis'
 import FilterBadge from '@/components/Global/FilterBadge.vue'
 import NonLinearSlider from '@/components/Global/NonLinearSlider.vue'
@@ -24,7 +23,6 @@ const props = defineProps({
 const emit = defineEmits(['closeAnalysisDialog'])
 
 const configStore = useConfigurationStore()
-const alertsStore = useAlertsStore()
 const analysisStore = useAnalysisStore()
 
 const lineProfile = ref([])
@@ -36,8 +34,7 @@ const catalog = ref([])
 const analysisTab = ref('line-profile')
 const fluxSliderRange = ref([0, 10000])
 const positionAngle = ref()
-const headerDialog = ref(false)
-const headerData = ref({})
+const showHeaderDialog = ref(false)
 const imgWorker = new Worker('drawImageWorker.js')
 let imgWorkerProcessing = false
 let imgWorkerNextScale = null
@@ -55,6 +52,7 @@ const filteredCatalog = computed(() => {
 onMounted(() => {
   analysisStore.image = props.image
   analysisStore.imageUrl = props.image.largeCachedUrl
+  analysisStore.loadHeaderData()
   instantiateScalerWorker()
 })
 
@@ -103,26 +101,6 @@ function handleAnalysisOutput(response, action, action_callback){
   default:
     console.error('Invalid action:', action)
     break
-  }
-}
-
-// Toggles header dialog visibility, fetches headers from archive if they are not present
-function showHeaderDialog() {
-  if(headerData.value && Object.keys(headerData.value).length > 0) {
-    headerDialog.value = true
-  }
-  else{
-    const archiveHeadersUrl = configStore.datalabArchiveApiUrl + 'frames/' + props.image.id + '/headers/'
-    fetchApiCall({url: archiveHeadersUrl, method: 'GET', 
-      successCallback: (response) => {
-        headerData.value = response.data
-        headerDialog.value = true
-      },
-      failCallback: (error) => {
-        console.error('Failed to fetch headers:', error)
-        alertsStore.setAlert('error', `Could not fetch headers for frame ${props.image.id}`)
-      }
-    })
   }
 }
 
@@ -186,7 +164,7 @@ function updateScaling(min, max){
       <v-btn
         v-if="image.id"
         icon="mdi-information"
-        @click="showHeaderDialog"
+        @click="showHeaderDialog = analysisStore.loadHeaderData()"
       />
       <v-btn
         icon="mdi-close"
@@ -306,11 +284,11 @@ function updateScaling(min, max){
     </div>
   </v-sheet>
   <v-dialog
-    v-model="headerDialog"
+    v-model="showHeaderDialog"
     width="600px"
     height="85vh"
   >
-    <fits-header-table :header-data="headerData" />
+    <fits-header-table />
   </v-dialog>
 </template>
 <style scoped>

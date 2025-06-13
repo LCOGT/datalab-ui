@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
-import { useConfigurationStore } from '@/stores/configuration' 
+import { useConfigurationStore } from '@/stores/configuration'
+import { useAlertsStore } from '@/stores/alerts'
 import { fetchApiCall } from '@/utils/api.js'
 
 /**
@@ -9,6 +10,7 @@ export const useAnalysisStore = defineStore('analysis', {
   state: () => ({
     // General Analysis State
     image: null, // image archive object
+    headerData: null, // FITS header data for the image
     // Histogram Editing
     rawData: null, // raw data from the analysis/raw_data endpoint
     zmin: null, // minimum z value of the raw data
@@ -89,5 +91,28 @@ export const useAnalysisStore = defineStore('analysis', {
         }
       })
     },
+    async loadHeaderData() {
+      const configStore = useConfigurationStore()
+      const alertsStore = useAlertsStore()
+
+      if(this.headerData && Object.keys(this.headerData).length > 0) {
+        return true
+      }
+
+      const archiveHeadersUrl = configStore.datalabArchiveApiUrl + 'frames/' + this.image.id + '/headers/'
+      fetchApiCall({url: archiveHeadersUrl, method: 'GET', 
+        successCallback: (response) => {
+          console.log('Fetched headers for frame')
+          this.headerData = response.data
+          console.log('Header data:', this.headerData)
+          return true
+        },
+        failCallback: (error) => {
+          console.error('Failed to fetch headers:', error)
+          alertsStore.setAlert('error', `Could not fetch headers for frame ${this.image.id}`)
+          return false
+        }
+      })
+    }
   },
 })

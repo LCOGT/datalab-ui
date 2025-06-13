@@ -1,17 +1,13 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { siteIDToName } from '@/utils/common'
+import { useAnalysisStore } from '@/stores/analysis'
+
+const analysisStore = useAnalysisStore()
 
 const search = ref('')
 
-const props = defineProps({
-  headerData: {
-    type: Object,
-    required: true
-  }
-})
-
-const headerDataKeyValueList = Object.entries(props.headerData)
+const headerDataKeyValueList = Object.entries(analysisStore.headerData)
 
 const tableHeaders = [
   { title: 'Key', key:'0' },
@@ -19,10 +15,10 @@ const tableHeaders = [
 ]
 
 const headerChips = computed(() => [
-  { icon: 'mdi-earth', text: siteIDToName(props.headerData.SITEID) },
-  { icon: 'mdi-telescope', text: props.headerData.TELID },
-  { icon: 'mdi-camera', text: props.headerData.INSTRUME },
-  { icon: 'mdi-clock', text: new Date(props.headerData.DATE).toLocaleString() }
+  { icon: 'mdi-earth', text: siteIDToName(analysisStore.headerData.SITEID) },
+  { icon: 'mdi-telescope', text: analysisStore.headerData.TELID },
+  { icon: 'mdi-camera', text: analysisStore.headerData.INSTRUME },
+  { icon: 'mdi-clock', text: new Date(analysisStore.headerData.DATE).toLocaleString() }
 ])
 
 </script>
