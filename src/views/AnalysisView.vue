@@ -31,7 +31,7 @@ const startCoords = ref()
 const endCoords = ref()
 const catalogToggle = ref(true)
 const catalog = ref([])
-const analysisTab = ref('line-profile')
+const sideChart = ref('')
 const fluxSliderRange = ref([0, 10000])
 const positionAngle = ref()
 const showHeaderDialog = ref(false)
@@ -81,16 +81,14 @@ function handleAnalysisOutput(response, action, action_callback){
     endCoords.value = response.end_coords
     startCoords.value = response.start_coords
     positionAngle.value = response.position_angle
-    analysisTab.value = 'line-profile'
+    sideChart.value = 'Line Profile'
     break
   case 'source-catalog':
     catalog.value = response
     break
   case 'variable-star':
-    analysisStore.lightCurve = response.light_curve
-    analysisStore.lightCurveTarget = response.target_coords
-    analysisStore.lightCurveLoading = false
-    analysisTab.value = 'variable-star'
+    analysisStore.setLightCurveData(response)
+    sideChart.value = 'Light Curve'
     break
   case 'get-tif':
     action_callback(response.tif_url, props.image.basename, 'TIF')
@@ -238,46 +236,22 @@ function updateScaling(min, max){
             v-show="lineProfile.length || analysisStore.lightCurve"
             class="side-panel-item"
           >
-            <v-tabs
-              v-model="analysisTab"
-              slider-color="var(--primary-interactive)"
+            <v-select
+              v-model="sideChart"
+              :items="['Line Profile', 'Light Curve']"
+              variant="solo-filled"
+              bg-color="var(--card-background)"
               density="compact"
-            >
-              <v-tab
-                v-show="lineProfile.length"
-                prepend-icon="mdi-vector-line"
-                value="line-profile"
-              >
-                Line Profile
-              </v-tab>
-              <v-tab
-                v-show="analysisStore.lightCurve"
-                prepend-icon="mdi-chart-bell-curve"
-                value="variable-star"
-              >
-                Light Curve
-              </v-tab>
-            </v-tabs>
-            <v-tabs-window v-model="analysisTab">
-              <v-tabs-window-item
-                v-show="lineProfile.length"
-                value="line-profile"
-              >
-                <line-plot
-                  :y-axis-data="lineProfile"
-                  :x-axis-length="lineProfileLength"
-                  :start-coords="startCoords"
-                  :end-coords="endCoords"
-                  :position-angle="positionAngle"
-                />
-              </v-tabs-window-item>
-              <v-tabs-window-item
-                v-show="analysisStore.lightCurve"
-                value="variable-star"
-              >
-                <variable-star-plot />
-              </v-tabs-window-item>
-            </v-tabs-window>
+            />
+            <line-plot
+              v-show="lineProfile.length && sideChart === 'Line Profile'"
+              :y-axis-data="lineProfile"
+              :x-axis-length="lineProfileLength"
+              :start-coords="startCoords"
+              :end-coords="endCoords"
+              :position-angle="positionAngle"
+            />
+            <variable-star-plot v-show="analysisStore.lightCurve && sideChart === 'Light Curve'" />
           </v-sheet>
         </v-expand-transition>
       </div>
@@ -330,5 +304,9 @@ function updateScaling(min, max){
 .side-panel-item:last-of-type {
   margin-bottom: 0;
   height: 100%;
+}
+
+.v-tabs-window{
+  margin-top: 0.5rem
 }
 </style>

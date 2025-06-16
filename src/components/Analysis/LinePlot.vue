@@ -106,22 +106,24 @@ function distanceLabel(){
 </script>
 
 <template>
-  <canvas
-    ref="chartRef"
-    class="line-plot"
-  />
-  <div class="line-details">
-    <template v-if="startCoords && endCoords">
-      <p><b>Start:</b> RA {{ startCoords[0].toFixed(6) }} DEC {{ startCoords[1].toFixed(6) }}</p>
-      <p><b>End:</b> RA {{ endCoords[0].toFixed(6) }} DEC {{ endCoords[1].toFixed(6) }}</p>
-    </template>
-    <p v-if="positionAngle">
-      <v-tooltip
-        activator="parent"
-        text="Angle showing how a celestial object is rotated in the sky"
-      />
-      <b>Position Angle:</b> {{ positionAngle.toFixed(3) }}° East of North
-    </p>
+  <div>
+    <canvas
+      ref="chartRef"
+      class="line-plot"
+    />
+    <div class="line-details">
+      <template v-if="startCoords && endCoords">
+        <p><b>Start:</b> RA {{ startCoords[0].toFixed(6) }} DEC {{ startCoords[1].toFixed(6) }}</p>
+        <p><b>End:</b> RA {{ endCoords[0].toFixed(6) }} DEC {{ endCoords[1].toFixed(6) }}</p>
+      </template>
+      <p v-if="positionAngle">
+        <v-tooltip
+          activator="parent"
+          text="Angle showing how a celestial object is rotated in the sky"
+        />
+        <b>Position Angle:</b> {{ positionAngle.toFixed(3) }}° East of North
+      </p>
+    </div>
   </div>
 </template>
 

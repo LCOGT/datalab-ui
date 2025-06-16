@@ -9,13 +9,11 @@ const lightCurveCanvas = ref(null)
 let lightCurveChart = null
 const CHART_PADDING = 0.05
 
-watch(() => analysisStore.lightCurve, () =>{
-  lightCurveChart ? updateChart() : createChart()
+watch(() => analysisStore.lightCurve, () => {
+  lightCurveChart && analysisStore.lightCurve ? updateChart() : createChart()
 })
 
 const chartData = computed(() => {
-  // We use this function to extract the data from the analysisStore to avoid
-  // writing it twice in the chart creation and update functions.
   const magnitudes = analysisStore.lightCurve.map(({ mag }) => mag)
   const observationDates = analysisStore.lightCurve.map(({ observation_date }) => observation_date)
   const errorBars = analysisStore.lightCurve.map(({ mag, magerr }) => [mag - magerr, mag + magerr])

@@ -102,9 +102,7 @@ export const useAnalysisStore = defineStore('analysis', {
       const archiveHeadersUrl = configStore.datalabArchiveApiUrl + 'frames/' + this.image.id + '/headers/'
       fetchApiCall({url: archiveHeadersUrl, method: 'GET', 
         successCallback: (response) => {
-          console.log('Fetched headers for frame')
           this.headerData = response.data
-          console.log('Header data:', this.headerData)
           return true
         },
         failCallback: (error) => {
@@ -113,6 +111,12 @@ export const useAnalysisStore = defineStore('analysis', {
           return false
         }
       })
+    },
+    setLightCurveData(data) {
+      this.lightCurve = data.light_curve
+      this.lightCurveTarget = data.target_coords
+      this.lightCurveLoading = false
+      console.log('light curve response, setLightCurveData(data)', this.lightCurve, this.lightCurveTarget)
     }
   },
 })
