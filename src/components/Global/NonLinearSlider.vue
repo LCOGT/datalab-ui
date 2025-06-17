@@ -29,6 +29,11 @@ const props = defineProps({
     type: Function,
     default: (index, stepCount, max) => Math.floor(Math.pow(10, index * Math.log10(max) / stepCount)),
     required: false,
+  },
+  disabled: {
+    type: Boolean,
+    default: false,
+    required: false,
   }
 })
 
@@ -72,6 +77,7 @@ watch(() => [props.max, props.min], () => {
   <v-range-slider
     v-model="sliderRange"
     step="1"
+    :disabled="disabled"
     :max="customScale.length-1"
     color="var(--primary-interactive)"
     thumb-color="var(--secondary-interactive)"

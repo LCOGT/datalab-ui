@@ -3,6 +3,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { fetchApiCall } from '../utils/api'
 import { useConfigurationStore } from '@/stores/configuration'
 import { useAnalysisStore } from '@/stores/analysis'
+import { useUserDataStore } from '@/stores/userData'
 import FilterBadge from '@/components/Global/FilterBadge.vue'
 import NonLinearSlider from '@/components/Global/NonLinearSlider.vue'
 import HistogramSlider from '@/components/Global/Scaling/HistogramSlider.vue'
@@ -24,12 +25,12 @@ const emit = defineEmits(['closeAnalysisDialog'])
 
 const configStore = useConfigurationStore()
 const analysisStore = useAnalysisStore()
+const userDataStore = useUserDataStore()
 
 const lineProfile = ref([])
 const lineProfileLength = ref()
 const startCoords = ref()
 const endCoords = ref()
-const catalogToggle = ref(true)
 const catalog = ref([])
 const sideChart = ref('')
 const fluxSliderRange = ref([0, 10000])
@@ -40,7 +41,7 @@ let imgWorkerProcessing = false
 let imgWorkerNextScale = null
 
 const filteredCatalog = computed(() => {
-  if (!catalogToggle.value) {
+  if (!userDataStore.catalogToggle) {
     return []
   }
   return catalog.value.filter(source =>
@@ -182,7 +183,7 @@ function updateScaling(min, max){
             rounded
             class="side-panel-item image-controls-sheet"
           >
-            <b>{{ filteredCatalog.length }} Sources with Flux between {{ fluxSliderRange[0] }} and {{ fluxSliderRange[1] }}</b>
+            <b v-if="userDataStore.catalogToggle">{{ filteredCatalog.length }} Sources with Flux between {{ fluxSliderRange[0] }} and {{ fluxSliderRange[1] }}</b>
             <div class="d-flex justify-end">
               <v-btn
                 class="mr-2"
@@ -190,11 +191,12 @@ function updateScaling(min, max){
                 title="Toggle Catalog"
                 density="comfortable"
                 icon="mdi-flare"
-                :color="catalogToggle ? 'var(--primary-interactive)' : 'var(--disabled-text)'"
-                @click="() => catalogToggle = !catalogToggle"
+                :color="userDataStore.catalogToggle ? 'var(--primary-interactive)' : 'var(--disabled-text)'"
+                @click="() => userDataStore.catalogToggle = !userDataStore.catalogToggle"
               />
               <non-linear-slider
                 v-model="fluxSliderRange"
+                :disabled="!userDataStore.catalogToggle"
                 :max="Math.max(...catalog.map((source) => source.flux))"
                 :min="Math.min(...catalog.map((source) => source.flux))"
               />
