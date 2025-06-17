@@ -180,27 +180,26 @@ function updateScaling(min, max){
         <v-expand-transition>
           <v-sheet
             v-if="catalog.length"
-            rounded
             class="side-panel-item image-controls-sheet"
           >
-            <b v-if="userDataStore.catalogToggle">{{ filteredCatalog.length }} Sources with Flux between {{ fluxSliderRange[0] }} and {{ fluxSliderRange[1] }}</b>
-            <div class="d-flex justify-end">
+            <div class="d-flex align-center mb-2">
               <v-btn
                 class="mr-2"
                 variant="text"
                 title="Toggle Catalog"
-                density="comfortable"
+                density="compact"
                 icon="mdi-flare"
                 :color="userDataStore.catalogToggle ? 'var(--primary-interactive)' : 'var(--disabled-text)'"
                 @click="() => userDataStore.catalogToggle = !userDataStore.catalogToggle"
               />
-              <non-linear-slider
-                v-model="fluxSliderRange"
-                :disabled="!userDataStore.catalogToggle"
-                :max="Math.max(...catalog.map((source) => source.flux))"
-                :min="Math.min(...catalog.map((source) => source.flux))"
-              />
+              <b>{{ filteredCatalog.length }} Sources in flux range</b>
             </div>
+            <non-linear-slider
+              v-model="fluxSliderRange"
+              :disabled="!userDataStore.catalogToggle"
+              :max="Math.max(...catalog.map((source) => source.flux))"
+              :min="Math.min(...catalog.map((source) => source.flux))"
+            />
           </v-sheet>
         </v-expand-transition>
         <v-expand-transition>
