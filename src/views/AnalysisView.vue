@@ -1,9 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { fetchApiCall } from '../utils/api'
-import { siteIDToName } from '@/utils/common'
 import { useConfigurationStore } from '@/stores/configuration'
-import { useAlertsStore } from '@/stores/alerts'
 import { useAnalysisStore } from '@/stores/analysis'
 import FilterBadge from '@/components/Global/FilterBadge.vue'
 import NonLinearSlider from '@/components/Global/NonLinearSlider.vue'
@@ -12,6 +10,7 @@ import ImageDownloadMenu from '@/components/Analysis/ImageDownloadMenu.vue'
 import FitsHeaderTable from '@/components/Analysis/FitsHeaderTable.vue'
 import ImageViewer from '@/components/Analysis/ImageViewer.vue'
 import LinePlot from '@/components/Analysis/LinePlot.vue'
+import VariableStarPlot from '@/components/Analysis/VariableStarPlot.vue'
 
 const props = defineProps({
   image: {
@@ -24,7 +23,6 @@ const props = defineProps({
 const emit = defineEmits(['closeAnalysisDialog'])
 
 const configStore = useConfigurationStore()
-const alertsStore = useAlertsStore()
 const analysisStore = useAnalysisStore()
 
 const lineProfile = ref([])
@@ -33,26 +31,28 @@ const startCoords = ref()
 const endCoords = ref()
 const catalogToggle = ref(true)
 const catalog = ref([])
+const sideChart = ref('')
 const fluxSliderRange = ref([0, 10000])
 const positionAngle = ref()
-const headerDialog = ref(false)
-const headerData = ref({})
+const showHeaderDialog = ref(false)
 const imgWorker = new Worker('drawImageWorker.js')
 let imgWorkerProcessing = false
 let imgWorkerNextScale = null
 
 const filteredCatalog = computed(() => {
-  if(catalogToggle.value){
-    return catalog.value.filter((source) => source.flux >= fluxSliderRange.value[0] && source.flux <= fluxSliderRange.value[1])
-  }
-  else{
+  if (!catalogToggle.value) {
     return []
   }
+  return catalog.value.filter(source =>
+    source.flux >= fluxSliderRange.value[0] &&
+    source.flux <= fluxSliderRange.value[1]
+  )
 })
 
 onMounted(() => {
   analysisStore.image = props.image
   analysisStore.imageUrl = props.image.largeCachedUrl
+  analysisStore.loadHeaderData()
   instantiateScalerWorker()
 })
 
@@ -81,9 +81,14 @@ function handleAnalysisOutput(response, action, action_callback){
     endCoords.value = response.end_coords
     startCoords.value = response.start_coords
     positionAngle.value = response.position_angle
+    sideChart.value = 'Line Profile'
     break
   case 'source-catalog':
     catalog.value = response
+    break
+  case 'variable-star':
+    analysisStore.setLightCurveData(response)
+    sideChart.value = 'Light Curve'
     break
   case 'get-tif':
     action_callback(response.tif_url, props.image.basename, 'TIF')
@@ -94,26 +99,6 @@ function handleAnalysisOutput(response, action, action_callback){
   default:
     console.error('Invalid action:', action)
     break
-  }
-}
-
-// Toggles header dialog visibility, fetches headers from archive if they are not present
-function showHeaderDialog() {
-  if(headerData.value && Object.keys(headerData.value).length > 0) {
-    headerDialog.value = true
-  }
-  else{
-    const archiveHeadersUrl = configStore.datalabArchiveApiUrl + 'frames/' + props.image.id + '/headers/'
-    fetchApiCall({url: archiveHeadersUrl, method: 'GET', 
-      successCallback: (response) => {
-        headerData.value = response.data
-        headerDialog.value = true
-      },
-      failCallback: (error) => {
-        console.error('Failed to fetch headers:', error)
-        alertsStore.setAlert('error', `Could not fetch headers for frame ${props.image.id}`)
-      }
-    })
   }
 }
 
@@ -167,7 +152,7 @@ function updateScaling(min, max){
         :filter="image.FILTER || image.filter"
         class="ml-2"
       />
-      <v-toolbar-title>{{ image.basename || "Unknown" }}</v-toolbar-title>
+      <v-toolbar-title :text="image.basename || 'Unknown'" />
       <image-download-menu
         :image-name="image.basename"
         :fits-url="image.url || image.fits_url"
@@ -177,7 +162,7 @@ function updateScaling(min, max){
       <v-btn
         v-if="image.id"
         icon="mdi-information"
-        @click="showHeaderDialog"
+        @click="showHeaderDialog = analysisStore.loadHeaderData()"
       />
       <v-btn
         icon="mdi-close"
@@ -191,24 +176,6 @@ function updateScaling(min, max){
         @analysis-action="requestAnalysis"
       />
       <div class="side-panel-container">
-        <v-sheet
-          v-if="image.site_id || image.telescope_id || image.instrument_id || image.observation_date"
-          class="side-panel-item pa-4 d-flex ga-6 justify-space-evenly"
-          rounded
-        >
-          <p v-if="image.site_id">
-            <v-icon icon="mdi-earth" /> {{ siteIDToName(image.site_id) }}
-          </p>
-          <p v-if="image.telescope_id">
-            <v-icon icon="mdi-telescope" /> {{ image.telescope_id }}
-          </p>
-          <p v-if="image.instrument_id">
-            <v-icon icon="mdi-camera" /> {{ image.instrument_id }}
-          </p>
-          <p v-if="image.observation_date">
-            <v-icon icon="mdi-clock" /> {{ new Date(image.observation_date).toLocaleString() }}
-          </p>
-        </v-sheet>
         <v-expand-transition>
           <v-sheet
             v-if="catalog.length"
@@ -266,28 +233,36 @@ function updateScaling(min, max){
         </v-expand-transition>
         <v-expand-transition>
           <v-sheet
-            v-show="lineProfile.length"
-            class="side-panel-item line-plot-sheet"
-            rounded
+            v-show="lineProfile.length || analysisStore.lightCurve"
+            class="side-panel-item"
           >
+            <v-select
+              v-model="sideChart"
+              :items="['Line Profile', 'Light Curve']"
+              variant="solo-filled"
+              bg-color="var(--card-background)"
+              density="compact"
+            />
             <line-plot
+              v-show="lineProfile.length && sideChart === 'Line Profile'"
               :y-axis-data="lineProfile"
               :x-axis-length="lineProfileLength"
               :start-coords="startCoords"
               :end-coords="endCoords"
               :position-angle="positionAngle"
             />
+            <variable-star-plot v-show="analysisStore.lightCurve && sideChart === 'Light Curve'" />
           </v-sheet>
         </v-expand-transition>
       </div>
     </div>
   </v-sheet>
   <v-dialog
-    v-model="headerDialog"
+    v-model="showHeaderDialog"
     width="600px"
     height="85vh"
   >
-    <fits-header-table :header-data="headerData" />
+    <fits-header-table />
   </v-dialog>
 </template>
 <style scoped>
@@ -296,6 +271,7 @@ function updateScaling(min, max){
   background-color: var(--primary-background);
   color: var(--text);
   font-family: var(--font-stack);
+  height: 100vh;
   max-height: 100vh;
   display: flex;
   flex-direction: column;
@@ -308,7 +284,7 @@ function updateScaling(min, max){
   flex: 1;
   display: flex;
   flex-direction: row;
-  padding: 1rem;
+  padding: 0.5rem;
 }
 /* Side Panel */
 .side-panel-container {
@@ -321,10 +297,16 @@ function updateScaling(min, max){
   padding: 1rem;
   color: var(--text);
   background-color: var(--card-background);
-  margin-bottom: 1rem;
+  margin-bottom: 0.5rem;
+  border-radius: 0.25rem;
 }
-.line-plot-sheet {
-  height: 100%;
+
+.side-panel-item:last-of-type {
   margin-bottom: 0;
+  height: 100%;
+}
+
+.v-tabs-window{
+  margin-top: 0.5rem
 }
 </style>
