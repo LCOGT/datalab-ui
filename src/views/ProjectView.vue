@@ -40,7 +40,7 @@ const selectedImages = computed(() => {
 
 const filterTextFields = [
   { label: 'Observation ID', model: observationId, key: 'observationId' },
-  { label: 'Simbad', model: search, key: 'search' },
+  { label: 'Search', model: search, key: 'search' },
   { label: 'RA', model: ra, key: 'ra' },
   { label: 'DEC', model: dec, key: 'dec' },
 ]
@@ -130,7 +130,7 @@ watch(() => [ra.value, dec.value, observationId.value], async () => {
 })
 
 watch(() => search.value, async () => {
-  // Search has its own watcher since we would like to clear the ra and dec fields when the search field is cleared
+  // Kicks off a call the the Simbad2k API to get the RA and DEC for the object
   if(search.value){
     const url = `https://simbad2k.lco.global/${search.value}`
     fetchApiCall({url: url, method: 'GET', successCallback: (data)=> {
