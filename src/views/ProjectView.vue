@@ -32,12 +32,18 @@ const observationId = ref(route.query.observationId)
 
 const selectedImages = computed(() => {
   // returns a list combining all the selected images in all projects to be used for a new data session
-  return Object.keys(selectedImagesByProposal.value).reduce((acc, projectId) => {
-    const proposalImages = imagesByProposal.value[projectId] ? imagesByProposal.value[projectId] : []
-    const proposalSelectedImages = selectedImagesByProposal.value[projectId]
-    return acc.concat(proposalImages.filter(image => proposalSelectedImages.includes(image.basename)))
+  return Object.entries(selectedImagesByProposal.value).reduce((acc, [projectId, selectedBasenames]) => {
+    const proposalImages = imagesByProposal.value[projectId] || []
+    return acc.concat(proposalImages.filter(image => selectedBasenames.includes(image.basename)))
   }, [])
 })
+
+const filterTextFields = [
+  { label: 'Observation ID', model: observationId, key: 'observationId' },
+  { label: 'Simbad', model: search, key: 'search' },
+  { label: 'RA', model: ra, key: 'ra' },
+  { label: 'DEC', model: dec, key: 'dec' },
+]
 
 function selectImage(proposalIndex, basename) {
   // accepts either a list of selected images or a single image index to toggle selection on
@@ -109,10 +115,6 @@ watch(() => [startDate.value, endDate.value], async () => {
 })
 
 watch(() => [ra.value, dec.value, observationId.value], async () => {
-  // Clear the Search filter if the ra or dec field is cleared
-  if(!ra.value || !dec.value){
-    search.value = ''
-  }
   if((ra.value && isNaN(ra.value)) || (dec.value && isNaN(dec.value))){
     alertsStore.setAlert('warning', 'RA and DEC must be a number')
   }
@@ -132,7 +134,13 @@ watch(() => search.value, async () => {
   if(search.value){
     const url = `https://simbad2k.lco.global/${search.value}`
     fetchApiCall({url: url, method: 'GET', successCallback: (data)=> {
-      if(!data.error){
+      if(data.error){
+        alertsStore.setAlert('warning', `Simbad ${data.error}`)
+      }
+      else if(data.eccentricity){
+        alertsStore.setAlert('info', 'LCO archive does not support eccentric object lookup')
+      }
+      else{
         ra.value = data.ra_d
         dec.value = data.dec_d
       }
@@ -190,36 +198,10 @@ onMounted(() => {
       variant="solo-filled"
     />
     <v-text-field
-      v-model="observationId"
-      label="Observation ID"
-      clearable
-      hide-details
-      color="var(--primary-interactive)"
-      bg-color="var(--card-background)"
-      variant="solo-filled"
-    />
-    <v-text-field
-      v-model="ra"
-      label="RA"
-      clearable
-      hide-details
-      color="var(--primary-interactive)"
-      bg-color="var(--card-background)"
-      variant="solo-filled"
-    />
-    <v-text-field
-      v-model="dec"
-      label="DEC"
-      clearable
-      hide-details
-      color="var(--primary-interactive)"
-      bg-color="var(--card-background)"
-      variant="solo-filled"
-    />
-    <v-text-field
-      v-model="search"
-      prepend-inner-icon="mdi-magnify"
-      label="Sources"
+      v-for="filter in filterTextFields"
+      :key="filter.key"
+      v-model="filter.model.value"
+      :label="filter.label"
       clearable
       hide-details
       color="var(--primary-interactive)"
