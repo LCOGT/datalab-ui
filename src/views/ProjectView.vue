@@ -3,6 +3,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { VDateInput } from 'vuetify/labs/VDateInput'
 import ImageList from '@/components/Project/ImageList.vue'
 import ImageGrid from '@/components/Global/ImageGrid.vue'
+import InsetIconSwitch from '@/components/Global/InsetIconSwitch.vue'
 import CreateSessionDialog from '@/components/Project/CreateSessionDialog.vue'
 import { useUserDataStore } from '@/stores/userData'
 import { useThumbnailsStore } from '@/stores/thumbnails'
@@ -38,12 +39,14 @@ const selectedImages = computed(() => {
   }, [])
 })
 
-const filterTextFields = [
-  { label: 'Observation ID', model: observationId, key: 'observationId' },
-  { label: 'Search', model: search, key: 'search' },
-  { label: 'RA', model: ra, key: 'ra' },
-  { label: 'DEC', model: dec, key: 'dec' },
-]
+const filterTextFields = computed(() => {
+  return [
+    { label: 'Observation ID', model: observationId, key: 'observationId' },
+    { label: 'Simbad Search', model: search, key: 'search' },
+    { label: 'RA', model: ra, key: 'ra' },
+    { label: 'DEC', model: dec, key: 'dec' },
+  ]
+})
 
 function selectImage(proposalIndex, basename) {
   // accepts either a list of selected images or a single image index to toggle selection on
@@ -208,12 +211,15 @@ onMounted(() => {
       bg-color="var(--card-background)"
       variant="solo-filled"
     />
-    <v-switch
+    <inset-icon-switch
+      v-model="userDataStore.coordsToggle"
+      true-icon="mdi-magnify"
+      false-icon="mdi-crosshairs"
+    />
+    <inset-icon-switch
       v-model="userDataStore.gridToggle"
-      color="var(--primary-interactive)"
-      base-color="var(--primary-interactive)"
-      prepend-icon="mdi-view-list"
-      append-icon="mdi-image"
+      true-icon="mdi-image"
+      false-icon="mdi-view-list"
     />
   </div>
   <div class="proposal-images">
