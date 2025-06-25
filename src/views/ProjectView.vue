@@ -24,14 +24,16 @@ const alertsStore = useAlertsStore()
 const showCreateSessionDialog = ref(false)
 const imagesByProposal = ref({})
 const selectedImagesByProposal = ref({})
+const loadingProposals = ref(false)
 const startDate = ref(initializeDate(route.query.startDate, -3))
 const endDate = ref( initializeDate(route.query.endDate))
-const ra = ref(route.query.ra)
-const dec = ref(route.query.dec)
-const search = ref(route.query.search)
-const observationId = ref(route.query.observationId)
+const ra = ref(route.query.ra || '')
+const dec = ref(route.query.dec || '')
+const search = ref(route.query.search || '')
+const observationId = ref(route.query.observationId || '')
 const target = ref(route.query.target || '')
 const userID = ref(route.query.userId || userDataStore.userId || '')
+let filtersDebounceTimer
 
 const selectedImages = computed(() => {
   // returns a list combining all the selected images in all projects to be used for a new data session
@@ -42,7 +44,6 @@ const selectedImages = computed(() => {
 })
 
 const filterTextFields = computed(() => {
-
   return [
     { label: 'User ID', model: userID, key: 'userId'},
     { label: 'Target Name', model: target, key: 'target' },
@@ -73,9 +74,22 @@ function deselectAllImages() {
 
 async function loadProposals(option){
   // Update the URL with the current filters
-  router.push({ query: { ra: ra.value, dec: dec.value, observationId: observationId.value, search: search.value, startDate: startDate.value.toISOString(), endDate: endDate.value.toISOString() } })
+  router.push({ query: { 
+    ra: ra.value,
+    dec: dec.value,
+    observationId: observationId.value,
+    search: search.value,
+    startDate: startDate.value.toISOString(),
+    endDate: endDate.value.toISOString()
+  } })
 
-  // Only loads images for open proposal panels
+  loadingProposals.value = true
+
+  if(userDataStore.openProposals.length === 0){
+    loadingProposals.value = false
+  }
+
+  // Only loads images for open proposal panels to reduce downloads
   userDataStore.openProposals.forEach(async proposal => {
     // if there the value for the key is null the user is not authorized to view the proposal
     if(!userDataStore.proposals[proposal]) return
@@ -87,6 +101,7 @@ async function loadProposals(option){
     option = `${option}&${timeStr}&proposal_id=${proposalID}&include_thumbnails=true`
     if(ra.value && dec.value) option += `&covers=POINT(${ra.value} ${dec.value})`
     if(observationId.value) option += `&observation_id=${observationId.value}`
+    if(target.value) option += `&target_name=${target.value}`
 
     const imageUrl = option ? `${baseUrl}?${option}` : baseUrl
     const responseData = await fetchApiCall({ url: imageUrl, method: 'GET' })
@@ -113,6 +128,7 @@ async function loadProposals(option){
       })
       // Add images to their proposal group
       imagesByProposal.value[proposalID] = responseData.results
+      loadingProposals.value = false
     }
   })
 }
@@ -122,18 +138,18 @@ watch(() => [startDate.value, endDate.value], async () => {
   loadProposals('reduction_level=91')
 })
 
-watch(() => [ra.value, dec.value, observationId.value], async () => {
-  if((ra.value && isNaN(ra.value)) || (dec.value && isNaN(dec.value))){
+watch(() => [ra.value, dec.value, observationId.value, target.value], async () => {
+  clearTimeout(filtersDebounceTimer)
+
+  if(isNaN(ra.value) || isNaN(dec.value)){
     alertsStore.setAlert('warning', 'RA and DEC must be a number')
   }
-  if(observationId.value && isNaN(observationId.value)){
+  else if(isNaN(observationId.value)){
     alertsStore.setAlert('warning', `Observation ID is not a number ${observationId.value}`)
   }
-  // Debouncing the load so users have time to finish typing
-  else if(setTimeout(async () => {
-    await loadProposals('reduction_level=91')
-  }, 1700)){
-    clearTimeout()
+  else{
+    // Debouncing the so users can finish typing before the API call is made
+    filtersDebounceTimer = setTimeout(async () => { await loadProposals('reduction_level=91')}, 1000)
   }
 })
 
@@ -179,7 +195,13 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="proposal-filters d-flex ga-4 ma-4">
+  <v-progress-linear
+    v-show="loadingProposals"
+    rounded
+    indeterminate
+    color="var(--primary-interactive)"
+  />
+  <div class="proposal-filters d-flex ga-4 ml-4 mr-4 mt-2 mb-2">
     <v-date-input
       v-model="startDate"
       :max="endDate"
@@ -268,7 +290,7 @@ onMounted(() => {
       </v-expansion-panel>
     </v-expansion-panels>
   </div>
-  <div class="bottom-controls mr-4 ml-4 mt-2 d-flex ga-4">
+  <div class="bottom-controls mr-4 ml-4 mb-4 d-flex ga-4">
     <inset-icon-switch
       v-model="userDataStore.gridToggle"
       class="mr-auto"
@@ -306,9 +328,15 @@ onMounted(() => {
   font-size: 1.3rem;
 }
 .proposal-images {
-  max-height: 75%;
-  height: 75%;
+  max-height: 70%;
+  height: 70%;
   overflow-y: scroll;
+}
+.bottom-controls {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
 }
 .no-images{
   color: var(--text);
