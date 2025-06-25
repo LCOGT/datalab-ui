@@ -26,37 +26,55 @@ function toggleMobileMenu () {
     role="navigation"
     aria-label="main navigation"
   >
-  <div class="navbar-brand">
-      <router-link class="navbar-item" to="/">
-        <img :src="ptrlogo" alt="Photon Ranch logo"/>
+    <div class="navbar-brand">
+      <router-link
+        class="navbar-item"
+        to="/"
+      >
+        <img
+          :src="ptrlogo"
+          alt="Photon Ranch logo"
+        >
       </router-link>
-      <a role="button" aria-label="menu" aria-expanded="false" :class="[isActive, navBurger]" @click="toggleMobileMenu">
-        <span aria-hidden="true"></span>
-        <span aria-hidden="true"></span>
-        <span aria-hidden="true"></span>
-        <span aria-hidden="true"></span>
+      <a
+        role="button"
+        aria-label="menu"
+        aria-expanded="false"
+        :class="[isActive, navBurger]"
+        @click="toggleMobileMenu"
+      >
+        <span aria-hidden="true" />
+        <span aria-hidden="true" />
+        <span aria-hidden="true" />
+        <span aria-hidden="true" />
       </a>
     </div>
     <div :class="[isActive, navMenu]">
       <div class="navbar-start">
         <div class="navbar-item has-dropdown is-hoverable">
-            <a class="navbar-link datalab-site-menu">
-              DataLab
-            </a>
-            <div class="navbar-dropdown">
-              <a href="https://learn.lco.global" class="navbar-item learn-site-item" >
+          <a class="navbar-link datalab-site-menu">
+            DataLab
+          </a>
+          <div class="navbar-dropdown">
+            <a
+              href="https://learn.lco.global"
+              class="navbar-item learn-site-item"
+            >
               <span>Learn</span>
               <span class="icon is-small">
                 <v-icon icon="mdi-chevron-right" />
               </span></a>
-              <a href="https://photonranch.lco.global" class="navbar-item observe-site-item">
+            <a
+              href="https://explore.lco.global/"
+              class="navbar-item observe-site-item"
+            >
               <span>Explore</span>
               <span class="icon is-small">
                 <v-icon icon="mdi-chevron-right" />
               </span></a>
-            </div>
           </div>
         </div>
+      </div>
       <div class="navbar-end">
         <router-link
           to="/projects"
