@@ -5,6 +5,7 @@ import App from './App.vue'
 import vuetify from './plugins/vuetify'
 import { loadFonts } from './plugins/webfontloader'
 import router from './router'
+import { vHide } from './directives/vHide'
 
 import 'leaflet/dist/leaflet.css'
 import './assets/css/ptr-extra.css'
@@ -16,8 +17,12 @@ loadFonts()
 const pinia = createPinia()
 pinia.use(piniaPluginPersistedState)
 
-createApp(App)
-  .use(vuetify)
-  .use(router)
-  .use(pinia)
-  .mount('#app')
+const app = createApp(App)
+
+app.use(vuetify)
+app.use(router)
+app.use(pinia)
+
+app.directive('hide', vHide)
+  
+app.mount('#app')

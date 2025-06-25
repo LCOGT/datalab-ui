@@ -203,7 +203,7 @@ onMounted(() => {
 
 <template>
   <v-progress-linear
-    v-show="loadingProposals"
+    v-hide="!loadingProposals"
     rounded
     indeterminate
     stream
