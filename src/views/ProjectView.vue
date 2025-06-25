@@ -45,7 +45,7 @@ const selectedImages = computed(() => {
 
 const filterTextFields = computed(() => {
   return [
-    { label: 'User ID', model: userID, key: 'userId'},
+    { label: 'User ID', model: userID, key: 'userId' },
     { label: 'Target Name', model: target, key: 'target' },
     ...(userDataStore.coordsToggle ? 
       [{ label: 'Simbad Lookup', model: search, key: 'search', class: 'simbad-search order-2' }] :

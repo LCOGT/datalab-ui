@@ -139,6 +139,6 @@ function launchAnalysis(image){
   vertical-align: middle;
 }
 .list_image{
-  height: 100px;
+  width: 100px;
 }
 </style>
