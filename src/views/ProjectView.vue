@@ -36,11 +36,11 @@ const userID = ref(route.query.userId || userDataStore.userId || '')
 let filtersDebounceTimer
 
 const selectedImages = computed(() => {
-  // returns a list combining all the selected images in all projects to be used for a new data session
-  return Object.entries(selectedImagesByProposal.value).reduce((acc, [projectId, selectedBasenames]) => {
-    const proposalImages = imagesByProposal.value[projectId] || []
-    return acc.concat(proposalImages.filter(image => selectedBasenames.includes(image.basename)))
-  }, [])
+  // returns a list combining all the selected images in all projects
+  return Object.entries(selectedImagesByProposal.value).flatMap(([proposalId, selectedBasenames]) => {
+    const proposalImages = imagesByProposal.value[proposalId] || []
+    return proposalImages.filter(image => selectedBasenames.includes(image.basename))
+  })
 })
 
 const filterTextFields = computed(() => {
@@ -67,12 +67,12 @@ function selectImage(proposalIndex, basename) {
 
 function deselectAllImages() {
   // clear the arrays per proposal in selectedImagesByProposal
-  Object.keys(selectedImagesByProposal.value).forEach(projectId => {
+  for (const projectId in selectedImagesByProposal.value) {
     selectedImagesByProposal.value[projectId] = []
-  })
+  }
 }
 
-async function loadProposals(option){
+async function loadProposals(){
   // Update the URL with the current filters
   router.push({ query: { 
     ra: ra.value,
@@ -94,16 +94,23 @@ async function loadProposals(option){
     // if there the value for the key is null the user is not authorized to view the proposal
     if(!userDataStore.proposals[proposal]) return
 
+    // Inside the forEach loop of the loadProposals function
     const proposalID = userDataStore.proposals[proposal].id
     const baseUrl = configurationStore.datalabArchiveApiUrl + 'frames/'
-    const timeStr = `start=${startDate.value.toISOString()}&end=${endDate.value.toISOString()}`
-    
-    option = `${option}&${timeStr}&proposal_id=${proposalID}&include_thumbnails=true`
-    if(ra.value && dec.value) option += `&covers=POINT(${ra.value} ${dec.value})`
-    if(observationId.value) option += `&observation_id=${observationId.value}`
-    if(target.value) option += `&target_name=${target.value}`
 
-    const imageUrl = option ? `${baseUrl}?${option}` : baseUrl
+    const params = new URLSearchParams({
+      start: startDate.value.toISOString(),
+      end: endDate.value.toISOString(),
+      proposal_id: proposalID,
+      include_thumbnails: 'true',
+      reduction_level: '91'
+    })
+
+    if (ra.value && dec.value && !isNaN(ra.value) && !isNaN(dec.value)) params.set('covers', `POINT(${ra.value} ${dec.value})`)
+    if (observationId.value && !isNaN(observationId.value)) params.set('observation_id', observationId.value)
+    if (target.value) params.set('target_name', target.value)
+
+    const imageUrl = `${baseUrl}?${params.toString()}`
     const responseData = await fetchApiCall({ url: imageUrl, method: 'GET' })
 
     if (responseData && responseData.results) {
@@ -135,7 +142,7 @@ async function loadProposals(option){
 
 watch(() => [startDate.value, endDate.value], async () => {
   // Filters that can be queried instantly with no debounce
-  loadProposals('reduction_level=91')
+  loadProposals()
 })
 
 watch(() => [ra.value, dec.value, observationId.value, target.value], async () => {
@@ -149,7 +156,7 @@ watch(() => [ra.value, dec.value, observationId.value, target.value], async () =
   }
   else{
     // Debouncing the so users can finish typing before the API call is made
-    filtersDebounceTimer = setTimeout(async () => { await loadProposals('reduction_level=91')}, 1000)
+    filtersDebounceTimer = setTimeout(async () => { await loadProposals()}, 1000)
   }
 })
 
@@ -185,7 +192,7 @@ onMounted(() => {
     else
       alertsStore.setAlert('warning', `Proposal ${route.query.proposalId} not found in users proposals`)
   }
-  loadProposals('reduction_level=91')
+  loadProposals()
   // create selected images array for each proposal
   userDataStore.proposals.forEach(proposal => {
     selectedImagesByProposal.value[proposal.id] = []
@@ -199,7 +206,8 @@ onMounted(() => {
     v-show="loadingProposals"
     rounded
     indeterminate
-    color="var(--primary-interactive)"
+    stream
+    color="var(--success)"
   />
   <div class="proposal-filters d-flex ga-4 ml-4 mr-4 mt-2 mb-2">
     <v-date-input
@@ -257,7 +265,7 @@ onMounted(() => {
         :key="proposal.id"
         color="var(--secondary-background)"
       >
-        <v-expansion-panel-title @click="loadProposals('reduction_level=91')">
+        <v-expansion-panel-title @click="loadProposals()">
           <p>{{ proposal.title }}</p>
         </v-expansion-panel-title>
         <v-expansion-panel-text>
@@ -277,14 +285,13 @@ onMounted(() => {
           />
           <div
             v-if="imagesByProposal[proposal.id]?.length == 0"
-            class="no-images mt-5 d-flex flex-column justify-center align-center"
+            class="mt-5 d-flex flex-column justify-center align-center"
           >
             <v-icon
               icon="mdi-image-off"
               :size="100"
             />
             <h1>No Images Found</h1>
-            <p>Try changing the date range or filters to see more images</p>
           </div>
         </v-expansion-panel-text>
       </v-expansion-panel>
@@ -337,9 +344,6 @@ onMounted(() => {
   bottom: 0;
   left: 0;
   right: 0;
-}
-.no-images{
-  color: var(--text);
 }
 .proposal-button {
   height: 3rem;
