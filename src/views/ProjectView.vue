@@ -48,8 +48,8 @@ const filterTextFields = computed(() => {
     { label: 'User ID', model: userID, key: 'userId'},
     { label: 'Target Name', model: target, key: 'target' },
     ...(userDataStore.coordsToggle ? 
-      [{ label: 'Simbad Lookup', model: search, key: 'search', class: 'simbad-search' }] :
-      [{ label: 'RA', model: ra, key: 'ra' }, { label: 'DEC', model: dec, key: 'dec' }]
+      [{ label: 'Simbad Lookup', model: search, key: 'search', class: 'simbad-search order-2' }] :
+      [{ label: 'RA', model: ra, key: 'ra', class: 'order-2' }, { label: 'DEC', model: dec, key: 'dec', class: 'order-2' }]
     )
   ]
 })
@@ -249,6 +249,7 @@ onMounted(() => {
     />
     <inset-icon-switch
       v-model="userDataStore.coordsToggle"
+      class="order-1"
       true-icon="mdi-magnify"
       false-icon="mdi-crosshairs"
     />
