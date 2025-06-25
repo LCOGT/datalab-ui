@@ -10,6 +10,7 @@ export const useUserDataStore = defineStore('userData', {
       proposals: [],
       openProposals: [],
       gridToggle: true,
+      coordsToggle: true,
       catalogToggle: true,
       activeSessionId: ''
     }

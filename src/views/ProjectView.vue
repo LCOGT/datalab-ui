@@ -30,6 +30,8 @@ const ra = ref(route.query.ra)
 const dec = ref(route.query.dec)
 const search = ref(route.query.search)
 const observationId = ref(route.query.observationId)
+const target = ref(route.query.target || '')
+const userID = ref(route.query.userId || userDataStore.userId || '')
 
 const selectedImages = computed(() => {
   // returns a list combining all the selected images in all projects to be used for a new data session
@@ -40,11 +42,14 @@ const selectedImages = computed(() => {
 })
 
 const filterTextFields = computed(() => {
+
   return [
-    { label: 'Observation ID', model: observationId, key: 'observationId' },
-    { label: 'Simbad Search', model: search, key: 'search' },
-    { label: 'RA', model: ra, key: 'ra' },
-    { label: 'DEC', model: dec, key: 'dec' },
+    { label: 'User ID', model: userID, key: 'userId'},
+    { label: 'Target Name', model: target, key: 'target' },
+    ...(userDataStore.coordsToggle ? 
+      [{ label: 'Simbad Lookup', model: search, key: 'search', class: 'simbad-search' }] :
+      [{ label: 'RA', model: ra, key: 'ra' }, { label: 'DEC', model: dec, key: 'dec' }]
+    )
   ]
 })
 
@@ -174,7 +179,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="proposal-filters">
+  <div class="proposal-filters d-flex ga-4 ma-4">
     <v-date-input
       v-model="startDate"
       :max="endDate"
@@ -204,6 +209,7 @@ onMounted(() => {
       v-for="filter in filterTextFields"
       :key="filter.key"
       v-model="filter.model.value"
+      :class="filter.class || ''"
       :label="filter.label"
       clearable
       hide-details
@@ -216,13 +222,8 @@ onMounted(() => {
       true-icon="mdi-magnify"
       false-icon="mdi-crosshairs"
     />
-    <inset-icon-switch
-      v-model="userDataStore.gridToggle"
-      true-icon="mdi-image"
-      false-icon="mdi-view-list"
-    />
   </div>
-  <div class="proposal-images">
+  <div class="proposal-images mr-4 ml-4">
     <v-expansion-panels
       v-model="userDataStore.openProposals"
       variant="accordion"
@@ -267,18 +268,26 @@ onMounted(() => {
       </v-expansion-panel>
     </v-expansion-panels>
   </div>
-  <div class="proposal-buttons">
+  <div class="bottom-controls mr-4 ml-4 mt-2 d-flex ga-4">
+    <inset-icon-switch
+      v-model="userDataStore.gridToggle"
+      class="mr-auto"
+      true-icon="mdi-image"
+      false-icon="mdi-view-list"
+    />
     <v-btn
       :disabled="selectedImages.length == 0"
       class="proposal-button deselect_button"
       prepend-icon="mdi-trash-can-outline"
       text="Clear"
+      base-color="var(--cancel)"
       @click="deselectAllImages"
     />
     <v-btn
       :disabled="selectedImages.length == 0"
       class="proposal-button add_button"
       :text=" selectedImages.length == 0 ? 'No Images' : `Add ${selectedImages.length} image${selectedImages.length > 1 ? 's' : ''}` "
+      base-color="var(--primary-interactive)"
       @click="showCreateSessionDialog=true"
     />
   </div>
@@ -289,9 +298,6 @@ onMounted(() => {
 </template>
 <style scoped>
 .proposal-filters{
-  display: flex;
-  gap: 1rem;
-  margin: 1rem;
   color: var(--text);
 }
 .v-expansion-panel-title p{
@@ -300,41 +306,23 @@ onMounted(() => {
   font-size: 1.3rem;
 }
 .proposal-images {
-  margin-left: 1rem;
-  margin-right: 1rem;
-  max-height: 70%;
+  max-height: 75%;
+  height: 75%;
   overflow-y: scroll;
 }
 .no-images{
   color: var(--text);
 }
-.proposal-buttons {
-  margin-bottom: 1rem;
-  position: fixed;
-  bottom: 0;
-  right: 0;
-  color: var(--text);
-}
 .proposal-button {
-  margin-right: 1rem;
-  background-color: var(--primary-interactive);
+  height: 3rem;
   font-weight: 700;
   font-size: 1.3rem;
-  margin-right: 1rem;
-}
-.proposal-button:disabled {
-  opacity: calc(0.5);
+  color: var(--text);
 }
 .add_button {
   width: 14rem;
-  height: 3rem;
-  background-color: var(--primary-interactive);
-  color: var(--text);
 }
-.deselect_button {
-  width: 10rem;
-  height: 3rem;
-  background-color: var(--cancel);
-  color: var(--text);
+.simbad-search {
+  flex-grow: 2;
 }
 </style>
