@@ -25,18 +25,49 @@ const showCreateSessionDialog = ref(false)
 const imagesByProposal = ref({})
 const selectedImagesByProposal = ref({})
 const loadingProposals = ref(false)
-// Filters
-const startDate = ref(initializeDate(route.query.startDate, -3))
-const endDate = ref( initializeDate(route.query.endDate))
-const ra = ref(route.query.ra || '')
-const dec = ref(route.query.dec || '')
-const search = ref(route.query.search || '')
-const observationId = ref(route.query.observationId || '')
-const target = ref(route.query.target || '')
-const userID = ref(route.query.userId || userDataStore.userId || '')
-// Watcher debounce
+const filters = ref({
+  start: {
+    value: initializeDate(route.query.start, -3),
+    toParam: (value) => value.toISOString(),
+  },
+  end: {
+    value: initializeDate(route.query.end),
+    toParam: (value) => value.toISOString(),
+  },
+  ra: {
+    value: route.query.ra || '',
+    label: 'RA',
+    class: 'coords-search order-2',
+    type: computed(() => userDataStore.coordsToggle ? 'hidden' : 'text'),
+  },
+  dec: {
+    value: route.query.dec || '',
+    label: 'DEC',
+    class: 'coords-search order-2',
+    type: computed(() => userDataStore.coordsToggle ? 'hidden' : 'text'),
+  },
+  search: {
+    value: route.query.search || '',
+    label: 'Simbad Lookup',
+    class: 'simbad-search order-2',
+    type: computed(() => userDataStore.coordsToggle ? 'text' : 'hidden'),
+  },
+  observation_id: {
+    value: route.query.observation_id || '',
+    label: 'Observation ID',
+    type: 'hidden',
+  },
+  target_name: {
+    value: route.query.target_name || '',
+    label: 'Target Name',
+  },
+  user_id: {
+    value: route.query.user_id || '',
+    label: 'User',
+  },
+})
 let filtersDebounceTimer
-const FILTER_DEBOUNCE = 1000
+const FILTER_DEBOUNCE = 600
 
 const selectedImages = computed(() => {
   // returns a list combining all the selected images in all projects
@@ -44,28 +75,6 @@ const selectedImages = computed(() => {
     const proposalImages = imagesByProposal.value[proposalId] || []
     return proposalImages.filter(image => selectedBasenames.includes(image.basename))
   })
-})
-
-const filterTextFields = computed(() => {
-  return [
-    { label: 'User ID', model: userID, key: 'userId' },
-    { label: 'Target Name', model: target, key: 'target' },
-    ...(userDataStore.coordsToggle ? 
-      [{ label: 'Simbad Lookup', model: search, key: 'search', class: 'simbad-search order-2' }] :
-      [{ label: 'RA', model: ra, key: 'ra', class: 'order-2' }, { label: 'DEC', model: dec, key: 'dec', class: 'order-2' }]
-    )
-  ]
-})
-
-const activeFilters = computed(() => {
-  // returns a list of names of the active filters
-  const filters = []
-  if (observationId.value) filters.push('Observation ID')
-  if (userID.value) filters.push('User ID')
-  if (target.value) filters.push('Target Name')
-  if (ra.value) filters.push('RA')
-  if (dec.value) filters.push('DEC')
-  return filters
 })
 
 function selectImage(proposalIndex, basename) {
@@ -86,21 +95,26 @@ function deselectAllImages() {
   }
 }
 
+const buildRouterQuery = () => {
+  return Object.entries(filters.value).reduce((query, [key, filter]) => {
+    // Only add the filter to the query if it has a value
+    if (filter.value) {
+      // Use the toParam function for special formatting (like dates) if it exists
+      query[key] = filter.toParam ? filter.toParam(filter.value) : filter.value
+    }
+    return query
+  }, {})
+}
+
 async function loadProposals(){
   // Update the URL with the current filters
-  router.push({ query: { 
-    ra: ra.value,
-    dec: dec.value,
-    observationId: observationId.value,
-    search: search.value,
-    startDate: startDate.value.toISOString(),
-    endDate: endDate.value.toISOString()
-  } })
+  router.push({ query: buildRouterQuery() })
 
   loadingProposals.value = true
 
   if(userDataStore.openProposals.length === 0){
     loadingProposals.value = false
+    return
   }
 
   // Only loads images for open proposal panels to reduce downloads
@@ -113,74 +127,75 @@ async function loadProposals(){
     const baseUrl = configurationStore.datalabArchiveApiUrl + 'frames/'
 
     const params = new URLSearchParams({
-      start: startDate.value.toISOString(),
-      end: endDate.value.toISOString(),
       proposal_id: proposalID,
       include_thumbnails: 'true',
-      reduction_level: '91'
+      reduction_level: '91',
     })
 
-    if (ra.value && dec.value && !isNaN(ra.value) && !isNaN(dec.value)) params.set('covers', `POINT(${ra.value} ${dec.value})`)
-    if (observationId.value && !isNaN(observationId.value)) params.set('observation_id', observationId.value)
-    if (target.value) params.set('target_name', target.value)
+    // Handle special 'covers' parameter from ra/dec
+    if (filters.value.ra.value && filters.value.dec.value && !isNaN(filters.value.ra.value) && !isNaN(filters.value.dec.value)) {
+      params.set('covers', `POINT(${filters.value.ra.value} ${filters.value.dec.value})`)
+    }
+
+    for (const [key, filter] of Object.entries(filters.value)) {
+      if (key !== 'ra' && key !== 'dec') {
+        const paramValue = filter.toParam ? filter.toParam(filter.value) : filter.value
+        params.set(key, paramValue)
+      }
+    }
 
     const imageUrl = `${baseUrl}?${params.toString()}`
-    const responseData = await fetchApiCall({ url: imageUrl, method: 'GET' })
 
-    if (responseData && responseData.results) {
-      // Preload all the small thumbnails into the cache. The large thumbnails will be loaded on demand
-      // TODO: The processing of frames should be moved to the thumbnails store or the thumbnail's utility file
-      responseData.results.forEach((frame) => {
-        frame.smallThumbUrl = ''
-        frame.largeThumbUrl = ''
-        frame.source = 'archive'
-        for (const thumbnail of frame.thumbnails) {
-          if (thumbnail.size === 'small') {
-            frame.smallThumbUrl = thumbnail.url
+    fetchApiCall({url: imageUrl, method: 'GET', 
+      successCallback: (data) => {
+        // Preload all the small thumbnails into the cache. The large thumbnails will be loaded on demand
+        // TODO: The processing of frames should be moved to the thumbnails store or the thumbnail's utility file
+        const archiveFrames = data.results
+        archiveFrames.forEach((frame) => {
+          frame.smallThumbUrl = ''
+          frame.largeThumbUrl = ''
+          frame.source = 'archive'
+          for (const thumbnail of frame.thumbnails) {
+            if (thumbnail.size === 'small') {
+              frame.smallThumbUrl = thumbnail.url
+            }
+            else if (thumbnail.size === 'large') {
+              frame.largeThumbUrl = thumbnail.url
+            }
           }
-          else if (thumbnail.size === 'large') {
-            frame.largeThumbUrl = thumbnail.url
-          }
-        }
-        frame.smallCachedUrl = ref('')
-        thumbnailsStore.cacheImage('small', configurationStore.archiveType, frame.smallThumbUrl, frame.basename).then((cachedUrl) => {
-          frame.smallCachedUrl.value = cachedUrl
+          frame.smallCachedUrl = ref('')
+          thumbnailsStore.cacheImage('small', configurationStore.archiveType, frame.smallThumbUrl, frame.basename).then((cachedUrl) => {
+            frame.smallCachedUrl.value = cachedUrl
+          })
         })
-      })
-      // Add images to their proposal group
-      imagesByProposal.value[proposalID] = responseData.results
-      loadingProposals.value = false
-    }
+        // Add images to their proposal group
+        imagesByProposal.value[proposalID] = archiveFrames
+        loadingProposals.value = false
+      },
+      failCallback: (error) => {
+        console.error('Failed to fetch frames:', error)
+        alertsStore.setAlert('error', 'Failed to fetch frames from Science Archive')
+      }
+    })
   })
 }
 
-watch(() => [startDate.value, endDate.value], async () => {
-  // Filters that can be queried instantly with no debounce
-  loadProposals()
-})
-
-watch(() => [ra.value, dec.value, observationId.value, target.value], async () => {
+watch(() => Object.values(filters.value)
+  .filter(filter => filter.label !== 'Simbad Lookup')
+  .map(filter => filter.value), async () => {
   clearTimeout(filtersDebounceTimer)
-
-  if(isNaN(ra.value) || isNaN(dec.value)){
-    alertsStore.setAlert('warning', 'RA and DEC must be a number')
-  }
-  else if(isNaN(observationId.value)){
-    alertsStore.setAlert('warning', `Observation ID is not a number ${observationId.value}`)
-  }
-  else{
-    // Debouncing the so users can finish typing before the API call is made
-    filtersDebounceTimer = setTimeout(async () => { await loadProposals()}, FILTER_DEBOUNCE)
-  }
+  filtersDebounceTimer = setTimeout(async () => { 
+    await loadProposals()
+  }, FILTER_DEBOUNCE)
 })
 
-watch(() => search.value, async () => {
+watch(() => filters.value.search.value, async () => {
   clearTimeout(filtersDebounceTimer)
 
   // Kicks off a call the the Simbad2k API to get the RA and DEC for the object
-  if(search.value){
+  if(filters.value.search.value){
     filtersDebounceTimer = setTimeout(async () => {
-      const url = `https://simbad2k.lco.global/${search.value}`
+      const url = `https://simbad2k.lco.global/${filters.value.search.value}`
       await fetchApiCall({url: url, method: 'GET', successCallback: (data)=> {
         if(data.error){
           alertsStore.setAlert('warning', `Simbad ${data.error}`)
@@ -189,15 +204,15 @@ watch(() => search.value, async () => {
           alertsStore.setAlert('info', 'LCO archive does not support eccentric object lookup')
         }
         else{
-          ra.value = data.ra_d
-          dec.value = data.dec_d
+          filters.value.ra.value = data.ra_d
+          filters.value.dec.value = data.dec_d
         }
       }})
     }, FILTER_DEBOUNCE)
   }
   else{
-    ra.value = null
-    dec.value = null
+    filters.value.ra.value = null
+    filters.value.dec.value = null
   }
 })
 
@@ -229,8 +244,8 @@ onMounted(() => {
   />
   <div class="proposal-filters d-flex ga-4 ml-4 mr-4 mt-2 mb-2">
     <v-date-input
-      v-model="startDate"
-      :max="endDate"
+      v-model="filters.start.value"
+      :max="filters.end.value"
       label="From"
       prepend-icon=""
       prepend-inner-icon="$calendar"
@@ -241,9 +256,9 @@ onMounted(() => {
       variant="solo-filled"
     />
     <v-date-input
-      v-model="endDate"
+      v-model="filters.end.value"
       :max="new Date()"
-      :min="startDate"
+      :min="filters.start.value"
       label="To"
       prepend-icon=""
       prepend-inner-icon="$calendar"
@@ -254,12 +269,11 @@ onMounted(() => {
       variant="solo-filled"
     />
     <v-text-field
-      v-for="filter in filterTextFields"
-      :key="filter.key"
-      v-model="filter.model.value"
+      v-for="filter in Object.values(filters).filter(f => f.label && f.type !='hidden')"
+      :key="filter.label"
+      v-model="filter.value"
       :class="filter.class || ''"
       :label="filter.label"
-      clearable
       hide-details
       color="var(--primary-interactive)"
       bg-color="var(--card-background)"
@@ -290,13 +304,13 @@ onMounted(() => {
         <v-expansion-panel-text>
           <div class="d-flex ga-2 mb-2">
             <v-chip
-              v-for="filter in activeFilters"
-              :key="filter"
+              v-for="filter in Object.values(filters).filter(f => f.value && f.label)"
+              :key="filter.label"
               closable
               color="var(--primary-interactive)"
               text-color="var(--text)"
-              :text="filter"
-              @click:close="console.log('Filter removed:', filter)"
+              :text="`${filter.label}: ${filter.value}`"
+              @click:close="filter.value = ''"
             />
           </div>
           <image-grid
