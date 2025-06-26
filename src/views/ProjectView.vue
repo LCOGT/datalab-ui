@@ -25,6 +25,7 @@ const showCreateSessionDialog = ref(false)
 const imagesByProposal = ref({})
 const selectedImagesByProposal = ref({})
 const loadingProposals = ref(false)
+// Filters
 const startDate = ref(initializeDate(route.query.startDate, -3))
 const endDate = ref( initializeDate(route.query.endDate))
 const ra = ref(route.query.ra || '')
@@ -33,6 +34,7 @@ const search = ref(route.query.search || '')
 const observationId = ref(route.query.observationId || '')
 const target = ref(route.query.target || '')
 const userID = ref(route.query.userId || userDataStore.userId || '')
+// Watcher debounce
 let filtersDebounceTimer
 const FILTER_DEBOUNCE = 1000
 
@@ -53,6 +55,17 @@ const filterTextFields = computed(() => {
       [{ label: 'RA', model: ra, key: 'ra', class: 'order-2' }, { label: 'DEC', model: dec, key: 'dec', class: 'order-2' }]
     )
   ]
+})
+
+const activeFilters = computed(() => {
+  // returns a list of names of the active filters
+  const filters = []
+  if (observationId.value) filters.push('Observation ID')
+  if (userID.value) filters.push('User ID')
+  if (target.value) filters.push('Target Name')
+  if (ra.value) filters.push('RA')
+  if (dec.value) filters.push('DEC')
+  return filters
 })
 
 function selectImage(proposalIndex, basename) {
@@ -275,6 +288,17 @@ onMounted(() => {
           <p>{{ proposal.title }}</p>
         </v-expansion-panel-title>
         <v-expansion-panel-text>
+          <div class="d-flex ga-2 mb-2">
+            <v-chip
+              v-for="filter in activeFilters"
+              :key="filter"
+              closable
+              color="var(--primary-interactive)"
+              text-color="var(--text)"
+              :text="filter"
+              @click:close="console.log('Filter removed:', filter)"
+            />
+          </div>
           <image-grid
             v-if="userDataStore.gridToggle"
             :images="imagesByProposal[proposal.id]"
@@ -291,7 +315,7 @@ onMounted(() => {
           />
           <div
             v-if="imagesByProposal[proposal.id]?.length == 0"
-            class="mt-5 d-flex flex-column justify-center align-center"
+            class="mt-4 d-flex flex-column justify-center align-center"
           >
             <v-icon
               icon="mdi-image-off"
