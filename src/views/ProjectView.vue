@@ -34,6 +34,7 @@ const observationId = ref(route.query.observationId || '')
 const target = ref(route.query.target || '')
 const userID = ref(route.query.userId || userDataStore.userId || '')
 let filtersDebounceTimer
+const FILTER_DEBOUNCE = 1000
 
 const selectedImages = computed(() => {
   // returns a list combining all the selected images in all projects
@@ -156,26 +157,30 @@ watch(() => [ra.value, dec.value, observationId.value, target.value], async () =
   }
   else{
     // Debouncing the so users can finish typing before the API call is made
-    filtersDebounceTimer = setTimeout(async () => { await loadProposals()}, 1000)
+    filtersDebounceTimer = setTimeout(async () => { await loadProposals()}, FILTER_DEBOUNCE)
   }
 })
 
 watch(() => search.value, async () => {
+  clearTimeout(filtersDebounceTimer)
+
   // Kicks off a call the the Simbad2k API to get the RA and DEC for the object
   if(search.value){
-    const url = `https://simbad2k.lco.global/${search.value}`
-    fetchApiCall({url: url, method: 'GET', successCallback: (data)=> {
-      if(data.error){
-        alertsStore.setAlert('warning', `Simbad ${data.error}`)
-      }
-      else if(data.eccentricity){
-        alertsStore.setAlert('info', 'LCO archive does not support eccentric object lookup')
-      }
-      else{
-        ra.value = data.ra_d
-        dec.value = data.dec_d
-      }
-    }})
+    filtersDebounceTimer = setTimeout(async () => {
+      const url = `https://simbad2k.lco.global/${search.value}`
+      await fetchApiCall({url: url, method: 'GET', successCallback: (data)=> {
+        if(data.error){
+          alertsStore.setAlert('warning', `Simbad ${data.error}`)
+        }
+        else if(data.eccentricity){
+          alertsStore.setAlert('info', 'LCO archive does not support eccentric object lookup')
+        }
+        else{
+          ra.value = data.ra_d
+          dec.value = data.dec_d
+        }
+      }})
+    }, FILTER_DEBOUNCE)
   }
   else{
     ra.value = null
