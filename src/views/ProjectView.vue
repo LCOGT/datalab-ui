@@ -180,12 +180,32 @@ async function loadProposals(){
   })
 }
 
+function invalidFilters() {
+  const errors = []
+  if (isNaN(filters.value.ra.value) || isNaN(filters.value.dec.value)) {
+    errors.push('RA and DEC must be numbers.')
+  }
+  if (isNaN(filters.value.observation_id.value)) {
+    errors.push('Observation ID must be a number.')
+  }
+
+  if (errors.length > 0) {
+    const errorString = errors.join(' ')
+    alertsStore.setAlert('error', errorString)
+    return true
+  }
+
+  return false
+}
+
 watch(() => Object.values(filters.value)
   .filter(filter => filter.label !== 'Simbad Lookup')
   .map(filter => filter.value), async () => {
   clearTimeout(filtersDebounceTimer)
-  filtersDebounceTimer = setTimeout(async () => { 
-    await loadProposals()
+  filtersDebounceTimer = setTimeout(async () => {
+    if(!invalidFilters()){
+      await loadProposals()
+    }
   }, FILTER_DEBOUNCE)
 })
 
