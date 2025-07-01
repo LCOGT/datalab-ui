@@ -3,6 +3,8 @@ import { useConfigurationStore } from '@/stores/configuration'
 import { useAlertsStore } from '@/stores/alerts'
 import { fetchApiCall } from '@/utils/api.js'
 
+const MAX_IMAGE_DIMENSION = 1024 // Maximum dimension for performance
+
 /**
  * This store manages the images and analysis results displayed on the analysis page.
  */
@@ -57,8 +59,8 @@ export const useAnalysisStore = defineStore('analysis', {
 
       return new Promise((resolve) => {
         img.onload = () => {
-          this.imageWidth = img.width
-          this.imageHeight = img.height
+          this.imageWidth = Math.min(img.width, MAX_IMAGE_DIMENSION)
+          this.imageHeight = Math.min(img.height, MAX_IMAGE_DIMENSION)
           resolve()
         }
       })
@@ -76,7 +78,7 @@ export const useAnalysisStore = defineStore('analysis', {
       const requestBody = {
         'basename': this.image.basename,
         'source': this.image.source,
-        'max_size': Math.min(Math.min(this.imageWidth, this.imageHeight), 1024),
+        'max_size': Math.min(this.imageWidth, this.imageHeight),
       }
 
       await fetchApiCall({url: url, method: 'POST', body: requestBody,

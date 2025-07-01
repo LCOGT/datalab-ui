@@ -117,8 +117,6 @@ async function instantiateScalerWorker(){
   // Post the image data to the worker
   imgWorker.postMessage({
     canvas: offscreen,
-    width: analysisStore.imageWidth,
-    height: analysisStore.imageHeight,
     imageData: structuredClone(analysisStore.rawData)
   }, [offscreen])
 
