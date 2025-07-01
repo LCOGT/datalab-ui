@@ -16,7 +16,7 @@ onmessage = function(job) {
     // Init worker with the canvas, width, height, imageData, and sharedArrayBuffer
     canvas = payload.canvas
     context = canvas.getContext('2d')
-    outputImage = new ImageData(payload.width, payload.height)
+    outputImage = new ImageData(payload.canvas.width, payload.canvas.height)
 
     // Used for RGB stack, not used in grayscale scaling
     if(payload.sharedArrayBuffer){
@@ -48,7 +48,7 @@ onmessage = function(job) {
 }
 
 function tryProcessScalePoints() {
-  if(hasImageData && hasCanvas && scalePointMessage) {
+  if(hasImageData && hasCanvas && Array.isArray(scalePointMessage)) {
     processScalePoints(scalePointMessage)
   }
 }
