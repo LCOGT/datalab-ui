@@ -61,9 +61,9 @@ const filters = ref({
     value: route.query.target_name || '',
     label: 'Target Name',
   },
-  user_id: {
-    value: route.query.user_id || '',
-    label: 'User',
+  submitter: {
+    value: route.query.submitter || '',
+    label: 'Submitter',
   },
 })
 let filtersDebounceTimer
@@ -95,19 +95,19 @@ function deselectAllImages() {
   }
 }
 
-const buildRouterQuery = () => {
-  return Object.entries(filters.value).reduce((query, [key, filter]) => {
-    // Only add the filter to the query if it has a value
-    if (filter.value) {
-      // Use the toParam function for special formatting (like dates) if it exists
-      query[key] = filter.toParam ? filter.toParam(filter.value) : filter.value
-    }
-    return query
-  }, {})
-}
-
 async function loadProposals(){
+
   // Update the URL with the current filters
+  const buildRouterQuery = () => {
+    return Object.entries(filters.value).reduce((query, [key, filter]) => {
+    // Only add the filter to the query if it has a value
+      if (filter.value) {
+      // Use the toParam function for special formatting (like dates) if it exists
+        query[key] = filter.toParam ? filter.toParam(filter.value) : filter.value
+      }
+      return query
+    }, {})
+  }
   router.push({ query: buildRouterQuery() })
 
   loadingProposals.value = true
@@ -146,7 +146,7 @@ async function loadProposals(){
 
     const imageUrl = `${baseUrl}?${params.toString()}`
 
-    fetchApiCall({url: imageUrl, method: 'GET', 
+    await fetchApiCall({url: imageUrl, method: 'GET', 
       successCallback: (data) => {
         // Preload all the small thumbnails into the cache. The large thumbnails will be loaded on demand
         // TODO: The processing of frames should be moved to the thumbnails store or the thumbnail's utility file
@@ -170,13 +170,13 @@ async function loadProposals(){
         })
         // Add images to their proposal group
         imagesByProposal.value[proposalID] = archiveFrames
-        loadingProposals.value = false
       },
       failCallback: (error) => {
         console.error('Failed to fetch frames:', error)
         alertsStore.setAlert('error', 'Failed to fetch frames from Science Archive')
       }
     })
+    loadingProposals.value = false
   })
 }
 
