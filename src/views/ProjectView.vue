@@ -221,7 +221,7 @@ watch(() => filters.value.search.value, async () => {
           alertsStore.setAlert('warning', `Simbad ${data.error}`)
         }
         else if(data.eccentricity){
-          alertsStore.setAlert('info', 'LCO archive does not support eccentric object lookup')
+          alertsStore.setAlert('warning', 'LCO archive doesn\'t support Non-Sidereal target lookup')
         }
         else{
           filters.value.ra.value = data.ra_d
