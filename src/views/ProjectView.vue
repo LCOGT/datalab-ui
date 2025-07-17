@@ -3,6 +3,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { VDateInput } from 'vuetify/labs/VDateInput'
 import ImageList from '@/components/Project/ImageList.vue'
 import ImageGrid from '@/components/Global/ImageGrid.vue'
+import InsetIconSwitch from '@/components/Global/InsetIconSwitch.vue'
 import CreateSessionDialog from '@/components/Project/CreateSessionDialog.vue'
 import { useUserDataStore } from '@/stores/userData'
 import { useThumbnailsStore } from '@/stores/thumbnails'
@@ -23,20 +24,57 @@ const alertsStore = useAlertsStore()
 const showCreateSessionDialog = ref(false)
 const imagesByProposal = ref({})
 const selectedImagesByProposal = ref({})
-const startDate = ref(initializeDate(route.query.startDate, -3))
-const endDate = ref( initializeDate(route.query.endDate))
-const ra = ref(route.query.ra)
-const dec = ref(route.query.dec)
-const search = ref(route.query.search)
-const observationId = ref(route.query.observationId)
+const loadingProposals = ref(false)
+const filters = ref({
+  start: {
+    value: initializeDate(route.query.start, -3),
+    toParam: (value) => value.toISOString(),
+  },
+  end: {
+    value: initializeDate(route.query.end),
+    toParam: (value) => value.toISOString(),
+  },
+  ra: {
+    value: route.query.ra || '',
+    label: 'RA',
+    class: 'coords-search order-2',
+    type: computed(() => userDataStore.coordsToggle ? 'hidden' : 'text'),
+  },
+  dec: {
+    value: route.query.dec || '',
+    label: 'DEC',
+    class: 'coords-search order-2',
+    type: computed(() => userDataStore.coordsToggle ? 'hidden' : 'text'),
+  },
+  search: {
+    value: route.query.search || '',
+    label: 'Simbad Lookup',
+    class: 'simbad-search order-2',
+    type: computed(() => userDataStore.coordsToggle ? 'text' : 'hidden'),
+  },
+  observation_id: {
+    value: route.query.observation_id || '',
+    label: 'Observation ID',
+    type: 'hidden',
+  },
+  target_name: {
+    value: route.query.target_name || '',
+    label: 'Target Name',
+  },
+  submitter: {
+    value: route.query.submitter || '',
+    label: 'Submitter',
+  },
+})
+let filtersDebounceTimer
+const FILTER_DEBOUNCE = 600
 
 const selectedImages = computed(() => {
-  // returns a list combining all the selected images in all projects to be used for a new data session
-  return Object.keys(selectedImagesByProposal.value).reduce((acc, projectId) => {
-    const proposalImages = imagesByProposal.value[projectId] ? imagesByProposal.value[projectId] : []
-    const proposalSelectedImages = selectedImagesByProposal.value[projectId]
-    return acc.concat(proposalImages.filter(image => proposalSelectedImages.includes(image.basename)))
-  }, [])
+  // returns a list combining all the selected images in all projects
+  return Object.entries(selectedImagesByProposal.value).flatMap(([proposalId, selectedBasenames]) => {
+    const proposalImages = imagesByProposal.value[proposalId] || []
+    return proposalImages.filter(image => selectedBasenames.includes(image.basename))
+  })
 })
 
 function selectImage(proposalIndex, basename) {
@@ -52,95 +90,149 @@ function selectImage(proposalIndex, basename) {
 
 function deselectAllImages() {
   // clear the arrays per proposal in selectedImagesByProposal
-  Object.keys(selectedImagesByProposal.value).forEach(projectId => {
+  for (const projectId in selectedImagesByProposal.value) {
     selectedImagesByProposal.value[projectId] = []
-  })
+  }
 }
 
-async function loadProposals(option){
-  // Update the URL with the current filters
-  router.push({ query: { ra: ra.value, dec: dec.value, observationId: observationId.value, search: search.value, startDate: startDate.value.toISOString(), endDate: endDate.value.toISOString() } })
+async function loadProposals(){
 
-  // Only loads images for open proposal panels
+  // Update the URL with the current filters
+  const buildRouterQuery = () => {
+    return Object.entries(filters.value).reduce((query, [key, filter]) => {
+    // Only add the filter to the query if it has a value
+      if (filter.value) {
+      // Use the toParam function for special formatting (like dates) if it exists
+        query[key] = filter.toParam ? filter.toParam(filter.value) : filter.value
+      }
+      return query
+    }, {})
+  }
+  router.push({ query: buildRouterQuery() })
+
+  loadingProposals.value = true
+
+  if(userDataStore.openProposals.length === 0){
+    loadingProposals.value = false
+    return
+  }
+
+  // Only loads images for open proposal panels to reduce downloads
   userDataStore.openProposals.forEach(async proposal => {
     // if there the value for the key is null the user is not authorized to view the proposal
     if(!userDataStore.proposals[proposal]) return
 
+    // Inside the forEach loop of the loadProposals function
     const proposalID = userDataStore.proposals[proposal].id
     const baseUrl = configurationStore.datalabArchiveApiUrl + 'frames/'
-    const timeStr = `start=${startDate.value.toISOString()}&end=${endDate.value.toISOString()}`
-    
-    option = `${option}&${timeStr}&proposal_id=${proposalID}&include_thumbnails=true`
-    if(ra.value && dec.value) option += `&covers=POINT(${ra.value} ${dec.value})`
-    if(observationId.value) option += `&observation_id=${observationId.value}`
 
-    const imageUrl = option ? `${baseUrl}?${option}` : baseUrl
-    const responseData = await fetchApiCall({ url: imageUrl, method: 'GET' })
+    const params = new URLSearchParams({
+      proposal_id: proposalID,
+      include_thumbnails: 'true',
+      reduction_level: '91',
+    })
 
-    if (responseData && responseData.results) {
-      // Preload all the small thumbnails into the cache. The large thumbnails will be loaded on demand
-      // TODO: The processing of frames should be moved to the thumbnails store or the thumbnail's utility file
-      responseData.results.forEach((frame) => {
-        frame.smallThumbUrl = ''
-        frame.largeThumbUrl = ''
-        frame.source = 'archive'
-        for (const thumbnail of frame.thumbnails) {
-          if (thumbnail.size === 'small') {
-            frame.smallThumbUrl = thumbnail.url
-          }
-          else if (thumbnail.size === 'large') {
-            frame.largeThumbUrl = thumbnail.url
-          }
-        }
-        frame.smallCachedUrl = ref('')
-        thumbnailsStore.cacheImage('small', configurationStore.archiveType, frame.smallThumbUrl, frame.basename).then((cachedUrl) => {
-          frame.smallCachedUrl.value = cachedUrl
-        })
-      })
-      // Add images to their proposal group
-      imagesByProposal.value[proposalID] = responseData.results
+    // Handle special 'covers' parameter from ra/dec
+    if (filters.value.ra.value && filters.value.dec.value && !isNaN(filters.value.ra.value) && !isNaN(filters.value.dec.value)) {
+      params.set('covers', `POINT(${filters.value.ra.value} ${filters.value.dec.value})`)
     }
+
+    for (const [key, filter] of Object.entries(filters.value)) {
+      if (key !== 'ra' && key !== 'dec') {
+        const paramValue = filter.toParam ? filter.toParam(filter.value) : filter.value
+        params.set(key, paramValue)
+      }
+    }
+
+    const imageUrl = `${baseUrl}?${params.toString()}`
+
+    await fetchApiCall({url: imageUrl, method: 'GET', 
+      successCallback: (data) => {
+        // Preload all the small thumbnails into the cache. The large thumbnails will be loaded on demand
+        // TODO: The processing of frames should be moved to the thumbnails store or the thumbnail's utility file
+        const archiveFrames = data.results
+        archiveFrames.forEach((frame) => {
+          frame.smallThumbUrl = ''
+          frame.largeThumbUrl = ''
+          frame.source = 'archive'
+          for (const thumbnail of frame.thumbnails) {
+            if (thumbnail.size === 'small') {
+              frame.smallThumbUrl = thumbnail.url
+            }
+            else if (thumbnail.size === 'large') {
+              frame.largeThumbUrl = thumbnail.url
+            }
+          }
+          frame.smallCachedUrl = ref('')
+          thumbnailsStore.cacheImage('small', configurationStore.archiveType, frame.smallThumbUrl, frame.basename).then((cachedUrl) => {
+            frame.smallCachedUrl.value = cachedUrl
+          })
+        })
+        // Add images to their proposal group
+        imagesByProposal.value[proposalID] = archiveFrames
+      },
+      failCallback: (error) => {
+        console.error('Failed to fetch frames:', error)
+        alertsStore.setAlert('error', 'Failed to fetch frames from Science Archive')
+      }
+    })
+    loadingProposals.value = false
   })
 }
 
-watch(() => [startDate.value, endDate.value], async () => {
-  // Filters that can be queried instantly with no debounce
-  loadProposals('reduction_level=91')
+function invalidFilters() {
+  const errors = []
+  if (isNaN(filters.value.ra.value) || isNaN(filters.value.dec.value)) {
+    errors.push('RA and DEC must be numbers.')
+  }
+  if (isNaN(filters.value.observation_id.value)) {
+    errors.push('Observation ID must be a number.')
+  }
+
+  if (errors.length > 0) {
+    const errorString = errors.join(' ')
+    alertsStore.setAlert('error', errorString)
+    return true
+  }
+
+  return false
+}
+
+watch(() => Object.values(filters.value)
+  .filter(filter => filter.label !== 'Simbad Lookup')
+  .map(filter => filter.value), async () => {
+  clearTimeout(filtersDebounceTimer)
+  filtersDebounceTimer = setTimeout(async () => {
+    if(!invalidFilters()){
+      await loadProposals()
+    }
+  }, FILTER_DEBOUNCE)
 })
 
-watch(() => [ra.value, dec.value, observationId.value], async () => {
-  // Clear the Search filter if the ra or dec field is cleared
-  if(!ra.value || !dec.value){
-    search.value = ''
-  }
-  if((ra.value && isNaN(ra.value)) || (dec.value && isNaN(dec.value))){
-    alertsStore.setAlert('warning', 'RA and DEC must be a number')
-  }
-  if(observationId.value && isNaN(observationId.value)){
-    alertsStore.setAlert('warning', `Observation ID is not a number ${observationId.value}`)
-  }
-  // Debouncing the load so users have time to finish typing
-  else if(setTimeout(async () => {
-    await loadProposals('reduction_level=91')
-  }, 1700)){
-    clearTimeout()
-  }
-})
+watch(() => filters.value.search.value, async () => {
+  clearTimeout(filtersDebounceTimer)
 
-watch(() => search.value, async () => {
-  // Search has its own watcher since we would like to clear the ra and dec fields when the search field is cleared
-  if(search.value){
-    const url = `https://simbad2k.lco.global/${search.value}`
-    fetchApiCall({url: url, method: 'GET', successCallback: (data)=> {
-      if(!data.error){
-        ra.value = data.ra_d
-        dec.value = data.dec_d
-      }
-    }})
+  // Kicks off a call the the Simbad2k API to get the RA and DEC for the object
+  if(filters.value.search.value){
+    filtersDebounceTimer = setTimeout(async () => {
+      const url = `https://simbad2k.lco.global/${filters.value.search.value}`
+      await fetchApiCall({url: url, method: 'GET', successCallback: (data)=> {
+        if(data.error){
+          alertsStore.setAlert('warning', `Simbad ${data.error}`)
+        }
+        else if(data.eccentricity){
+          alertsStore.setAlert('warning', 'LCO archive doesn\'t support Non-Sidereal target lookup')
+        }
+        else{
+          filters.value.ra.value = data.ra_d
+          filters.value.dec.value = data.dec_d
+        }
+      }})
+    }, FILTER_DEBOUNCE)
   }
   else{
-    ra.value = null
-    dec.value = null
+    filters.value.ra.value = null
+    filters.value.dec.value = null
   }
 })
 
@@ -153,7 +245,7 @@ onMounted(() => {
     else
       alertsStore.setAlert('warning', `Proposal ${route.query.proposalId} not found in users proposals`)
   }
-  loadProposals('reduction_level=91')
+  loadProposals()
   // create selected images array for each proposal
   userDataStore.proposals.forEach(proposal => {
     selectedImagesByProposal.value[proposal.id] = []
@@ -163,10 +255,17 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="proposal-filters">
+  <v-progress-linear
+    v-hide="!loadingProposals"
+    rounded
+    indeterminate
+    stream
+    color="var(--success)"
+  />
+  <div class="proposal-filters d-flex ga-4 ml-4 mr-4 mt-2 mb-2">
     <v-date-input
-      v-model="startDate"
-      :max="endDate"
+      v-model="filters.start.value"
+      :max="filters.end.value"
       label="From"
       prepend-icon=""
       prepend-inner-icon="$calendar"
@@ -177,9 +276,9 @@ onMounted(() => {
       variant="solo-filled"
     />
     <v-date-input
-      v-model="endDate"
+      v-model="filters.end.value"
       :max="new Date()"
-      :min="startDate"
+      :min="filters.start.value"
       label="To"
       prepend-icon=""
       prepend-inner-icon="$calendar"
@@ -190,51 +289,24 @@ onMounted(() => {
       variant="solo-filled"
     />
     <v-text-field
-      v-model="observationId"
-      label="Observation ID"
-      clearable
+      v-for="filter in Object.values(filters).filter(f => f.label && f.type !='hidden')"
+      :key="filter.label"
+      v-model="filter.value"
+      :class="filter.class || ''"
+      :label="filter.label"
       hide-details
       color="var(--primary-interactive)"
       bg-color="var(--card-background)"
       variant="solo-filled"
     />
-    <v-text-field
-      v-model="ra"
-      label="RA"
-      clearable
-      hide-details
-      color="var(--primary-interactive)"
-      bg-color="var(--card-background)"
-      variant="solo-filled"
-    />
-    <v-text-field
-      v-model="dec"
-      label="DEC"
-      clearable
-      hide-details
-      color="var(--primary-interactive)"
-      bg-color="var(--card-background)"
-      variant="solo-filled"
-    />
-    <v-text-field
-      v-model="search"
-      prepend-inner-icon="mdi-magnify"
-      label="Sources"
-      clearable
-      hide-details
-      color="var(--primary-interactive)"
-      bg-color="var(--card-background)"
-      variant="solo-filled"
-    />
-    <v-switch
-      v-model="userDataStore.gridToggle"
-      color="var(--primary-interactive)"
-      base-color="var(--primary-interactive)"
-      prepend-icon="mdi-view-list"
-      append-icon="mdi-image"
+    <inset-icon-switch
+      v-model="userDataStore.coordsToggle"
+      class="order-1"
+      true-icon="mdi-magnify"
+      false-icon="mdi-crosshairs"
     />
   </div>
-  <div class="proposal-images">
+  <div class="proposal-images mr-4 ml-4">
     <v-expansion-panels
       v-model="userDataStore.openProposals"
       variant="accordion"
@@ -246,10 +318,21 @@ onMounted(() => {
         :key="proposal.id"
         color="var(--secondary-background)"
       >
-        <v-expansion-panel-title @click="loadProposals('reduction_level=91')">
+        <v-expansion-panel-title @click="loadProposals()">
           <p>{{ proposal.title }}</p>
         </v-expansion-panel-title>
         <v-expansion-panel-text>
+          <div class="d-flex ga-2 mb-2">
+            <v-chip
+              v-for="filter in Object.values(filters).filter(f => f.value && f.label)"
+              :key="filter.label"
+              closable
+              color="var(--primary-interactive)"
+              text-color="var(--text)"
+              :text="`${filter.label}: ${filter.value}`"
+              @click:close="filter.value = ''"
+            />
+          </div>
           <image-grid
             v-if="userDataStore.gridToggle"
             :images="imagesByProposal[proposal.id]"
@@ -266,31 +349,38 @@ onMounted(() => {
           />
           <div
             v-if="imagesByProposal[proposal.id]?.length == 0"
-            class="no-images mt-5 d-flex flex-column justify-center align-center"
+            class="mt-4 d-flex flex-column justify-center align-center"
           >
             <v-icon
               icon="mdi-image-off"
               :size="100"
             />
             <h1>No Images Found</h1>
-            <p>Try changing the date range or filters to see more images</p>
           </div>
         </v-expansion-panel-text>
       </v-expansion-panel>
     </v-expansion-panels>
   </div>
-  <div class="proposal-buttons">
+  <div class="bottom-controls mr-4 ml-4 mb-4 d-flex ga-4">
+    <inset-icon-switch
+      v-model="userDataStore.gridToggle"
+      class="mr-auto"
+      true-icon="mdi-image"
+      false-icon="mdi-view-list"
+    />
     <v-btn
       :disabled="selectedImages.length == 0"
       class="proposal-button deselect_button"
       prepend-icon="mdi-trash-can-outline"
       text="Clear"
+      base-color="var(--cancel)"
       @click="deselectAllImages"
     />
     <v-btn
       :disabled="selectedImages.length == 0"
       class="proposal-button add_button"
       :text=" selectedImages.length == 0 ? 'No Images' : `Add ${selectedImages.length} image${selectedImages.length > 1 ? 's' : ''}` "
+      base-color="var(--primary-interactive)"
       @click="showCreateSessionDialog=true"
     />
   </div>
@@ -301,9 +391,6 @@ onMounted(() => {
 </template>
 <style scoped>
 .proposal-filters{
-  display: flex;
-  gap: 1rem;
-  margin: 1rem;
   color: var(--text);
 }
 .v-expansion-panel-title p{
@@ -312,41 +399,26 @@ onMounted(() => {
   font-size: 1.3rem;
 }
 .proposal-images {
-  margin-left: 1rem;
-  margin-right: 1rem;
   max-height: 70%;
+  height: 70%;
   overflow-y: scroll;
 }
-.no-images{
-  color: var(--text);
-}
-.proposal-buttons {
-  margin-bottom: 1rem;
+.bottom-controls {
   position: fixed;
   bottom: 0;
+  left: 0;
   right: 0;
-  color: var(--text);
 }
 .proposal-button {
-  margin-right: 1rem;
-  background-color: var(--primary-interactive);
+  height: 3rem;
   font-weight: 700;
   font-size: 1.3rem;
-  margin-right: 1rem;
-}
-.proposal-button:disabled {
-  opacity: calc(0.5);
+  color: var(--text);
 }
 .add_button {
   width: 14rem;
-  height: 3rem;
-  background-color: var(--primary-interactive);
-  color: var(--text);
 }
-.deselect_button {
-  width: 10rem;
-  height: 3rem;
-  background-color: var(--cancel);
-  color: var(--text);
+.simbad-search {
+  flex-grow: 2;
 }
 </style>

@@ -135,7 +135,10 @@ function launchAnalysis(image){
   color: var(--text);
   background-color: var(--card-background);
 }
+.data_table :deep(td) {
+  vertical-align: middle;
+}
 .list_image{
-  width: 8vw;
+  width: 100px;
 }
 </style>
