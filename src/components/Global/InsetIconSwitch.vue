@@ -1,5 +1,4 @@
 <script setup>
-import { defineProps, defineEmits } from 'vue'
 
 defineProps({
   modelValue: {
@@ -33,13 +32,13 @@ defineEmits(['update:modelValue'])
   />
 </template>
 <style scoped>
-.v-switch >>> .v-switch__track{
+.v-switch :deep(.v-switch__track){
   opacity: 0.8;
 }
-.v-switch >>> .v-switch__thumb{
+.v-switch :deep(.v-switch__thumb){
   background-color: var(--primary-interactive);
 }
-.v-switch >>> i.v-icon.v-icon{
+.v-switch :deep(i.v-icon.v-icon){
   color: var(--text);
   font-size: 1.2rem;
 
