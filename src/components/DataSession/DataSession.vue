@@ -262,7 +262,7 @@ watch(
           <v-btn
             class="addop_button"
             prepend-icon="mdi-plus"
-            text="New"
+            text="Add Operation"
             @click="showWizardDialog = true"
           />
         </v-col>
@@ -307,7 +307,7 @@ watch(
 }
 .addop_button {
   margin-top: 1.5rem;
-  background-color: var(--secondary-interactive);
+  background-color: var(--primary-interactive);
   font-weight: 500;
   color: var(--text);
 }
