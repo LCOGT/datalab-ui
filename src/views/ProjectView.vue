@@ -238,12 +238,12 @@ watch(() => filters.value.search.value, async () => {
 
 onMounted(() => {
   // Check so Explore@PTR can open the relevant proposal
-  if(route.query.proposalId){
-    const proposalIndexToOpen = userDataStore.proposals.findIndex(proposal => proposal.id == route.query.proposalId)
+  if(route.query.proposal_id){
+    const proposalIndexToOpen = userDataStore.proposals.findIndex(proposal => proposal.id == route.query.proposal_id)
     if(proposalIndexToOpen != -1)
       userDataStore.openProposals = [proposalIndexToOpen]
     else
-      alertsStore.setAlert('warning', `Proposal ${route.query.proposalId} not found in users proposals`)
+      alertsStore.setAlert('warning', `Proposal ${route.query.proposal_id} not found in users proposals`)
   }
   loadProposals()
   // create selected images array for each proposal
