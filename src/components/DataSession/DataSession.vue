@@ -262,7 +262,7 @@ watch(
           <v-btn
             class="addop_button"
             prepend-icon="mdi-plus"
-            text="Perform Operation"
+            text="Select Operation"
             @click="showWizardDialog = true"
           />
         </v-col>
