@@ -42,7 +42,9 @@ async function confirmDeleteOperation() {
     :dialog-body="DIALOG_BODY"
     :on-delete="confirmDeleteOperation"
     @update:model-value="emit('update:modelValue', $event)"
-  />
+  >
+    {{ DIALOG_BODY }}
+  </delete-dialog>
 </template>
 
 <style scoped>

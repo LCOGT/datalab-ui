@@ -10,10 +10,6 @@ defineProps({
     type: String,
     required: true
   },
-  dialogBody: {
-    type: String,
-    required: true
-  },
   onDelete: {
     type: Function,
     required: true
@@ -43,7 +39,7 @@ function closeDialog() {
       </v-card-title>
       <v-card-text>
         <p class="delete-text">
-          <span v-html="dialogBody" />
+          <slot />
         </p>
       </v-card-text>
       <v-card-actions>
