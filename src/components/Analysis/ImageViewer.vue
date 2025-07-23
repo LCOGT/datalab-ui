@@ -199,7 +199,7 @@ function createCatalogLayer(){
     return new L.Circle([source.y, source.x], {
       color: 'var(--info)',
       fillOpacity: 0.2,
-      radius: 10,
+      radius: 3,
       pmIgnore: true, // Ignore this layer for editing
       snapIgnore: false, // Allow snapping to this layer
     }).bindPopup(div)
