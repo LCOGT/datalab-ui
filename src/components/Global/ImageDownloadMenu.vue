@@ -18,6 +18,16 @@ const props = defineProps({
     required: false,
     default: null,
   },
+  enableScaledDownload: {
+    type: Boolean,
+    required: false,
+    default: true,
+  },
+  speedDialLocation: {
+    type: String,
+    required: false,
+    default: 'left center',
+  }
 })
 
 defineEmits(['analysisAction'])
@@ -44,13 +54,14 @@ function downloadFile(file, filename, fileType='file'){
 <template>
   <v-speed-dial
     variant="text"
-    location="left center"
+    :location="props.speedDialLocation"
     transition="fade-transition"
   >
     <template #activator="{ props: activatorProps }">
-      <v-btn
+      <v-icon
         v-bind="activatorProps"
         icon="mdi-download"
+        color="var(--secondary-interactive)"
       />
     </template>
     <v-btn
@@ -61,19 +72,21 @@ function downloadFile(file, filename, fileType='file'){
       @click="downloadFile(props.fitsUrl, props.imageName, 'FITs')"
     />
     <v-btn
+      v-if="props.jpgUrl"
       key="2"
+      class="file-download"
+      text=".JPG"
+      @click="downloadFile(props.jpgUrl, props.imageName, 'JPG')"
+    />
+    <v-btn
+      v-if="props.enableScaledDownload"
+      key="3"
       class="file-download"
       text=".TIF"
       @click="$emit('analysisAction', 'get-tif', {'basename': props.imageName}, downloadFile)"
     />
     <v-btn
-      v-if="props.jpgUrl"
-      key="3"
-      class="file-download"
-      text="Small .JPG"
-      @click="downloadFile(props.jpgUrl, props.imageName, 'Small JPG')"
-    />
-    <v-btn
+      v-if="props.enableScaledDownload"
       key="4"
       class="file-download"
       text="Scaled .JPG"

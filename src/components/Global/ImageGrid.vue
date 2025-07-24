@@ -3,6 +3,7 @@ import { ref, watch } from 'vue'
 import { useThumbnailsStore } from '@/stores/thumbnails'
 import { useConfigurationStore } from '@/stores/configuration'
 import { useAlertsStore } from '@/stores/alerts'
+import ImageDownloadMenu from '@/components/Global/ImageDownloadMenu.vue'
 import FilterBadge from './FilterBadge.vue'
 import AnalysisView from '../../views/AnalysisView.vue'
 
@@ -22,6 +23,10 @@ const props = defineProps({
   allowSelection: {
     type: Boolean,
     default: false
+  },
+  enableImageCards: {
+    type: Boolean,
+    default: true
   }
 })
 
@@ -32,38 +37,21 @@ const emit = defineEmits(['selectImage'])
 const showAnalysisDialog = ref(false)
 const imageDetails = ref({})
 const analysisImage = ref({})
-var doubleClickTimer = 0
 
-const handleClick = (basename) => {
-  clearTimeout(doubleClickTimer)
-  // timeout length indicates how long to wait for a second click before treating as a single click
-  doubleClickTimer = setTimeout(() => {
-    emit('selectImage', basename)
-    doubleClickTimer = 0
-  }, 250)
+async function ensureLargeCachedUrl(image) {
+  if (!image.largeCachedUrl) {
+    const url = image.large_url || image.largeThumbUrl || ''
+    image.largeCachedUrl = await thumbnailsStore.cacheImage('large', configurationStore.archiveType, url, image.basename)
+  }
+  return image.largeCachedUrl
 }
 
-const handleDoubleClick = (image) => {
-  clearTimeout(doubleClickTimer)
+const launchAnalysis = async (image) => {
   alertsStore.setAlert('info', `Opening ${image?.basename} for analysis`)
-  launchAnalysis(image)
-}
-
-const launchAnalysis = (image) => {
   try {
-    if (!image.largeCachedUrl) {
-      image.largeCachedUrl = ref('')
-      const url = image.large_url || image.largeThumbUrl || ''
-      thumbnailsStore.cacheImage('large', configurationStore.archiveType, url, image.basename).then((cachedUrl) => {
-        image.largeCachedUrl = cachedUrl
-        analysisImage.value = image
-        showAnalysisDialog.value = true
-      })
-    }
-    else {
-      analysisImage.value = image
-      showAnalysisDialog.value = true
-    }
+    await ensureLargeCachedUrl(image)
+    analysisImage.value = image
+    showAnalysisDialog.value = true
   } catch {
     alertsStore.setAlert('error', `Failed to open ${image?.basename}`)
   }
@@ -97,25 +85,52 @@ watch(() => props.images, () => {
         :cols="columnSpan"
         class="image-grid-col"
       >
-        <v-img
+        <v-sheet
           v-if="image.basename in imageDetails && imageDetails[image.basename]"
-          :src="imageDetails[image.basename]"
-          :alt="image.basename"
-          cover
+          class="pa-2"
+          color="var(--secondary-background)"
+          :elevation="2"
+          rounded
           :class="{ 'selected-image': isSelected(image.basename) }"
-          aspect-ratio="1"
-          @click="handleClick(image.basename)"
-          @dblclick="handleDoubleClick(image)"
+          @click="emit('selectImage', image.basename)"
         >
-          <filter-badge
-            v-if="image.filter || image.FILTER"
-            :filter="image.filter || image.FILTER"
-          />
-          <span
-            v-if="'operationIndex' in image"
-            class="image-text-overlay"
-          >{{ image.operationIndex }}</span>
-        </v-img>
+          <v-img
+            :src="imageDetails[image.basename]"
+            :alt="image.basename"
+            rounded
+            cover
+            aspect-ratio="1"
+          >
+            <filter-badge
+              v-if="image.filter || image.FILTER"
+              :filter="image.filter || image.FILTER"
+            />
+            <span
+              v-if="'operationIndex' in image"
+              class="image-text-overlay"
+            >{{ image.operationIndex }}</span>
+          </v-img>
+          <div
+            v-if="props.enableImageCards"
+            class="d-flex flex-row ga-2 align-center mt-2"
+          >
+            <p class="text-subtitle-2 mr-auto prevent-select single-line-text">
+              {{ image.target_name }}
+            </p>
+            <v-icon
+              icon="mdi-eye"
+              color="var(--primary-interactive)"
+              @click="launchAnalysis(image)"
+            />
+            <image-download-menu
+              :fits-url="image.url"
+              :jpg-url="image.largeCachedUrl"
+              :image-name="image.basename"
+              speed-dial-location="top right"
+              :enable-scaled-download="false"
+            />
+          </div>
+        </v-sheet>
         <v-skeleton-loader
           v-else
           type="card"
@@ -142,7 +157,6 @@ watch(() => props.images, () => {
   </v-row>
   <v-dialog
     v-model="showAnalysisDialog"
-    persistent
     fullscreen
   >
     <analysis-view
@@ -154,9 +168,8 @@ watch(() => props.images, () => {
 
 <style scoped>
 .selected-image {
-  border: 0.3rem solid var(--primary-interactive);
+  outline: 0.3rem solid var(--primary-interactive);
 }
-
 .image-text-overlay {
   color: var(--text);
   font-weight: bold;
