@@ -22,12 +22,11 @@ const emit = defineEmits(['selectImage'])
 
 const headers = ref([
   { title: 'IMAGE', align: 'start', sortable: false, key: 'url' },
-  { title: 'FILTER', align: 'start', sortable: true, key: 'FILTER' },
-  { title: 'IMAGE NAME', align: 'start', sortable: true, key: 'basename' },
   { title: 'TARGET', align: 'start', sortable: true, key: 'target_name' },
+  { title: 'FILTER', align: 'start', sortable: true, key: 'primary_optical_element' },
   { title: 'TIME', align: 'start', sortable: true, key: 'observation_date' },
   { title: 'SITE', align: 'start', sortable: true, key: 'site_id' },
-  { title: 'TELESCOPE', align: 'start', sortable: true, key: 'telescope_id' },
+  { title: 'IMAGE NAME', align: 'start', sortable: true, key: 'basename' },
 ])
 const showAnalysisDialog = ref(false)
 const analysisImage = ref({})
@@ -88,10 +87,10 @@ function launchAnalysis(image){
     <template #[`item.site_id`]="{ item }">
       <p>{{ siteIDToName(item.site_id) }}</p>
     </template>
-    <template #[`item.FILTER`]="{ item }">
+    <template #[`item.primary_optical_element`]="{ item }">
       <filter-badge
-        v-if="item.FILTER"
-        :filter="item.FILTER"
+        v-if="item.primary_optical_element"
+        :filter="item.primary_optical_element"
       />
     </template>
     <template #[`item.url`]="{ item }">
