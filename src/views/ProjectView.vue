@@ -27,7 +27,7 @@ const selectedImagesByProposal = ref({})
 const loadingProposals = ref(false)
 const filters = ref({
   start: {
-    value: initializeDate(route.query.start, DEFAULT_DATE_RANGE_DAYS),
+    value: initializeDate(route.query.start, -DEFAULT_DATE_RANGE_DAYS),
     toParam: (value) => value.toISOString(),
   },
   end: {
@@ -68,7 +68,7 @@ const filters = ref({
 })
 let filtersDebounceTimer
 const FILTER_DEBOUNCE = 600
-const DEFAULT_DATE_RANGE_DAYS = -30
+const DEFAULT_DATE_RANGE_DAYS = 30
 
 const selectedImages = computed(() => {
   // returns a list combining all the selected images in all projects
