@@ -8,7 +8,6 @@ const props = defineProps({
   imageName: {
     type: String,
     required: true,
-    default: null,
   },
   fitsUrl: {
     type: String,
@@ -44,14 +43,8 @@ function downloadBase64File(base64Data, filename, fileType='file'){
 }
 
 async function downloadJpg(jpgUrl, filename, fileType='file'){
-  if(!jpgUrl) {
-    const url = ''
-    const largeCachedUrl = await thumbnailsStore.cacheImage('large', configurationStore.archiveType, url, props.imageName)
-    downloadFile(largeCachedUrl, filename, fileType)
-  }
-  else {
-    downloadFile(jpgUrl, filename, fileType)
-  }
+  const urlToDownload = jpgUrl || await thumbnailsStore.cacheImage('large', configurationStore.archiveType, jpgUrl, props.imageName)
+  downloadFile(urlToDownload, filename, fileType)
 }
 
 function downloadFile(file, filename, fileType='file'){
@@ -92,20 +85,20 @@ function downloadFile(file, filename, fileType='file'){
       text=".JPG"
       @click="downloadJpg(props.jpgUrl, props.imageName, 'JPG')"
     />
-    <v-btn
-      v-if="props.enableScaledDownload"
-      key="3"
-      class="file-download"
-      text=".TIF"
-      @click="$emit('analysisAction', 'get-tif', {'basename': props.imageName}, downloadFile)"
-    />
-    <v-btn
-      v-if="props.enableScaledDownload"
-      key="4"
-      class="file-download"
-      text="Scaled .JPG"
-      @click="$emit('analysisAction', 'get-jpg', {'basename': props.imageName, 'zmin': analysisStore.zmin, 'zmax': analysisStore.zmax}, downloadBase64File)"
-    />
+    <template v-if="props.enableScaledDownload">
+      <v-btn
+        key="3"
+        class="file-download"
+        text=".TIF"
+        @click="$emit('analysisAction', 'get-tif', {'basename': props.imageName}, downloadFile)"
+      />
+      <v-btn
+        key="4"
+        class="file-download"
+        text="Scaled .JPG"
+        @click="$emit('analysisAction', 'get-jpg', {'basename': props.imageName, 'zmin': analysisStore.zmin, 'zmax': analysisStore.zmax}, downloadBase64File)"
+      />
+    </template>
   </v-speed-dial>
 </template>
 <style scoped>
