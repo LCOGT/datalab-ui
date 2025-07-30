@@ -1,6 +1,8 @@
 <script setup>
 import { useAlertsStore } from '@/stores/alerts'
 import { useAnalysisStore } from '@/stores/analysis'
+import { useThumbnailsStore } from '@/stores/thumbnails'
+import { useConfigurationStore } from '@/stores/configuration'
 
 const props = defineProps({
   imageName: {
@@ -34,9 +36,22 @@ defineEmits(['analysisAction'])
 
 const alertStore = useAlertsStore()
 const analysisStore = useAnalysisStore()
+const thumbnailsStore = useThumbnailsStore()
+const configurationStore = useConfigurationStore()
 
 function downloadBase64File(base64Data, filename, fileType='file'){
   downloadFile('data:image/jpeg;base64,' + base64Data, filename, fileType)
+}
+
+async function downloadJpg(jpgUrl, filename, fileType='file'){
+  if(!jpgUrl) {
+    const url = ''
+    const largeCachedUrl = await thumbnailsStore.cacheImage('large', configurationStore.archiveType, url, props.imageName)
+    downloadFile(largeCachedUrl, filename, fileType)
+  }
+  else {
+    downloadFile(jpgUrl, filename, fileType)
+  }
 }
 
 function downloadFile(file, filename, fileType='file'){
@@ -72,11 +87,10 @@ function downloadFile(file, filename, fileType='file'){
       @click="downloadFile(props.fitsUrl, props.imageName, 'FITs')"
     />
     <v-btn
-      v-if="props.jpgUrl"
       key="2"
       class="file-download"
       text=".JPG"
-      @click="downloadFile(props.jpgUrl, props.imageName, 'JPG')"
+      @click="downloadJpg(props.jpgUrl, props.imageName, 'JPG')"
     />
     <v-btn
       v-if="props.enableScaledDownload"
