@@ -287,6 +287,7 @@ function selectOperation(name) {
               :selected-images="operationInputs[inputKey].map(image => image.basename)"
               :column-span="calculateColumnSpan(images.length, IMAGES_PER_ROW)"
               :allow-selection="true"
+              :enable-image-cards="false"
               @select-image="selectImage(inputKey, $event)"
             />
           </div>

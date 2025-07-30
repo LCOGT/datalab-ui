@@ -1,12 +1,13 @@
 <script setup>
 import { useAlertsStore } from '@/stores/alerts'
 import { useAnalysisStore } from '@/stores/analysis'
+import { useThumbnailsStore } from '@/stores/thumbnails'
+import { useConfigurationStore } from '@/stores/configuration'
 
 const props = defineProps({
   imageName: {
     type: String,
     required: true,
-    default: null,
   },
   fitsUrl: {
     type: String,
@@ -18,15 +19,32 @@ const props = defineProps({
     required: false,
     default: null,
   },
+  enableScaledDownload: {
+    type: Boolean,
+    required: false,
+    default: true,
+  },
+  speedDialLocation: {
+    type: String,
+    required: false,
+    default: 'left center',
+  }
 })
 
 defineEmits(['analysisAction'])
 
 const alertStore = useAlertsStore()
 const analysisStore = useAnalysisStore()
+const thumbnailsStore = useThumbnailsStore()
+const configurationStore = useConfigurationStore()
 
 function downloadBase64File(base64Data, filename, fileType='file'){
   downloadFile('data:image/jpeg;base64,' + base64Data, filename, fileType)
+}
+
+async function downloadJpg(jpgUrl, filename, fileType='file'){
+  const urlToDownload = jpgUrl || await thumbnailsStore.cacheImage('large', configurationStore.archiveType, jpgUrl, props.imageName)
+  downloadFile(urlToDownload, filename, fileType)
 }
 
 function downloadFile(file, filename, fileType='file'){
@@ -44,13 +62,14 @@ function downloadFile(file, filename, fileType='file'){
 <template>
   <v-speed-dial
     variant="text"
-    location="left center"
+    :location="props.speedDialLocation"
     transition="fade-transition"
   >
     <template #activator="{ props: activatorProps }">
-      <v-btn
+      <v-icon
         v-bind="activatorProps"
         icon="mdi-download"
+        color="var(--secondary-interactive)"
       />
     </template>
     <v-btn
@@ -63,22 +82,23 @@ function downloadFile(file, filename, fileType='file'){
     <v-btn
       key="2"
       class="file-download"
-      text=".TIF"
-      @click="$emit('analysisAction', 'get-tif', {'basename': props.imageName}, downloadFile)"
+      text=".JPG"
+      @click="downloadJpg(props.jpgUrl, props.imageName, 'JPG')"
     />
-    <v-btn
-      v-if="props.jpgUrl"
-      key="3"
-      class="file-download"
-      text="Small .JPG"
-      @click="downloadFile(props.jpgUrl, props.imageName, 'Small JPG')"
-    />
-    <v-btn
-      key="4"
-      class="file-download"
-      text="Scaled .JPG"
-      @click="$emit('analysisAction', 'get-jpg', {'basename': props.imageName, 'zmin': analysisStore.zmin, 'zmax': analysisStore.zmax}, downloadBase64File)"
-    />
+    <template v-if="props.enableScaledDownload">
+      <v-btn
+        key="3"
+        class="file-download"
+        text=".TIF"
+        @click="$emit('analysisAction', 'get-tif', {'basename': props.imageName}, downloadFile)"
+      />
+      <v-btn
+        key="4"
+        class="file-download"
+        text="Scaled .JPG"
+        @click="$emit('analysisAction', 'get-jpg', {'basename': props.imageName, 'zmin': analysisStore.zmin, 'zmax': analysisStore.zmax}, downloadBase64File)"
+      />
+    </template>
   </v-speed-dial>
 </template>
 <style scoped>
