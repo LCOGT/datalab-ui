@@ -120,7 +120,7 @@ watch(() => props.images, () => {
             <v-icon
               icon="mdi-eye"
               color="var(--primary-interactive)"
-              @click="launchAnalysis(image)"
+              @click.stop="launchAnalysis(image)"
             />
             <image-download-menu
               :fits-url="image.url || image.fits_url || ''"
