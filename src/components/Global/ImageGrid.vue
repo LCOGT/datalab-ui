@@ -9,8 +9,8 @@ import AnalysisView from '../../views/AnalysisView.vue'
 
 const props = defineProps({
   images: {
-    type: [Array, Boolean],
-    default: false
+    type: Array,
+    default: () => []
   },
   selectedImages: {
     type: Array,
@@ -62,7 +62,6 @@ const isSelected = (basename) => {
 }
 
 watch(() => props.images, () => {
-  if (!props.images) return
   props.images.forEach(image => {
     if (image.basename && !(image.basename in imageDetails.value)) {
       imageDetails.value[image.basename] = ref('')
@@ -78,68 +77,66 @@ watch(() => props.images, () => {
 
 <template>
   <v-row>
-    <template v-if="props.images">
-      <v-col
-        v-for="(image, index) in props.images"
-        :key="index"
-        :cols="columnSpan"
-        class="image-grid-col"
+    <v-col
+      v-for="(image, index) in props.images"
+      :key="index"
+      :cols="columnSpan"
+      class="image-grid-col"
+    >
+      <v-sheet
+        v-if="image.basename in imageDetails && imageDetails[image.basename]"
+        class="pa-2"
+        color="var(--secondary-background)"
+        :elevation="2"
+        rounded
+        :class="{ 'selected-image': isSelected(image.basename) }"
+        @click="emit('selectImage', image.basename)"
       >
-        <v-sheet
-          v-if="image.basename in imageDetails && imageDetails[image.basename]"
-          class="pa-2"
-          color="var(--secondary-background)"
-          :elevation="2"
+        <v-img
+          :src="imageDetails[image.basename]"
+          :alt="image.basename"
           rounded
-          :class="{ 'selected-image': isSelected(image.basename) }"
-          @click="emit('selectImage', image.basename)"
+          cover
+          aspect-ratio="1"
         >
-          <v-img
-            :src="imageDetails[image.basename]"
-            :alt="image.basename"
-            rounded
-            cover
-            aspect-ratio="1"
-          >
-            <filter-badge
-              v-if="image.filter || image.FILTER"
-              :filter="image.filter || image.FILTER"
-            />
-            <span
-              v-if="'operationIndex' in image"
-              class="image-text-overlay"
-            >{{ image.operationIndex }}</span>
-          </v-img>
-          <div
-            v-if="props.enableImageCards"
-            class="d-flex flex-row ga-2 align-center mt-2"
-          >
-            <p class="text-subtitle-2 mr-auto prevent-select single-line-text">
-              {{ image.target_name }}
-            </p>
-            <v-icon
-              icon="mdi-eye"
-              color="var(--primary-interactive)"
-              @click.stop="launchAnalysis(image)"
-            />
-            <image-download-menu
-              :fits-url="image.url || image.fits_url || ''"
-              :jpg-url="image.largeCachedUrl || image.large_url || ''"
-              :image-name="image.basename"
-              speed-dial-location="top right"
-              :enable-scaled-download="false"
-            />
-          </div>
-        </v-sheet>
-        <v-skeleton-loader
-          v-else
-          type="card"
-          color="var(--secondary-background)"
-          bg-color="var(--primary-background)"
-        />
-      </v-col>
-    </template>
-    <template v-else>
+          <filter-badge
+            v-if="image.filter || image.FILTER"
+            :filter="image.filter || image.FILTER"
+          />
+          <span
+            v-if="'operationIndex' in image"
+            class="image-text-overlay"
+          >{{ image.operationIndex }}</span>
+        </v-img>
+        <div
+          v-if="props.enableImageCards"
+          class="d-flex flex-row ga-2 align-center mt-2"
+        >
+          <p class="text-subtitle-2 mr-auto prevent-select single-line-text">
+            {{ image.target_name }}
+          </p>
+          <v-icon
+            icon="mdi-eye"
+            color="var(--primary-interactive)"
+            @click.stop="launchAnalysis(image)"
+          />
+          <image-download-menu
+            :fits-url="image.url || image.fits_url || ''"
+            :jpg-url="image.largeCachedUrl || image.large_url || ''"
+            :image-name="image.basename"
+            speed-dial-location="top right"
+            :enable-scaled-download="false"
+          />
+        </div>
+      </v-sheet>
+      <v-skeleton-loader
+        v-else
+        type="card"
+        color="var(--secondary-background)"
+        bg-color="var(--primary-background)"
+      />
+    </v-col>
+    <template v-if="props.images.length === 0">
       <v-col
         v-for="n in 10"
         :key="n"
