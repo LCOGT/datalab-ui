@@ -123,8 +123,8 @@ watch(() => props.images, () => {
               @click="launchAnalysis(image)"
             />
             <image-download-menu
-              :fits-url="image.url"
-              :jpg-url="image.largeCachedUrl"
+              :fits-url="image.url || image.fits_url || ''"
+              :jpg-url="image.largeCachedUrl || image.large_url || ''"
               :image-name="image.basename"
               speed-dial-location="top right"
               :enable-scaled-download="false"
