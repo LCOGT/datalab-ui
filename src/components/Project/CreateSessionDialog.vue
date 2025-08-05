@@ -41,7 +41,8 @@ async function addImagesToExistingSession(session){
     'basename': image.basename.replace('-small', '') || image.basename.replace('-large', ''),
     'id': image.id,
     'url': image.url,
-    'filter': image.FILTER
+    'filter': image.FILTER,
+    'target_name': image.target_name
   }))]
   const requestBody = {
     'name': session.name,
@@ -61,7 +62,8 @@ async function createNewDataSession(){
     'basename': image.basename.replace('-small', '') || image.basename.replace('-large', ''),
     'id': image.id,
     'url': image.url,
-    'filter': image.FILTER
+    'filter': image.FILTER,
+    'target_name': image.target_name
   }))
   const requestBody = {
     'name': newSessionName.value,

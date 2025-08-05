@@ -3,13 +3,14 @@ import { ref, watch } from 'vue'
 import { useThumbnailsStore } from '@/stores/thumbnails'
 import { useConfigurationStore } from '@/stores/configuration'
 import { useAlertsStore } from '@/stores/alerts'
+import ImageDownloadMenu from '@/components/Global/ImageDownloadMenu.vue'
 import FilterBadge from './FilterBadge.vue'
 import AnalysisView from '../../views/AnalysisView.vue'
 
 const props = defineProps({
   images: {
-    type: [Array, Boolean],
-    default: false
+    type: Array,
+    default: () => []
   },
   selectedImages: {
     type: Array,
@@ -22,6 +23,10 @@ const props = defineProps({
   allowSelection: {
     type: Boolean,
     default: false
+  },
+  enableImageCards: {
+    type: Boolean,
+    default: true
   }
 })
 
@@ -32,38 +37,21 @@ const emit = defineEmits(['selectImage'])
 const showAnalysisDialog = ref(false)
 const imageDetails = ref({})
 const analysisImage = ref({})
-var doubleClickTimer = 0
 
-const handleClick = (basename) => {
-  clearTimeout(doubleClickTimer)
-  // timeout length indicates how long to wait for a second click before treating as a single click
-  doubleClickTimer = setTimeout(() => {
-    emit('selectImage', basename)
-    doubleClickTimer = 0
-  }, 250)
+async function ensureLargeCachedUrl(image) {
+  if (!image.largeCachedUrl) {
+    const url = image.large_url || image.largeThumbUrl || ''
+    image.largeCachedUrl = await thumbnailsStore.cacheImage('large', configurationStore.archiveType, url, image.basename)
+  }
+  return image.largeCachedUrl
 }
 
-const handleDoubleClick = (image) => {
-  clearTimeout(doubleClickTimer)
+const launchAnalysis = async (image) => {
   alertsStore.setAlert('info', `Opening ${image?.basename} for analysis`)
-  launchAnalysis(image)
-}
-
-const launchAnalysis = (image) => {
   try {
-    if (!image.largeCachedUrl) {
-      image.largeCachedUrl = ref('')
-      const url = image.large_url || image.largeThumbUrl || ''
-      thumbnailsStore.cacheImage('large', configurationStore.archiveType, url, image.basename).then((cachedUrl) => {
-        image.largeCachedUrl = cachedUrl
-        analysisImage.value = image
-        showAnalysisDialog.value = true
-      })
-    }
-    else {
-      analysisImage.value = image
-      showAnalysisDialog.value = true
-    }
+    await ensureLargeCachedUrl(image)
+    analysisImage.value = image
+    showAnalysisDialog.value = true
   } catch {
     alertsStore.setAlert('error', `Failed to open ${image?.basename}`)
   }
@@ -74,7 +62,6 @@ const isSelected = (basename) => {
 }
 
 watch(() => props.images, () => {
-  if (!props.images) return
   props.images.forEach(image => {
     if (image.basename && !(image.basename in imageDetails.value)) {
       imageDetails.value[image.basename] = ref('')
@@ -90,22 +77,27 @@ watch(() => props.images, () => {
 
 <template>
   <v-row>
-    <template v-if="props.images">
-      <v-col
-        v-for="(image, index) in props.images"
-        :key="index"
-        :cols="columnSpan"
-        class="image-grid-col"
+    <v-col
+      v-for="(image, index) in props.images"
+      :key="index"
+      :cols="columnSpan"
+      class="image-grid-col"
+    >
+      <v-sheet
+        v-if="image.basename in imageDetails && imageDetails[image.basename]"
+        class="pa-2"
+        color="var(--secondary-background)"
+        :elevation="2"
+        rounded
+        :class="{ 'selected-image': isSelected(image.basename) }"
+        @click="emit('selectImage', image.basename)"
       >
         <v-img
-          v-if="image.basename in imageDetails && imageDetails[image.basename]"
           :src="imageDetails[image.basename]"
           :alt="image.basename"
+          rounded
           cover
-          :class="{ 'selected-image': isSelected(image.basename) }"
           aspect-ratio="1"
-          @click="handleClick(image.basename)"
-          @dblclick="handleDoubleClick(image)"
         >
           <filter-badge
             v-if="image.filter || image.FILTER"
@@ -116,33 +108,37 @@ watch(() => props.images, () => {
             class="image-text-overlay"
           >{{ image.operationIndex }}</span>
         </v-img>
-        <v-skeleton-loader
-          v-else
-          type="card"
-          color="var(--secondary-background)"
-          bg-color="var(--primary-background)"
-        />
-      </v-col>
-    </template>
-    <template v-else>
-      <v-col
-        v-for="n in 10"
-        :key="n"
-        :cols="columnSpan"
-        class="image-grid-col"
-      >
-        <v-skeleton-loader
-          type="card"
-          class="ma-1"
-          color="var(--secondary-background)"
-          bg-color="var(--primary-background)"
-        />
-      </v-col>
-    </template>
+        <div
+          v-if="props.enableImageCards"
+          class="d-flex flex-row ga-2 align-center mt-2"
+        >
+          <p class="text-subtitle-2 mr-auto prevent-select single-line-text">
+            {{ image.target_name || image.operationName }}
+          </p>
+          <v-icon
+            icon="mdi-eye"
+            color="var(--primary-interactive)"
+            @click.stop="launchAnalysis(image)"
+          />
+          <image-download-menu
+            :fits-url="image.url || image.fits_url || ''"
+            :jpg-url="image.largeCachedUrl || image.large_url || ''"
+            :image-name="image.basename"
+            speed-dial-location="top right"
+            :enable-scaled-download="false"
+          />
+        </div>
+      </v-sheet>
+      <v-skeleton-loader
+        v-else
+        type="card"
+        color="var(--secondary-background)"
+        bg-color="var(--primary-background)"
+      />
+    </v-col>
   </v-row>
   <v-dialog
     v-model="showAnalysisDialog"
-    persistent
     fullscreen
   >
     <analysis-view
@@ -154,9 +150,8 @@ watch(() => props.images, () => {
 
 <style scoped>
 .selected-image {
-  border: 0.3rem solid var(--primary-interactive);
+  outline: 0.3rem solid var(--primary-interactive);
 }
-
 .image-text-overlay {
   color: var(--text);
   font-weight: bold;
