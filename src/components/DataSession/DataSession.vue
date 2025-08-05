@@ -53,6 +53,7 @@ function addCompletedOperation(operation) {
     operation.output.output_files.forEach(outputFile => {
       outputFile.operation = operation.id
       outputFile.operationIndex = operation.index
+      outputFile.operationName = operation.name
       if (!imagesContainsFile(outputFile)) {
         images.value.push(outputFile)
       }

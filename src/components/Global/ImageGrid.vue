@@ -113,7 +113,7 @@ watch(() => props.images, () => {
           class="d-flex flex-row ga-2 align-center mt-2"
         >
           <p class="text-subtitle-2 mr-auto prevent-select single-line-text">
-            {{ image.target_name }}
+            {{ image.target_name || image.operationName }}
           </p>
           <v-icon
             icon="mdi-eye"
