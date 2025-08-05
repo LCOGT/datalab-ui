@@ -136,21 +136,6 @@ watch(() => props.images, () => {
         bg-color="var(--primary-background)"
       />
     </v-col>
-    <template v-if="props.images.length === 0">
-      <v-col
-        v-for="n in 10"
-        :key="n"
-        :cols="columnSpan"
-        class="image-grid-col"
-      >
-        <v-skeleton-loader
-          type="card"
-          class="ma-1"
-          color="var(--secondary-background)"
-          bg-color="var(--primary-background)"
-        />
-      </v-col>
-    </template>
   </v-row>
   <v-dialog
     v-model="showAnalysisDialog"

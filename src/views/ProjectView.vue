@@ -349,7 +349,7 @@ onMounted(() => {
             @select-image="selectImage(proposal.id, $event)"
           />
           <div
-            v-if="imagesByProposal[proposal.id]?.length == 0"
+            v-if="imagesByProposal[proposal.id]?.length == 0 && !loadingProposals"
             class="mt-4 d-flex flex-column justify-center align-center"
           >
             <v-icon
