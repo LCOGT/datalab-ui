@@ -232,7 +232,7 @@ function updateScaling(min, max){
         </v-expand-transition>
         <v-expand-transition>
           <v-sheet
-            v-show="lineProfile.length || analysisStore.lightCurve"
+            v-show="lineProfile.length || analysisStore.variableStarData.magTimeSeries.length"
             class="side-panel-item"
           >
             <v-select
@@ -250,7 +250,7 @@ function updateScaling(min, max){
               :end-coords="endCoords"
               :position-angle="positionAngle"
             />
-            <variable-star-plot v-show="analysisStore.lightCurve && sideChart === 'Light Curve'" />
+            <variable-star-plot v-show="analysisStore.variableStarData.magTimeSeries.length && sideChart === 'Light Curve'" />
           </v-sheet>
         </v-expand-transition>
       </div>

@@ -9,28 +9,38 @@ const lightCurveCanvas = ref(null)
 let lightCurveChart = null
 const CHART_PADDING = 0.05
 
-watch(() => analysisStore.lightCurve, () => {
-  lightCurveChart && analysisStore.lightCurve ? updateChart() : createChart()
-})
-
 const chartData = computed(() => {
-  const magnitudes = analysisStore.lightCurve.map(({ mag }) => mag)
-  const observationDates = analysisStore.lightCurve.map(({ observation_date }) => observation_date)
-  const errorBars = analysisStore.lightCurve.map(({ mag, magerr }) => [mag - magerr, mag + magerr])
+  const magnitudes = analysisStore.variableStarData.magTimeSeries.map(({ mag }) => mag)
+  const phases = analysisStore.variableStarData.magTimeSeries.map(({ phase }) => phase)
+  const errorBars = analysisStore.variableStarData.magTimeSeries.map(({ mag, magerr }) => [mag - magerr, mag + magerr])
 
   return {
-    labels: observationDates,
-    magnitudeData: magnitudes,
+    phases: phases,
+    magnitudes: magnitudes,
     errorData: errorBars,
     chartMin: Math.min(...magnitudes) - CHART_PADDING,
     chartMax: Math.max(...magnitudes) + CHART_PADDING
   }
 })
 
+const probabilityChipColor = computed(() => {
+  const ONE_SIGMA = 0.32
+  const TWO_SIGMA = 0.045
+  const fap = analysisStore.variableStarData.falseAlarmProbability
+  
+  if (fap < TWO_SIGMA) return 'var(--success)'
+  if (fap < ONE_SIGMA) return 'var(--warning)'
+  return 'var(--red)'
+})
+
+watch(() => analysisStore.variableStarData, () => {
+  lightCurveChart && analysisStore.variableStarData.magTimeSeries ? updateChart() : createChart()
+}, { deep: true})
+
 function updateChart() {
   // Updates the chart when user runs flux analysis again
-  lightCurveChart.data.labels = chartData.value.labels
-  lightCurveChart.data.datasets[0].data = chartData.value.magnitudeData
+  lightCurveChart.data.labels = chartData.value.phases
+  lightCurveChart.data.datasets[0].data = chartData.value.magnitudes
   lightCurveChart.data.datasets[1].data = chartData.value.errorData
   lightCurveChart.options.scales.y.min = chartData.value.chartMin
   lightCurveChart.options.scales.y.max = chartData.value.chartMax
@@ -49,11 +59,11 @@ function createChart() {
   lightCurveChart = new Chart(lightCurveCanvas.value, {
     type: 'line',
     data: {
-      labels: chartData.value.labels,
+      labels: chartData.value.phases,
       datasets: [
         {
           label: 'Magnitude',
-          data: chartData.value.magnitudeData,
+          data: chartData.value.magnitudes,
           order: 0,
           // Line styling
           borderColor: primary,
@@ -83,18 +93,10 @@ function createChart() {
     options: {
       scales: {
         x: {
-          type: 'timeseries',
-          title: { display: true, text: 'Observation Date', color: text },
+          title: { display: true, text: 'Phase', color: text },
           border: { color: text, width: 2 },
           ticks: { color: text },
           grid: { color: background },
-          time: {
-            unit: 'day',
-            tooltipFormat: 'MMM dd hh:mm a',
-            displayFormats: {
-              day: 'M/dd T'
-            },
-          }
         },
         y: {
           min: chartData.value.chartMin,
@@ -119,8 +121,18 @@ function createChart() {
 
 </script>
 <template>
-  <canvas
-    ref="lightCurveCanvas"
-    class="light-curve-plot"
-  />
+  <div>
+    <canvas
+      ref="lightCurveCanvas"
+      class="light-curve-plot"
+    />
+    <div class="d-flex ga-2 pb-2">
+      <v-chip color="var(--info)">
+        Period: {{ analysisStore.variableStarData.period }} days
+      </v-chip>
+      <v-chip :color="probabilityChipColor">
+        False Alarm Probability: {{ analysisStore.variableStarData.falseAlarmProbability }}
+      </v-chip>
+    </div>
+  </div>
 </template>

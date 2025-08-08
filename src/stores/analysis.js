@@ -22,9 +22,15 @@ export const useAnalysisStore = defineStore('analysis', {
     imageHeight: null, // height of the image in pixels
     imageScaleLoading: false, // flag to indicate if the image scale is loading
     // Variable Star Analysis
-    lightCurve: null, // light curve data for a source
-    lightCurveTarget: null, // target for the light curve
-    lightCurveLoading: false, // flag to indicate if the light curve is loading
+    variableStarData: {
+      loading: false, // flag to indicate if variable star data is loading
+      targetCoords: null, // target coordinates for the variable star
+      magTimeSeries: [], // time series data for the variable star
+      period: null, // period of the variable star
+      falseAlarmProbability: null, // false alarm probability for the variable star
+      fluxFallback: false, // flag to indicate if flux fallback is used
+      excludedImages: [], // list of excluded images for the variable star
+    },
   }),
   getters: {
     // General
@@ -115,10 +121,35 @@ export const useAnalysisStore = defineStore('analysis', {
       })
     },
     setLightCurveData(data) {
-      this.lightCurve = data.light_curve
-      this.lightCurveTarget = data.target_coords
-      this.lightCurveLoading = false
-      console.log('light curve response, setLightCurveData(data)', this.lightCurve, this.lightCurveTarget)
+      const VSTAR_SIGNIFICANT_DIGITS = 4
+      const { light_curve, target_coords, period, fap, flux_fallback, excluded_images } = data
+
+      this.$patch({
+        variableStarData: {
+          loading: false,
+          targetCoords: target_coords,
+          magTimeSeries: light_curve,
+          period: period.toFixed(VSTAR_SIGNIFICANT_DIGITS),
+          falseAlarmProbability: fap.toFixed(VSTAR_SIGNIFICANT_DIGITS),
+          fluxFallback: flux_fallback,
+          excludedImages: excluded_images,
+        }
+      })
+
+      // Fold the light curve data over the period
+      function foldPeriod(magTimeSeries, period){
+        magTimeSeries.forEach(mts => {
+          mts.jd_folded = (mts.julian_date % period).toFixed(VSTAR_SIGNIFICANT_DIGITS)
+          mts.phase = (mts.jd_folded / period).toFixed(VSTAR_SIGNIFICANT_DIGITS)
+        })
+      }
+      
+      foldPeriod(this.variableStarData.magTimeSeries, this.variableStarData.period)
+
+      // Sort the light curve data by phase
+      this.variableStarData.magTimeSeries.sort((a, b) => a.phase - b.phase)
+
+      this.variableStarData.loading = false
     }
   },
 })
