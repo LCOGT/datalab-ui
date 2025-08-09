@@ -24,10 +24,10 @@ export const useAnalysisStore = defineStore('analysis', {
     // Variable Star Analysis
     variableStarData: {
       loading: false, // flag to indicate if variable star data is loading
-      targetCoords: null, // target coordinates for the variable star
+      targetCoords: 0, // target coordinates for the variable star
       magTimeSeries: [], // time series data for the variable star
-      period: null, // period of the variable star
-      falseAlarmProbability: null, // false alarm probability for the variable star
+      period: 0, // period of the variable star
+      falseAlarmProbability: 0, // false alarm probability for the variable star
       fluxFallback: false, // flag to indicate if flux fallback is used
       excludedImages: [], // list of excluded images for the variable star
     },
@@ -121,7 +121,6 @@ export const useAnalysisStore = defineStore('analysis', {
       })
     },
     setLightCurveData(data) {
-      const VSTAR_SIGNIFICANT_DIGITS = 4
       const { light_curve, target_coords, period, fap, flux_fallback, excluded_images } = data
 
       this.$patch({
@@ -129,8 +128,8 @@ export const useAnalysisStore = defineStore('analysis', {
           loading: false,
           targetCoords: target_coords,
           magTimeSeries: light_curve,
-          period: period.toFixed(VSTAR_SIGNIFICANT_DIGITS),
-          falseAlarmProbability: fap.toFixed(VSTAR_SIGNIFICANT_DIGITS),
+          period: period,
+          falseAlarmProbability: fap,
           fluxFallback: flux_fallback,
           excludedImages: excluded_images,
         }
@@ -139,8 +138,8 @@ export const useAnalysisStore = defineStore('analysis', {
       // Fold the light curve data over the period
       function foldPeriod(magTimeSeries, period){
         magTimeSeries.forEach(mts => {
-          mts.jd_folded = (mts.julian_date % period).toFixed(VSTAR_SIGNIFICANT_DIGITS)
-          mts.phase = (mts.jd_folded / period).toFixed(VSTAR_SIGNIFICANT_DIGITS)
+          mts.jd_folded = (mts.julian_date % period)
+          mts.phase = (mts.jd_folded / period)
         })
       }
       

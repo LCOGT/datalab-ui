@@ -8,16 +8,23 @@ const analysisStore = useAnalysisStore()
 const lightCurveCanvas = ref(null)
 let lightCurveChart = null
 const CHART_PADDING = 0.05
+const DECIMAL_PLACES = 4
 
 const chartData = computed(() => {
-  const magnitudes = analysisStore.variableStarData.magTimeSeries.map(({ mag }) => mag)
-  const phases = analysisStore.variableStarData.magTimeSeries.map(({ phase }) => phase)
-  const errorBars = analysisStore.variableStarData.magTimeSeries.map(({ mag, magerr }) => [mag - magerr, mag + magerr])
+  const phases = analysisStore.variableStarData.magTimeSeries.map(({ phase }) => phase.toFixed(DECIMAL_PLACES))
+  const magnitudes = analysisStore.variableStarData.magTimeSeries.map(({ mag }) => mag.toFixed(DECIMAL_PLACES))
+  const errors = analysisStore.variableStarData.magTimeSeries.map(({ mag, magerr }) => {
+    const lowerBound = (mag - magerr).toFixed(DECIMAL_PLACES)
+    const upperBound = (mag + magerr).toFixed(DECIMAL_PLACES)
+    return [lowerBound, upperBound]
+  })
 
   return {
     phases: phases,
     magnitudes: magnitudes,
-    errorData: errorBars,
+    errors: errors,
+    period: (analysisStore.variableStarData.period).toFixed(DECIMAL_PLACES),
+    falseAlarmPercentage: (analysisStore.variableStarData.falseAlarmProbability * 100).toFixed(DECIMAL_PLACES),
     chartMin: Math.min(...magnitudes) - CHART_PADDING,
     chartMax: Math.max(...magnitudes) + CHART_PADDING
   }
@@ -26,8 +33,8 @@ const chartData = computed(() => {
 const probabilityChipColor = computed(() => {
   const ONE_SIGMA = 0.32
   const TWO_SIGMA = 0.045
+
   const fap = analysisStore.variableStarData.falseAlarmProbability
-  
   if (fap < TWO_SIGMA) return 'var(--success)'
   if (fap < ONE_SIGMA) return 'var(--warning)'
   return 'var(--red)'
@@ -41,7 +48,7 @@ function updateChart() {
   // Updates the chart when user runs flux analysis again
   lightCurveChart.data.labels = chartData.value.phases
   lightCurveChart.data.datasets[0].data = chartData.value.magnitudes
-  lightCurveChart.data.datasets[1].data = chartData.value.errorData
+  lightCurveChart.data.datasets[1].data = chartData.value.errors
   lightCurveChart.options.scales.y.min = chartData.value.chartMin
   lightCurveChart.options.scales.y.max = chartData.value.chartMax
   lightCurveChart.update()
@@ -78,7 +85,7 @@ function createChart() {
         },
         {
           label: 'Mag Error',
-          data: chartData.value.errorData,
+          data: chartData.value.errors,
           order: 1,
           type: 'bar',
           // Error bar styling
@@ -128,10 +135,10 @@ function createChart() {
     />
     <div class="d-flex ga-2 pb-2">
       <v-chip color="var(--info)">
-        Period: {{ analysisStore.variableStarData.period }} days
+        Period: {{ chartData.period }} days
       </v-chip>
       <v-chip :color="probabilityChipColor">
-        False Alarm Probability: {{ analysisStore.variableStarData.falseAlarmProbability }}
+        False Alarm Probability: {{ chartData.falseAlarmPercentage }}%
       </v-chip>
     </div>
   </div>
