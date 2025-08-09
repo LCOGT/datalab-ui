@@ -1,40 +1,57 @@
 <script setup>
 import Chart from 'chart.js/auto'
-import 'chartjs-adapter-luxon'
 import { ref, watch, computed } from 'vue'
 import { useAnalysisStore } from '@/stores/analysis'
 
 const analysisStore = useAnalysisStore()
-const lightCurveCanvas = ref(null)
-let lightCurveChart = null
+const periodCanvas = ref(null)
+let periodChart = null
 const CHART_PADDING = 0.05
-
-watch(() => analysisStore.lightCurve, () => {
-  lightCurveChart && analysisStore.lightCurve ? updateChart() : createChart()
-})
+const DECIMAL_PLACES = 4
 
 const chartData = computed(() => {
-  const magnitudes = analysisStore.lightCurve.map(({ mag }) => mag)
-  const observationDates = analysisStore.lightCurve.map(({ observation_date }) => observation_date)
-  const errorBars = analysisStore.lightCurve.map(({ mag, magerr }) => [mag - magerr, mag + magerr])
+  const phases = analysisStore.variableStarData.magPeriodogram.map(({ phase }) => phase.toFixed(DECIMAL_PLACES))
+  const magnitudes = analysisStore.variableStarData.magPeriodogram.map(({ mag }) => mag.toFixed(DECIMAL_PLACES))
+  const errors = analysisStore.variableStarData.magPeriodogram.map(({ mag, magerr }) => {
+    const lowerBound = (mag - magerr).toFixed(DECIMAL_PLACES)
+    const upperBound = (mag + magerr).toFixed(DECIMAL_PLACES)
+    return [lowerBound, upperBound]
+  })
 
   return {
-    labels: observationDates,
-    magnitudeData: magnitudes,
-    errorData: errorBars,
+    phases: phases,
+    magnitudes: magnitudes,
+    errors: errors,
+    period: (analysisStore.variableStarData.period).toFixed(DECIMAL_PLACES),
+    falseAlarmPercentage: (analysisStore.variableStarData.falseAlarmProbability * 100).toFixed(DECIMAL_PLACES),
     chartMin: Math.min(...magnitudes) - CHART_PADDING,
     chartMax: Math.max(...magnitudes) + CHART_PADDING
   }
 })
 
+const probabilityChipColor = computed(() => {
+  const ONE_SIGMA = 0.32
+  const TWO_SIGMA = 0.045
+
+  const fap = analysisStore.variableStarData.falseAlarmProbability
+  if (fap < TWO_SIGMA) return 'var(--success)'
+  if (fap < ONE_SIGMA) return 'var(--warning)'
+  return 'var(--red)'
+})
+
+watch(() => analysisStore.variableStarData, () => {
+  periodChart && analysisStore.variableStarData.magPeriodogram ? updateChart() : createChart()
+}, { deep: true})
+
 function updateChart() {
   // Updates the chart when user runs flux analysis again
-  lightCurveChart.data.labels = chartData.value.labels
-  lightCurveChart.data.datasets[0].data = chartData.value.magnitudeData
-  lightCurveChart.data.datasets[1].data = chartData.value.errorData
-  lightCurveChart.options.scales.y.min = chartData.value.chartMin
-  lightCurveChart.options.scales.y.max = chartData.value.chartMax
-  lightCurveChart.update()
+  const { phases, magnitudes, errors, chartMin, chartMax } = chartData.value
+  periodChart.data.labels = phases
+  periodChart.data.datasets[0].data = magnitudes
+  periodChart.data.datasets[1].data = errors
+  periodChart.options.scales.y.min = chartMin
+  periodChart.options.scales.y.max = chartMax
+  periodChart.update()
 }
 
 function createChart() {
@@ -46,14 +63,14 @@ function createChart() {
   const background = style.getPropertyValue('--secondary-background')
   const info = style.getPropertyValue('--info')
 
-  lightCurveChart = new Chart(lightCurveCanvas.value, {
+  periodChart = new Chart(periodCanvas.value, {
     type: 'line',
     data: {
-      labels: chartData.value.labels,
+      labels: chartData.value.phases,
       datasets: [
         {
           label: 'Magnitude',
-          data: chartData.value.magnitudeData,
+          data: chartData.value.magnitudes,
           order: 0,
           // Line styling
           borderColor: primary,
@@ -68,7 +85,7 @@ function createChart() {
         },
         {
           label: 'Mag Error',
-          data: chartData.value.errorData,
+          data: chartData.value.errors,
           order: 1,
           type: 'bar',
           // Error bar styling
@@ -83,18 +100,10 @@ function createChart() {
     options: {
       scales: {
         x: {
-          type: 'timeseries',
-          title: { display: true, text: 'Observation Date', color: text },
+          title: { display: true, text: 'Phase', color: text },
           border: { color: text, width: 2 },
           ticks: { color: text },
           grid: { color: background },
-          time: {
-            unit: 'day',
-            tooltipFormat: 'MMM dd hh:mm a',
-            displayFormats: {
-              day: 'M/dd T'
-            },
-          }
         },
         y: {
           min: chartData.value.chartMin,
@@ -119,8 +128,18 @@ function createChart() {
 
 </script>
 <template>
-  <canvas
-    ref="lightCurveCanvas"
-    class="light-curve-plot"
-  />
+  <div>
+    <canvas
+      ref="periodCanvas"
+      class="period-plot"
+    />
+    <div class="d-flex ga-2 pb-2">
+      <v-chip color="var(--info)">
+        Period: {{ chartData.period }} days
+      </v-chip>
+      <v-chip :color="probabilityChipColor">
+        False Alarm Probability: {{ chartData.falseAlarmPercentage }}%
+      </v-chip>
+    </div>
+  </div>
 </template>
