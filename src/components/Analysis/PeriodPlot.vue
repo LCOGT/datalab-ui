@@ -1,19 +1,18 @@
 <script setup>
 import Chart from 'chart.js/auto'
-import 'chartjs-adapter-luxon'
 import { ref, watch, computed } from 'vue'
 import { useAnalysisStore } from '@/stores/analysis'
 
 const analysisStore = useAnalysisStore()
-const lightCurveCanvas = ref(null)
-let lightCurveChart = null
+const periodCanvas = ref(null)
+let periodChart = null
 const CHART_PADDING = 0.05
 const DECIMAL_PLACES = 4
 
 const chartData = computed(() => {
-  const phases = analysisStore.variableStarData.magTimeSeries.map(({ phase }) => phase.toFixed(DECIMAL_PLACES))
-  const magnitudes = analysisStore.variableStarData.magTimeSeries.map(({ mag }) => mag.toFixed(DECIMAL_PLACES))
-  const errors = analysisStore.variableStarData.magTimeSeries.map(({ mag, magerr }) => {
+  const phases = analysisStore.variableStarData.magPeriodogram.map(({ phase }) => phase.toFixed(DECIMAL_PLACES))
+  const magnitudes = analysisStore.variableStarData.magPeriodogram.map(({ mag }) => mag.toFixed(DECIMAL_PLACES))
+  const errors = analysisStore.variableStarData.magPeriodogram.map(({ mag, magerr }) => {
     const lowerBound = (mag - magerr).toFixed(DECIMAL_PLACES)
     const upperBound = (mag + magerr).toFixed(DECIMAL_PLACES)
     return [lowerBound, upperBound]
@@ -41,17 +40,18 @@ const probabilityChipColor = computed(() => {
 })
 
 watch(() => analysisStore.variableStarData, () => {
-  lightCurveChart && analysisStore.variableStarData.magTimeSeries ? updateChart() : createChart()
+  periodChart && analysisStore.variableStarData.magPeriodogram ? updateChart() : createChart()
 }, { deep: true})
 
 function updateChart() {
   // Updates the chart when user runs flux analysis again
-  lightCurveChart.data.labels = chartData.value.phases
-  lightCurveChart.data.datasets[0].data = chartData.value.magnitudes
-  lightCurveChart.data.datasets[1].data = chartData.value.errors
-  lightCurveChart.options.scales.y.min = chartData.value.chartMin
-  lightCurveChart.options.scales.y.max = chartData.value.chartMax
-  lightCurveChart.update()
+  const { phases, magnitudes, errors, chartMin, chartMax } = chartData.value
+  periodChart.data.labels = phases
+  periodChart.data.datasets[0].data = magnitudes
+  periodChart.data.datasets[1].data = errors
+  periodChart.options.scales.y.min = chartMin
+  periodChart.options.scales.y.max = chartMax
+  periodChart.update()
 }
 
 function createChart() {
@@ -63,7 +63,7 @@ function createChart() {
   const background = style.getPropertyValue('--secondary-background')
   const info = style.getPropertyValue('--info')
 
-  lightCurveChart = new Chart(lightCurveCanvas.value, {
+  periodChart = new Chart(periodCanvas.value, {
     type: 'line',
     data: {
       labels: chartData.value.phases,
@@ -130,8 +130,8 @@ function createChart() {
 <template>
   <div>
     <canvas
-      ref="lightCurveCanvas"
-      class="light-curve-plot"
+      ref="periodCanvas"
+      class="period-plot"
     />
     <div class="d-flex ga-2 pb-2">
       <v-chip color="var(--info)">

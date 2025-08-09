@@ -11,7 +11,8 @@ import ImageDownloadMenu from '@/components/Global/ImageDownloadMenu.vue'
 import FitsHeaderTable from '@/components/Analysis/FitsHeaderTable.vue'
 import ImageViewer from '@/components/Analysis/ImageViewer.vue'
 import LinePlot from '@/components/Analysis/LinePlot.vue'
-import VariableStarPlot from '@/components/Analysis/VariableStarPlot.vue'
+import PeriodPlot from '@/components/Analysis/PeriodPlot.vue'
+import LightCurvePlot from '@/components/Analysis/LightCurvePlot.vue'
 
 const props = defineProps({
   image: {
@@ -48,6 +49,14 @@ const filteredCatalog = computed(() => {
     source.flux >= fluxSliderRange.value[0] &&
     source.flux <= fluxSliderRange.value[1]
   )
+})
+
+const sideChartItems = computed(() => {
+  const chartItems = []
+  if (analysisStore.variableStarData.magPeriodogram?.length) chartItems.push('Periodogram')
+  if (analysisStore.variableStarData.magTimeSeries?.length) chartItems.push('Light Curve')
+  if (lineProfile.value?.length) chartItems.push('Line Profile')
+  return chartItems
 })
 
 onMounted(() => {
@@ -237,7 +246,7 @@ function updateScaling(min, max){
           >
             <v-select
               v-model="sideChart"
-              :items="['Line Profile', 'Light Curve']"
+              :items="sideChartItems"
               variant="solo-filled"
               bg-color="var(--card-background)"
               density="compact"
@@ -250,7 +259,8 @@ function updateScaling(min, max){
               :end-coords="endCoords"
               :position-angle="positionAngle"
             />
-            <variable-star-plot v-show="analysisStore.variableStarData.magTimeSeries.length && sideChart === 'Light Curve'" />
+            <period-plot v-show="analysisStore.variableStarData.magPeriodogram.length && sideChart === 'Periodogram'" />
+            <light-curve-plot v-show="analysisStore.variableStarData.magTimeSeries.length && sideChart === 'Light Curve'" />
           </v-sheet>
         </v-expand-transition>
       </div>

@@ -26,6 +26,7 @@ export const useAnalysisStore = defineStore('analysis', {
       loading: false, // flag to indicate if variable star data is loading
       targetCoords: 0, // target coordinates for the variable star
       magTimeSeries: [], // time series data for the variable star
+      magPeriodogram: [], // magTimeSeries sorted by phase
       period: 0, // period of the variable star
       falseAlarmProbability: 0, // false alarm probability for the variable star
       fluxFallback: false, // flag to indicate if flux fallback is used
@@ -128,6 +129,7 @@ export const useAnalysisStore = defineStore('analysis', {
           loading: false,
           targetCoords: target_coords,
           magTimeSeries: light_curve,
+          magPeriodogram: light_curve,
           period: period,
           falseAlarmProbability: fap,
           fluxFallback: flux_fallback,
@@ -146,7 +148,7 @@ export const useAnalysisStore = defineStore('analysis', {
       foldPeriod(this.variableStarData.magTimeSeries, this.variableStarData.period)
 
       // Sort the light curve data by phase
-      this.variableStarData.magTimeSeries.sort((a, b) => a.phase - b.phase)
+      this.variableStarData.magPeriodogram = [...this.variableStarData.magTimeSeries].sort((a, b) => a.phase - b.phase)
 
       this.variableStarData.loading = false
     }
