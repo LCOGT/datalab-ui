@@ -7,7 +7,7 @@ import { useAnalysisStore } from '@/stores/analysis'
 const analysisStore = useAnalysisStore()
 const lightCurveCanvas = ref(null)
 let lightCurveChart = null
-const CHART_PADDING = 0.05
+const CHART_PADDING = 0.5
 const DECIMAL_PLACES = 4
 
 const chartData = computed(() => {
