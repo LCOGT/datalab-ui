@@ -98,7 +98,7 @@ function handleAnalysisOutput(response, action, action_callback){
     break
   case 'variable-star':
     analysisStore.setLightCurveData(response)
-    sideChart.value = 'Light Curve'
+    sideChart.value = 'Periodogram'
     break
   case 'get-tif':
     action_callback(response.tif_url, props.image.basename, 'TIF')
