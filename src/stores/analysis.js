@@ -122,7 +122,7 @@ export const useAnalysisStore = defineStore('analysis', {
         }
       })
     },
-    setLightCurveData(data) {
+    setVariableStarData(data) {
       const { light_curve, target_coords, period, fap, flux_fallback, excluded_images } = data
 
       this.$patch({

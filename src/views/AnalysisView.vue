@@ -97,13 +97,15 @@ function handleAnalysisOutput(response, action, action_callback){
     catalog.value = response
     break
   case 'variable-star':
-    analysisStore.setLightCurveData(response)
+    analysisStore.setVariableStarData(response)
     sideChart.value = 'Periodogram'
     break
   case 'get-tif':
+    // ImageDownloadMenu.vue downloadFile()
     action_callback(response.tif_url, props.image.basename, 'TIF')
     break
   case 'get-jpg':
+    // ImageDownloadMenu.vue downloadFile()
     action_callback(response.jpg_base64, props.image.basename, 'base64')
     break
   default:
@@ -194,7 +196,7 @@ function updateScaling(min, max){
         <v-expand-transition>
           <v-sheet
             v-if="catalog.length"
-            class="side-panel-item image-controls-sheet"
+            class="side-panel-item"
           >
             <div class="d-flex align-center mb-2">
               <v-btn
