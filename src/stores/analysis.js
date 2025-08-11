@@ -37,6 +37,7 @@ export const useAnalysisStore = defineStore('analysis', {
     // General
     imageProposalId: (state) => { return state.image.proposal_id},
     imageFilter: (state) => { return state.image.FILTER },
+    loading: (state) => { return state.imageScaleLoading || state.variableStarData.loading },
     // Histogram Editing
     imageScaleReady: (state) => state.imageWidth && state.imageHeight && state.rawData && state.zmin != null && state.zmax != null,
     histogram: (state) => { return state.rawData.histogram },

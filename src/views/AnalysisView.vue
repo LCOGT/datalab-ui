@@ -178,6 +178,13 @@ function updateScaling(min, max){
         @click="emit('closeAnalysisDialog')"
       />
     </v-toolbar>
+    <v-progress-linear
+      v-hide="!analysisStore.loading"
+      rounded
+      indeterminate
+      stream
+      color="var(--success)"
+    />
     <div class="analysis-content">
       <image-viewer
         :catalog="filteredCatalog"
@@ -211,11 +218,11 @@ function updateScaling(min, max){
         </v-expand-transition>
         <v-expand-transition>
           <v-sheet
+            v-if="analysisStore.imageScaleReady"
             class="side-panel-item"
             rounded
           >
             <histogram-slider
-              v-if="analysisStore.imageScaleReady"
               :histogram="analysisStore.histogram"
               :bins="analysisStore.bins"
               :max-value="analysisStore.maxPixelValue"
@@ -223,20 +230,6 @@ function updateScaling(min, max){
               :z-max="Number(analysisStore.zmax)"
               @update-scaling="updateScaling"
             />
-            <div
-              v-else-if="analysisStore.imageScaleLoading"
-              class="d-flex ga-4 align-center justify-center"
-            >
-              <p class="d-block">
-                Histogram
-              </p>
-              <v-progress-linear
-                color="var(--success)"
-                :height="6"
-                indeterminate
-                rounded
-              />
-            </div>
           </v-sheet>
         </v-expand-transition>
         <v-expand-transition>
