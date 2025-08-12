@@ -13,6 +13,7 @@ import ImageViewer from '@/components/Analysis/ImageViewer.vue'
 import LinePlot from '@/components/Analysis/LinePlot.vue'
 import PeriodPlot from '@/components/Analysis/PeriodPlot.vue'
 import LightCurvePlot from '@/components/Analysis/LightCurvePlot.vue'
+import { getActivePinia } from 'pinia'
 
 const props = defineProps({
   image: {
@@ -68,7 +69,8 @@ onMounted(() => {
 
 onUnmounted(() => {
   imgWorker.terminate()
-  analysisStore.$reset()
+  analysisStore.$dispose()
+  delete getActivePinia().state.value[analysisStore.$id]
 })
 
 // This function runs when imageViewer emits an analysis-action event and should be extended to handle other analysis types
