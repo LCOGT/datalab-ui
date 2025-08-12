@@ -11,9 +11,11 @@ const CHART_PADDING = 0.5
 const DECIMAL_PLACES = 4
 
 const chartData = computed(() => {
-  const dates = analysisStore.variableStarData.magTimeSeries.map(({ julian_date }) => julian_date)
-  const magnitudes = analysisStore.variableStarData.magTimeSeries.map(({ mag }) => mag.toFixed(DECIMAL_PLACES))
-  const errors = analysisStore.variableStarData.magTimeSeries.map(({ mag, magerr }) => {
+  const magTimeSeries = analysisStore.variableStarData.magTimeSeries
+
+  const dates = magTimeSeries.map(({ julian_date }) => julian_date)
+  const magnitudes = magTimeSeries.map(({ mag }) => mag.toFixed(DECIMAL_PLACES))
+  const errors = magTimeSeries.map(({ mag, magerr }) => {
     const lowerBound = (mag - magerr).toFixed(DECIMAL_PLACES)
     const upperBound = (mag + magerr).toFixed(DECIMAL_PLACES)
     return [lowerBound, upperBound]

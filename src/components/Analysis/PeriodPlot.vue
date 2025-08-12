@@ -20,10 +20,12 @@ const probabilityChipColor = computed(() => {
 })
 
 const chartData = computed(() => {
-  const phases = analysisStore.variableStarData.magPeriodogram.map(({ phase }) => phase.toFixed(DECIMAL_PLACES))
-  const secondPhases = analysisStore.variableStarData.magPeriodogram.map(({ phase }) => (phase + 1).toFixed(DECIMAL_PLACES))
-  const magnitudes = analysisStore.variableStarData.magPeriodogram.map(({ mag }) => mag.toFixed(DECIMAL_PLACES))
-  const errors = analysisStore.variableStarData.magPeriodogram.map(({ mag, magerr }) => {
+  const periodogram = analysisStore.variableStarData.magPeriodogram
+
+  const phases = periodogram.map(({ phase }) => phase.toFixed(DECIMAL_PLACES))
+  const secondPhases = periodogram.map(({ phase }) => (phase + 1).toFixed(DECIMAL_PLACES))
+  const magnitudes = periodogram.map(({ mag }) => mag.toFixed(DECIMAL_PLACES))
+  const errors = periodogram.map(({ mag, magerr }) => {
     const lowerBound = (mag - magerr).toFixed(DECIMAL_PLACES)
     const upperBound = (mag + magerr).toFixed(DECIMAL_PLACES)
     return [lowerBound, upperBound]
@@ -67,30 +69,32 @@ function createChart() {
   const { phases, magnitudes, errors, chartMin, chartMax } = chartData.value
 
   periodChart = new Chart(periodCanvas.value, {
-    type: 'line',
     data: {
-      labels: phases,
       datasets: [
         {
+          type: 'line',
           label: 'Magnitude',
-          data: magnitudes,
+          data: {
+            x: phases,
+            y: magnitudes
+          },
           order: 0,
           // Line styling
           borderColor: primary,
           borderWidth: 2,
-          borderJoinStyle: 'round',
           backgroundColor: primary,
-          cubicInterpolationMode: 'monotone',
-          tension: 0.4,
           // Point hover styling
           pointHoverBorderColor: secondary,
           pointHoverBackgroundColor: secondary,
         },
         {
-          label: 'Mag Error',
-          data: errors,
-          order: 1,
           type: 'bar',
+          label: 'Mag Error',
+          data: { 
+            x: phases,
+            y: errors
+          },
+          order: 1,
           // Error bar styling
           borderColor: info,
           backgroundColor: info,
@@ -103,17 +107,25 @@ function createChart() {
     options: {
       scales: {
         x: {
+          type: 'linear',
           title: { display: true, text: 'Phase', color: text },
           border: { color: text, width: 2 },
-          ticks: { color: text },
-          grid: { color: background },
+          ticks: { 
+            color: text, 
+            stepSize: 0.25,
+            callback: function(value) {
+              return value.toFixed(2)
+            }
+          },
+          grid: { color: background, offset: false },
         },
         y: {
+          type: 'linear',
           min: chartMin,
           max: chartMax,
           title: { display: true, text: 'Magnitude', color: text },
           border: { color: text, width: 2 },
-          ticks: { color: text },
+          ticks: { color: text, stepSize: 0.2 },
           grid: { color: background },
         }
       },
