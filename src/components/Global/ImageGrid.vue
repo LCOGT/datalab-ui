@@ -3,8 +3,7 @@ import { ref, watch } from 'vue'
 import { useThumbnailsStore } from '@/stores/thumbnails'
 import { useConfigurationStore } from '@/stores/configuration'
 import { useAlertsStore } from '@/stores/alerts'
-import ImageDownloadMenu from '@/components/Global/ImageDownloadMenu.vue'
-import FilterBadge from './FilterBadge.vue'
+import ThumbnailImage from '@/components/Global/ThumbnailImage.vue'
 import AnalysisView from '../../views/AnalysisView.vue'
 
 const props = defineProps({
@@ -83,58 +82,15 @@ watch(() => props.images, () => {
       :cols="columnSpan"
       class="image-grid-col"
     >
-      <v-sheet
-        v-if="image.basename in imageDetails && imageDetails[image.basename]"
-        class="pa-2"
-        color="var(--secondary-background)"
-        :elevation="2"
-        rounded
-        :class="{ 'selected-image': isSelected(image.basename) }"
-        @click="emit('selectImage', image.basename)"
-      >
-        <v-img
-          :src="imageDetails[image.basename]"
-          :alt="image.basename"
-          rounded
-          cover
-          aspect-ratio="1"
-        >
-          <filter-badge
-            v-if="image.filter || image.FILTER"
-            :filter="image.filter || image.FILTER"
-          />
-          <span
-            v-if="'operationIndex' in image"
-            class="image-text-overlay"
-          >{{ image.operationIndex }}</span>
-        </v-img>
-        <div
-          v-if="props.enableImageCards"
-          class="d-flex flex-row ga-2 align-center mt-2"
-        >
-          <p class="text-subtitle-2 mr-auto prevent-select single-line-text">
-            {{ image.target_name || image.operationName }}
-          </p>
-          <v-icon
-            icon="mdi-eye"
-            color="var(--primary-interactive)"
-            @click.stop="launchAnalysis(image)"
-          />
-          <image-download-menu
-            :fits-url="image.url || image.fits_url || ''"
-            :jpg-url="image.largeCachedUrl || image.large_url || ''"
-            :image-name="image.basename"
-            speed-dial-location="top right"
-            :enable-scaled-download="false"
-          />
-        </div>
-      </v-sheet>
-      <v-skeleton-loader
-        v-else
-        type="card"
-        color="var(--secondary-background)"
-        bg-color="var(--primary-background)"
-      />
+      <thumbnail-image
+        :image="image"
+        :image-url="imageDetails[image.basename]"
+        :is-selected="isSelected(image.basename)"
+        :enable-image-cards="true"
+        :enable-removal="false"
+        @select-image="emit('selectImage', image.basename)"
+        @launch-analysis="launchAnalysis(image)"
+      ></thumbnail-image>
     </v-col>
   </v-row>
   <v-dialog
