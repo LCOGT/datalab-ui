@@ -87,14 +87,14 @@ function createChart() {
               return value.toFixed(2)
             }
           },
-          grid: { color: background },
+          grid: { color: background, tickColor: text },
         },
         y: {
           type: 'linear',
           title: { display: true, text: 'Magnitude', color: text },
           border: { color: text, width: 2 },
           ticks: { color: text, stepSize: 0.2 },
-          grid: { color: background },
+          grid: { color: background, tickColor: text},
           grace: '5%',
         }
       },

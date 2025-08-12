@@ -97,7 +97,7 @@ function createChart() {
           title: { display: true, text: 'Date', color: text },
           border: { color: text, width: 2 },
           ticks: { color: text },
-          grid: { color: background },
+          grid: { color: background, tickColor: text},
           time: {
             unit: 'day',
             tooltipFormat: 'MMM dd hh:mm a',
@@ -112,7 +112,7 @@ function createChart() {
           title: { display: true, text: 'Magnitude', color: text },
           border: { color: text, width: 2 },
           ticks: { color: text },
-          grid: { color: background },
+          grid: { color: background, tickColor: text},
         }
       },
       plugins: {
