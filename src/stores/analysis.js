@@ -125,27 +125,27 @@ export const useAnalysisStore = defineStore('analysis', {
     setVariableStarData(data) {
       const { light_curve, target_coords, period, fap, flux_fallback, excluded_images } = data
 
-      this.$patch({
-        variableStarData: {
-          loading: false,
-          targetCoords: target_coords,
-          magTimeSeries: light_curve,
-          magPeriodogram: light_curve,
-          period: period,
-          falseAlarmProbability: fap,
-          fluxFallback: flux_fallback,
-          excludedImages: excluded_images,
-        }
-      })
-
-      // Fold the light curve data over the period
-      function foldPeriod(magTimeSeries, period){
-        magTimeSeries.forEach(mts => {
-          mts.jd_folded = (mts.julian_date % period)
-          mts.phase = (mts.jd_folded / period)
-        })
+      this.variableStarData = {
+        loading: false,
+        targetCoords: target_coords,
+        magTimeSeries: light_curve,
+        magPeriodogram: light_curve,
+        period: period,
+        falseAlarmProbability: fap,
+        fluxFallback: flux_fallback,
+        excludedImages: excluded_images,
       }
-      
+
+      function foldPeriod(magTimeSeries, period) {
+        // Perf testing shows precalculating the inverse is faster
+        const invPeriod = 1.0 / period
+  
+        for (let i = 0; i < magTimeSeries.length; i++) {
+          const mts = magTimeSeries[i]
+          mts.phase = (mts.julian_date % period) * invPeriod
+        }
+      }
+
       foldPeriod(this.variableStarData.magTimeSeries, this.variableStarData.period)
 
       // Sort the light curve data by phase
