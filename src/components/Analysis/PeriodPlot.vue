@@ -6,7 +6,6 @@ import { useAnalysisStore } from '@/stores/analysis'
 const analysisStore = useAnalysisStore()
 const periodCanvas = ref(null)
 let periodChart = null
-const CHART_PADDING = 0.5
 const DECIMAL_PLACES = 4
 
 const probabilityChipColor = computed(() => {
@@ -22,23 +21,14 @@ const probabilityChipColor = computed(() => {
 const chartData = computed(() => {
   const periodogram = analysisStore.variableStarData.magPeriodogram
 
-  const phases = periodogram.map(({ phase }) => phase.toFixed(DECIMAL_PLACES))
-  const secondPhases = periodogram.map(({ phase }) => (phase + 1).toFixed(DECIMAL_PLACES))
-  const magnitudes = periodogram.map(({ mag }) => mag.toFixed(DECIMAL_PLACES))
-  const errors = periodogram.map(({ mag, magerr }) => {
-    const lowerBound = (mag - magerr).toFixed(DECIMAL_PLACES)
-    const upperBound = (mag + magerr).toFixed(DECIMAL_PLACES)
-    return [lowerBound, upperBound]
-  })
+  const period1 = periodogram.map(( p ) => ({ x: p.phase, y: p.mag}))
+  const period2 = periodogram.map(( p ) => ({ x: p.phase + 1, y: p.mag}))
 
   return {
-    phases: [...phases, ...secondPhases],
-    magnitudes: [...magnitudes, ...magnitudes],
-    errors: errors,
+    period1: period1,
+    period2: period2,
     period: (analysisStore.variableStarData.period).toFixed(DECIMAL_PLACES),
     falseAlarmPercentage: (analysisStore.variableStarData.falseAlarmProbability * 100).toFixed(DECIMAL_PLACES),
-    chartMin: Math.min(...magnitudes) - CHART_PADDING,
-    chartMax: Math.max(...magnitudes) + CHART_PADDING
   }
 })
 
@@ -48,12 +38,9 @@ watch(() => analysisStore.variableStarData, () => {
 
 function updateChart() {
   // Updates the chart when user runs flux analysis again
-  const { phases, magnitudes, errors, chartMin, chartMax } = chartData.value
-  periodChart.data.labels = phases
-  periodChart.data.datasets[0].data = magnitudes
-  periodChart.data.datasets[1].data = errors
-  periodChart.options.scales.y.min = chartMin
-  periodChart.options.scales.y.max = chartMax
+  const { period1, period2 } = chartData.value
+  periodChart.data.datasets[0].data = period1
+  periodChart.data.datasets[1].data = period2
   periodChart.update()
 }
 
@@ -66,42 +53,25 @@ function createChart() {
   const background = style.getPropertyValue('--secondary-background')
   const info = style.getPropertyValue('--info')
 
-  const { phases, magnitudes, errors, chartMin, chartMax } = chartData.value
+  const { period1, period2 } = chartData.value
 
   periodChart = new Chart(periodCanvas.value, {
     data: {
       datasets: [
         {
-          type: 'line',
-          label: 'Magnitude',
-          data: {
-            x: phases,
-            y: magnitudes
-          },
-          order: 0,
-          // Line styling
-          borderColor: primary,
-          borderWidth: 2,
+          type: 'scatter',
+          label: 'Period 1',
+          data: period1,
           backgroundColor: primary,
-          // Point hover styling
-          pointHoverBorderColor: secondary,
-          pointHoverBackgroundColor: secondary,
+          pointHoverBackgroundColor: info,
         },
         {
-          type: 'bar',
-          label: 'Mag Error',
-          data: { 
-            x: phases,
-            y: errors
-          },
-          order: 1,
-          // Error bar styling
-          borderColor: info,
-          backgroundColor: info,
-          barPercentage: 0.1,
-          hoverBackgroundColor: secondary,
-          hoverBorderColor: secondary,
-        }
+          type: 'scatter',
+          label: 'Period 2',
+          data: period2,
+          backgroundColor: secondary,
+          pointHoverBackgroundColor: info,
+        },
       ]
     },
     options: {
@@ -110,31 +80,29 @@ function createChart() {
           type: 'linear',
           title: { display: true, text: 'Phase', color: text },
           border: { color: text, width: 2 },
-          ticks: { 
+          ticks: {
             color: text, 
             stepSize: 0.25,
             callback: function(value) {
               return value.toFixed(2)
             }
           },
-          grid: { color: background, offset: false },
+          grid: { color: background },
         },
         y: {
           type: 'linear',
-          min: chartMin,
-          max: chartMax,
           title: { display: true, text: 'Magnitude', color: text },
           border: { color: text, width: 2 },
           ticks: { color: text, stepSize: 0.2 },
           grid: { color: background },
+          grace: '5%',
         }
       },
       plugins: {
         legend: { display: false },
-        tooltip: { mode: 'index', intersect: false },
+        tooltip: { intersect: false },
       },
       hover: {
-        mode: 'index',
         intersect: false,
       }
     }
