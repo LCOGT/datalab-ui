@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { markRaw } from 'vue'
 import { useConfigurationStore } from '@/stores/configuration'
 import { useAlertsStore } from '@/stores/alerts'
 import { fetchApiCall } from '@/utils/api.js'
@@ -91,6 +92,12 @@ export const useAnalysisStore = defineStore('analysis', {
 
       await fetchApiCall({url: url, method: 'POST', body: requestBody,
         successCallback: (response) => {
+          if (response.data){
+            // data is up to 1M pixels, so mark raw to prevent Vue from deep watching it
+            // This is a performance optimization to avoid unnecessary reactivity
+            // and is safe because we don't mutate the rawData object directly.
+            response.data = markRaw(response.data)
+          }
           this.rawData = response
           this.zmin = response.zmin
           this.zmax = response.zmax

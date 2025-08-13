@@ -127,10 +127,12 @@ async function instantiateScalerWorker(){
   imgScalingCanvas.height = analysisStore.imageHeight
   const offscreen = imgScalingCanvas.transferControlToOffscreen()
 
+  const rawDataCopy = JSON.parse(JSON.stringify(analysisStore.rawData))
+
   // Post the image data to the worker
   imgWorker.postMessage({
     canvas: offscreen,
-    imageData: structuredClone(analysisStore.rawData)
+    imageData: rawDataCopy,
   }, [offscreen])
 
   // Image creation for leaflet map, clean up the old image url
