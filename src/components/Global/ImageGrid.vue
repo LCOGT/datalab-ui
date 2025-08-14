@@ -90,7 +90,7 @@ watch(() => props.images, () => {
         :enable-removal="false"
         @select-image="emit('selectImage', image.basename)"
         @launch-analysis="launchAnalysis(image)"
-      ></thumbnail-image>
+      />
     </v-col>
   </v-row>
   <v-dialog
