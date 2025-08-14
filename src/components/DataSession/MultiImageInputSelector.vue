@@ -1,6 +1,7 @@
 <script>
 import { useThumbnailsStore } from '@/stores/thumbnails'
 import { useConfigurationStore } from '@/stores/configuration'
+import { filterToColor } from '@/utils/common'
 import ThumbnailImage from '@/components/Global/ThumbnailImage.vue'
 import {Drag,DropList} from 'vue-easy-dnd'
 import { ref } from 'vue'
@@ -29,18 +30,7 @@ export default {
     return {
       thumbnailsStore: useThumbnailsStore(),
       configurationStore: useConfigurationStore(),
-      imageDetails: {},
-      filterToColor: {
-        'r': 'red',
-        'rp': 'red',
-        'ip': 'red',
-        'h-alpha': 'purple',
-        'v': 'green',
-        'gp': 'green',
-        'oiii': 'green',
-        'b': 'blue',
-        'sii': 'blue'
-      }
+      imageDetails: {}
     }
   },
   computed: {
@@ -75,7 +65,7 @@ export default {
     },
     colorFromInput(inputKey) {
       if (this.inputDescriptions[inputKey].filter) {
-        return this.filterToColor[this.inputDescriptions[inputKey].filter[0]]
+        return filterToColor(this.inputDescriptions[inputKey].filter[0])
       }
       return 'white'
     }
@@ -108,11 +98,6 @@ export default {
               ></thumbnail-image>
             </drag>
           </template>
-          <template v-slot:inserting-drag-image="{data}">
-            <div :key="inputKey + '-' + data.basename + '-inserting-drag-image'">
-              <h2>Inserting</h2>
-            </div>
-        </template>
           <template v-slot:feedback="{data}">
             <thumbnail-image
                 :image="data"

@@ -45,7 +45,6 @@ const emit = defineEmits(['selectImage', 'launchAnalysis', 'removeImage'])
           rounded
           cover
           aspect-ratio="1"
-          ondragstart="return false;"
         >
           <filter-badge
             v-if="props.image.filter || props.image.FILTER"
