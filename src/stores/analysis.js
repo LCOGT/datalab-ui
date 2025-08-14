@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { markRaw } from 'vue'
 import { useConfigurationStore } from '@/stores/configuration'
 import { useAlertsStore } from '@/stores/alerts'
 import { fetchApiCall } from '@/utils/api.js'
@@ -22,14 +23,22 @@ export const useAnalysisStore = defineStore('analysis', {
     imageHeight: null, // height of the image in pixels
     imageScaleLoading: false, // flag to indicate if the image scale is loading
     // Variable Star Analysis
-    lightCurve: null, // light curve data for a source
-    lightCurveTarget: null, // target for the light curve
-    lightCurveLoading: false, // flag to indicate if the light curve is loading
+    variableStarData: {
+      loading: false, // flag to indicate if variable star data is loading
+      targetCoords: 0, // target coordinates for the variable star
+      magTimeSeries: [], // time series data for the variable star
+      magPeriodogram: [], // magTimeSeries sorted by phase
+      period: 0, // period of the variable star
+      falseAlarmProbability: 0, // false alarm probability for the variable star
+      fluxFallback: false, // flag to indicate if flux fallback is used
+      excludedImages: [], // list of excluded images for the variable star
+    },
   }),
   getters: {
     // General
     imageProposalId: (state) => { return state.image.proposal_id},
     imageFilter: (state) => { return state.image.FILTER },
+    loading: (state) => { return state.imageScaleLoading || state.variableStarData.loading },
     // Histogram Editing
     imageScaleReady: (state) => state.imageWidth && state.imageHeight && state.rawData && state.zmin != null && state.zmax != null,
     histogram: (state) => { return state.rawData.histogram },
@@ -83,6 +92,12 @@ export const useAnalysisStore = defineStore('analysis', {
 
       await fetchApiCall({url: url, method: 'POST', body: requestBody,
         successCallback: (response) => {
+          if (response.data){
+            // data is up to 1M pixels, so mark raw to prevent Vue from deep watching it
+            // This is a performance optimization to avoid unnecessary reactivity
+            // and is safe because we don't mutate the rawData object directly.
+            response.data = markRaw(response.data)
+          }
           this.rawData = response
           this.zmin = response.zmin
           this.zmax = response.zmax
@@ -114,11 +129,36 @@ export const useAnalysisStore = defineStore('analysis', {
         }
       })
     },
-    setLightCurveData(data) {
-      this.lightCurve = data.light_curve
-      this.lightCurveTarget = data.target_coords
-      this.lightCurveLoading = false
-      console.log('light curve response, setLightCurveData(data)', this.lightCurve, this.lightCurveTarget)
+    setVariableStarData(data) {
+      const { light_curve, target_coords, period, fap, flux_fallback, excluded_images } = data
+
+      this.variableStarData = {
+        loading: false,
+        targetCoords: target_coords,
+        magTimeSeries: light_curve,
+        magPeriodogram: light_curve,
+        period: period,
+        falseAlarmProbability: fap,
+        fluxFallback: flux_fallback,
+        excludedImages: excluded_images,
+      }
+
+      function foldPeriod(magTimeSeries, period) {
+        // Perf testing shows precalculating the inverse is faster
+        const invPeriod = 1.0 / period
+  
+        for (let i = 0; i < magTimeSeries.length; i++) {
+          const mts = magTimeSeries[i]
+          mts.phase = (mts.julian_date % period) * invPeriod
+        }
+      }
+
+      foldPeriod(this.variableStarData.magTimeSeries, this.variableStarData.period)
+
+      // Sort the light curve data by phase
+      this.variableStarData.magPeriodogram = [...this.variableStarData.magTimeSeries].sort((a, b) => a.phase - b.phase)
+
+      this.variableStarData.loading = false
     }
   },
 })

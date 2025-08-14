@@ -7,33 +7,41 @@ import { useAnalysisStore } from '@/stores/analysis'
 const analysisStore = useAnalysisStore()
 const lightCurveCanvas = ref(null)
 let lightCurveChart = null
-const CHART_PADDING = 0.05
-
-watch(() => analysisStore.lightCurve, () => {
-  lightCurveChart && analysisStore.lightCurve ? updateChart() : createChart()
-})
+const CHART_PADDING = 0.5
+const DECIMAL_PLACES = 4
 
 const chartData = computed(() => {
-  const magnitudes = analysisStore.lightCurve.map(({ mag }) => mag)
-  const observationDates = analysisStore.lightCurve.map(({ observation_date }) => observation_date)
-  const errorBars = analysisStore.lightCurve.map(({ mag, magerr }) => [mag - magerr, mag + magerr])
+  const magTimeSeries = analysisStore.variableStarData.magTimeSeries
+
+  const dates = magTimeSeries.map(({ julian_date }) => julian_date)
+  const magnitudes = magTimeSeries.map(({ mag }) => mag.toFixed(DECIMAL_PLACES))
+  const errors = magTimeSeries.map(({ mag, magerr }) => {
+    const lowerBound = (mag - magerr).toFixed(DECIMAL_PLACES)
+    const upperBound = (mag + magerr).toFixed(DECIMAL_PLACES)
+    return [lowerBound, upperBound]
+  })
 
   return {
-    labels: observationDates,
-    magnitudeData: magnitudes,
-    errorData: errorBars,
+    dates: dates,
+    magnitudes: magnitudes,
+    errors: errors,
     chartMin: Math.min(...magnitudes) - CHART_PADDING,
     chartMax: Math.max(...magnitudes) + CHART_PADDING
   }
 })
 
+watch(() => analysisStore.variableStarData, () => {
+  lightCurveChart && analysisStore.variableStarData.magTimeSeries ? updateChart() : createChart()
+}, { deep: true})
+
 function updateChart() {
   // Updates the chart when user runs flux analysis again
-  lightCurveChart.data.labels = chartData.value.labels
-  lightCurveChart.data.datasets[0].data = chartData.value.magnitudeData
-  lightCurveChart.data.datasets[1].data = chartData.value.errorData
-  lightCurveChart.options.scales.y.min = chartData.value.chartMin
-  lightCurveChart.options.scales.y.max = chartData.value.chartMax
+  const { dates, magnitudes, errors, chartMin, chartMax } = chartData.value
+  lightCurveChart.data.labels = dates
+  lightCurveChart.data.datasets[0].data = magnitudes
+  lightCurveChart.data.datasets[1].data = errors
+  lightCurveChart.options.scales.y.min = chartMin
+  lightCurveChart.options.scales.y.max = chartMax
   lightCurveChart.update()
 }
 
@@ -46,14 +54,16 @@ function createChart() {
   const background = style.getPropertyValue('--secondary-background')
   const info = style.getPropertyValue('--info')
 
+  const { dates, magnitudes, errors, chartMin, chartMax } = chartData.value
+
   lightCurveChart = new Chart(lightCurveCanvas.value, {
     type: 'line',
     data: {
-      labels: chartData.value.labels,
+      labels: dates,
       datasets: [
         {
           label: 'Magnitude',
-          data: chartData.value.magnitudeData,
+          data: magnitudes,
           order: 0,
           // Line styling
           borderColor: primary,
@@ -68,7 +78,7 @@ function createChart() {
         },
         {
           label: 'Mag Error',
-          data: chartData.value.errorData,
+          data: errors,
           order: 1,
           type: 'bar',
           // Error bar styling
@@ -84,10 +94,10 @@ function createChart() {
       scales: {
         x: {
           type: 'timeseries',
-          title: { display: true, text: 'Observation Date', color: text },
+          title: { display: true, text: 'Date', color: text },
           border: { color: text, width: 2 },
           ticks: { color: text },
-          grid: { color: background },
+          grid: { color: background, tickColor: text},
           time: {
             unit: 'day',
             tooltipFormat: 'MMM dd hh:mm a',
@@ -97,12 +107,12 @@ function createChart() {
           }
         },
         y: {
-          min: chartData.value.chartMin,
-          max: chartData.value.chartMax,
+          min: chartMin,
+          max: chartMax,
           title: { display: true, text: 'Magnitude', color: text },
           border: { color: text, width: 2 },
           ticks: { color: text },
-          grid: { color: background },
+          grid: { color: background, tickColor: text},
         }
       },
       plugins: {

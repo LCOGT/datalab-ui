@@ -11,7 +11,9 @@ import ImageDownloadMenu from '@/components/Global/ImageDownloadMenu.vue'
 import FitsHeaderTable from '@/components/Analysis/FitsHeaderTable.vue'
 import ImageViewer from '@/components/Analysis/ImageViewer.vue'
 import LinePlot from '@/components/Analysis/LinePlot.vue'
-import VariableStarPlot from '@/components/Analysis/VariableStarPlot.vue'
+import PeriodPlot from '@/components/Analysis/PeriodPlot.vue'
+import LightCurvePlot from '@/components/Analysis/LightCurvePlot.vue'
+import { getActivePinia } from 'pinia'
 
 const props = defineProps({
   image: {
@@ -50,6 +52,14 @@ const filteredCatalog = computed(() => {
   )
 })
 
+const sideChartItems = computed(() => {
+  const chartItems = []
+  if (analysisStore.variableStarData.magPeriodogram?.length) chartItems.push('Periodogram')
+  if (analysisStore.variableStarData.magTimeSeries?.length) chartItems.push('Light Curve')
+  if (lineProfile.value?.length) chartItems.push('Line Profile')
+  return chartItems
+})
+
 onMounted(() => {
   analysisStore.image = props.image
   analysisStore.imageUrl = props.image.largeCachedUrl
@@ -59,7 +69,8 @@ onMounted(() => {
 
 onUnmounted(() => {
   imgWorker.terminate()
-  analysisStore.$reset()
+  analysisStore.$dispose()
+  delete getActivePinia().state.value[analysisStore.$id]
 })
 
 // This function runs when imageViewer emits an analysis-action event and should be extended to handle other analysis types
@@ -88,13 +99,15 @@ function handleAnalysisOutput(response, action, action_callback){
     catalog.value = response
     break
   case 'variable-star':
-    analysisStore.setLightCurveData(response)
-    sideChart.value = 'Light Curve'
+    analysisStore.setVariableStarData(response)
+    sideChart.value = 'Periodogram'
     break
   case 'get-tif':
+    // ImageDownloadMenu.vue downloadFile()
     action_callback(response.tif_url, props.image.basename, 'TIF')
     break
   case 'get-jpg':
+    // ImageDownloadMenu.vue downloadFile()
     action_callback(response.jpg_base64, props.image.basename, 'base64')
     break
   default:
@@ -114,10 +127,12 @@ async function instantiateScalerWorker(){
   imgScalingCanvas.height = analysisStore.imageHeight
   const offscreen = imgScalingCanvas.transferControlToOffscreen()
 
+  const rawDataCopy = JSON.parse(JSON.stringify(analysisStore.rawData))
+
   // Post the image data to the worker
   imgWorker.postMessage({
     canvas: offscreen,
-    imageData: structuredClone(analysisStore.rawData)
+    imageData: rawDataCopy,
   }, [offscreen])
 
   // Image creation for leaflet map, clean up the old image url
@@ -169,6 +184,13 @@ function updateScaling(min, max){
         @click="emit('closeAnalysisDialog')"
       />
     </v-toolbar>
+    <v-progress-linear
+      v-hide="!analysisStore.loading"
+      rounded
+      indeterminate
+      stream
+      color="var(--success)"
+    />
     <div class="analysis-content">
       <image-viewer
         :catalog="filteredCatalog"
@@ -178,7 +200,7 @@ function updateScaling(min, max){
         <v-expand-transition>
           <v-sheet
             v-if="catalog.length"
-            class="side-panel-item image-controls-sheet"
+            class="side-panel-item"
           >
             <div class="d-flex align-center mb-2">
               <v-btn
@@ -202,11 +224,11 @@ function updateScaling(min, max){
         </v-expand-transition>
         <v-expand-transition>
           <v-sheet
+            v-if="analysisStore.imageScaleReady"
             class="side-panel-item"
             rounded
           >
             <histogram-slider
-              v-if="analysisStore.imageScaleReady"
               :histogram="analysisStore.histogram"
               :bins="analysisStore.bins"
               :max-value="analysisStore.maxPixelValue"
@@ -214,30 +236,16 @@ function updateScaling(min, max){
               :z-max="Number(analysisStore.zmax)"
               @update-scaling="updateScaling"
             />
-            <div
-              v-else-if="analysisStore.imageScaleLoading"
-              class="d-flex ga-4 align-center justify-center"
-            >
-              <p class="d-block">
-                Histogram
-              </p>
-              <v-progress-linear
-                color="var(--success)"
-                :height="6"
-                indeterminate
-                rounded
-              />
-            </div>
           </v-sheet>
         </v-expand-transition>
         <v-expand-transition>
           <v-sheet
-            v-show="lineProfile.length || analysisStore.lightCurve"
+            v-show="lineProfile.length || analysisStore.variableStarData.magTimeSeries.length"
             class="side-panel-item"
           >
             <v-select
               v-model="sideChart"
-              :items="['Line Profile', 'Light Curve']"
+              :items="sideChartItems"
               variant="solo-filled"
               bg-color="var(--card-background)"
               density="compact"
@@ -250,7 +258,8 @@ function updateScaling(min, max){
               :end-coords="endCoords"
               :position-angle="positionAngle"
             />
-            <variable-star-plot v-show="analysisStore.lightCurve && sideChart === 'Light Curve'" />
+            <period-plot v-show="analysisStore.variableStarData.magPeriodogram.length && sideChart === 'Periodogram'" />
+            <light-curve-plot v-show="analysisStore.variableStarData.magTimeSeries.length && sideChart === 'Light Curve'" />
           </v-sheet>
         </v-expand-transition>
       </div>
