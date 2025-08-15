@@ -278,6 +278,7 @@ watch(
     v-model="showWizardDialog"
     fullscreen
     transition="dialog-bottom-transition"
+    z-index="999"
   >
     <operation-wizard
       :images="images"
