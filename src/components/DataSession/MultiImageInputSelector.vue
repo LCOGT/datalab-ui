@@ -32,6 +32,12 @@ const columnSize = computed(() => {
   return Math.floor(12 / inputCount)
 })
 
+const validInputImages = computed(() => {
+  return props.images.filter(image => {
+    return image.type == null || image.type == 'fits'
+  })
+})
+
 onMounted(() => {
   imageDetails.value = reloadImages(props.images)
 })
@@ -134,7 +140,7 @@ function colorFromInput(inputKey) {
       >
         <v-card-text>
           <drop-list
-            :items="props.images"
+            :items="validInputImages"
             mode="cut"
             :row="true"
             :no-animations="true"
