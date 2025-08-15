@@ -1,91 +1,86 @@
-<script>
+<script setup>
 import { useThumbnailsStore } from '@/stores/thumbnails'
 import { useConfigurationStore } from '@/stores/configuration'
 import { filterToColor } from '@/utils/common'
 import ThumbnailImage from '@/components/Global/ThumbnailImage.vue'
 import {Drag,DropList} from 'vue-easy-dnd'
-import { ref } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 
-export default {
-  name: 'MultiImageInputSelector',
-  components: {
-    Drag, DropList, ThumbnailImage
+const props = defineProps({
+  inputDescriptions: {
+    type: Object,
+    default: () => {}
   },
-  props: {
-    inputDescriptions: {
-      type: Object,
-      default: () => {}
-    },
-    selectedImages: {
-      type: Object,
-      default: () => {}
-    },
-    images: {
-      type: Array,
-      default: () => []
-    }
+  selectedImages: {
+    type: Object,
+    default: () => {}
   },
-  emits: ['insertSelectedImage', 'removeSelectedImage'],
-  data: function () {
-    return {
-      thumbnailsStore: useThumbnailsStore(),
-      configurationStore: useConfigurationStore(),
-      imageDetails: {}
-    }
-  },
-  computed: {
-    columnSize: function() {
-      const inputCount = Object.keys(this.inputDescriptions).length
-      return Math.floor(12 / inputCount)
-    }
-  },
-  mounted() {
-    this.imageDetails = this.reloadImages(this.images)
-  },
-  methods: {
-    insert(inputKey, event) {
-      if (inputKey !== 'all' && ! this.selectedImages[inputKey].includes(event.data)) {
-        this.$emit('insertSelectedImage', inputKey, event.data)
-      }
-    },
-    remove(inputKey, value) {
-      if (inputKey !== 'all') {
-        this.$emit('removeSelectedImage', inputKey, value)
-      }
-    },
-    reloadImages(newImages) {
-      let newImageDetails = {}
-      newImages.forEach(image => {
-        if (image.basename && !(image.basename in newImageDetails)) {
-          newImageDetails[image.basename] = ref('')
-          const url = image.smallThumbUrl || image.small_url ||''
-          this.thumbnailsStore.cacheImage('small', this.configurationStore.archiveType, url, image.basename).then((cachedUrl) => {
-            newImageDetails[image.basename].value = cachedUrl
-          })
-        }
-      })
-      return newImageDetails
-    },
-    colorFromInput(inputKey) {
-      if (this.inputDescriptions[inputKey].filter) {
-        return filterToColor(this.inputDescriptions[inputKey].filter[0])
-      }
-      return 'white'
-    }
-  },
+  images: {
+    type: Array,
+    default: () => []
+  }
+})
+
+const emit = defineEmits(['insertSelectedImage', 'removeSelectedImage'])
+
+const thumbnailsStore = useThumbnailsStore()
+const configurationStore = useConfigurationStore()
+var imageDetails = ref({})
+
+const columnSize = computed(() => {
+  const inputCount = Object.keys(props.inputDescriptions).length
+  return Math.floor(12 / inputCount)
+})
+
+onMounted(() => {
+  imageDetails.value = reloadImages(props.images)
+})
+
+function insert(inputKey, event) {
+  if (inputKey !== 'all' && ! props.selectedImages[inputKey].includes(event.data)) {
+    emit('insertSelectedImage', inputKey, event.data)
+  }
 }
+
+function remove(inputKey, value) {
+  if (inputKey !== 'all') {
+    emit('removeSelectedImage', inputKey, value)
+  }
+}
+
+function reloadImages(newImages) {
+  let newImageDetails = {}
+  newImages.forEach(image => {
+    if (image.basename && !(image.basename in newImageDetails)) {
+      newImageDetails[image.basename] = ref('')
+      const url = image.smallThumbUrl || image.small_url ||''
+      thumbnailsStore.cacheImage('small', configurationStore.archiveType, url, image.basename).then((cachedUrl) => {
+        newImageDetails[image.basename].value = cachedUrl
+      })
+    }
+  })
+  return newImageDetails
+}
+
+function colorFromInput(inputKey) {
+  if (props.inputDescriptions[inputKey].filter) {
+    return filterToColor(props.inputDescriptions[inputKey].filter[0])
+  }
+  return 'white'
+}
+
 </script>
 
 <template>
   <v-row>
     <v-col
-      v-for="inputKey in Object.keys(inputDescriptions)"
+      v-for="inputKey in Object.keys(props.inputDescriptions)"
       :key="inputKey"
       :cols="columnSize"
       class="drop-section"
     >
       <v-card
-        :title="'Selected ' + inputDescriptions[inputKey].name + ':'"
+        :title="'Selected ' + props.inputDescriptions[inputKey].name + ':'"
         variant="outlined"
         density="compact"
         elevation="0"
@@ -93,7 +88,7 @@ export default {
       >
         <v-card-text>
           <drop-list
-            :items="selectedImages[inputKey]"
+            :items="props.selectedImages[inputKey]"
             mode="cut"
             :row="true"
             class="drop-section"
@@ -139,7 +134,7 @@ export default {
       >
         <v-card-text>
           <drop-list
-            :items="images"
+            :items="props.images"
             mode="cut"
             :row="true"
             :no-animations="true"
