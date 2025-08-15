@@ -39,6 +39,9 @@ export default {
       return Math.floor(12 / inputCount)
     }
   },
+  mounted() {
+    this.imageDetails = this.reloadImages(this.images)
+  },
   methods: {
     insert(inputKey, event) {
       if (inputKey !== 'all' && ! this.selectedImages[inputKey].includes(event.data)) {
@@ -70,68 +73,103 @@ export default {
       return 'white'
     }
   },
-  mounted() {
-    this.imageDetails = this.reloadImages(this.images)
-  },
 }
 </script>
 
 <template>
   <v-row>
     <v-col
-      v-for="inputKey in Object.keys(this.inputDescriptions)"
+      v-for="inputKey in Object.keys(inputDescriptions)"
       :key="inputKey"
       :cols="columnSize"
       class="drop-section"
     >
-    <v-card :title="'Selected ' + this.inputDescriptions[inputKey].name + ':'" variant="outlined" density="compact" elevation="0" :color="colorFromInput(inputKey)">
-      <v-card-text>
-        <drop-list :items="this.selectedImages[inputKey]" @insert="insert(inputKey, $event)" mode="cut" :row="true" class="drop-section">
-          <template v-slot:item="{item}">
-            <drag :key="inputKey + '-' + item.basename" :data="item" @cut="remove(inputKey, item)" class="m-1 fill-width">
+      <v-card
+        :title="'Selected ' + inputDescriptions[inputKey].name + ':'"
+        variant="outlined"
+        density="compact"
+        elevation="0"
+        :color="colorFromInput(inputKey)"
+      >
+        <v-card-text>
+          <drop-list
+            :items="selectedImages[inputKey]"
+            mode="cut"
+            :row="true"
+            class="drop-section"
+            @insert="insert(inputKey, $event)"
+          >
+            <template #item="{item}">
+              <drag
+                :key="inputKey + '-' + item.basename"
+                :data="item"
+                class="m-1 fill-width"
+                @cut="remove(inputKey, item)"
+              >
+                <thumbnail-image
+                  :image="item"
+                  :image-url="imageDetails[item.basename]"
+                  :enable-image-cards="false"
+                  :enable-removal="true"
+                  @remove-image="remove(inputKey, $event)"
+                />
+              </drag>
+            </template>
+            <template #feedback="{data}">
               <thumbnail-image
-                :image="item"
-                :image-url="this.imageDetails[item.basename]"
-                :enable-image-cards="false"
-                :enable-removal="true"
-                @remove-image="remove(inputKey, $event)"
-              ></thumbnail-image>
-            </drag>
-          </template>
-          <template v-slot:feedback="{data}">
-            <thumbnail-image
-                :image="data"
-                :image-url="this.imageDetails[data.basename]"
-                :enable-image-cards="false"
-                :enable-removal="true"
-                @remove-image="remove(inputKey, $event)"
                 :key="inputKey + '-' + data.basename + '-feedback'"
-              ></thumbnail-image>
-          </template>
-        </drop-list>
-      </v-card-text>
-    </v-card>
+                :image="data"
+                :image-url="imageDetails[data.basename]"
+                :enable-image-cards="false"
+                :enable-removal="true"
+                @remove-image="remove(inputKey, $event)"
+              />
+            </template>
+          </drop-list>
+        </v-card-text>
+      </v-card>
     </v-col>
   </v-row>
   <v-row>
-    <v-col v-if="this.imageDetails">
-      <v-card title="Select Images from:" variant="outlined" density="compact">
+    <v-col v-if="imageDetails">
+      <v-card
+        title="Select Images from:"
+        variant="outlined"
+        density="compact"
+      >
         <v-card-text>
-          <drop-list :items="this.images" @insert="insert('all', $event)" mode="cut" :row="true" :no-animations="true">
-            <template v-slot:item="{item}">
-              <drag :key="'all-' + item.basename" :data="item" @cut="remove('all', item)" class="m-2 list-image">
+          <drop-list
+            :items="images"
+            mode="cut"
+            :row="true"
+            :no-animations="true"
+            @insert="insert('all', $event)"
+          >
+            <template #item="{item}">
+              <drag
+                :key="'all-' + item.basename"
+                :data="item"
+                class="m-2 list-image"
+                @cut="remove('all', item)"
+              >
                 <thumbnail-image
                   :image="item"
-                  :image-url="this.imageDetails[item.basename]"
+                  :image-url="imageDetails[item.basename]"
                   :enable-image-cards="false"
-                ></thumbnail-image>
+                />
               </drag>
             </template>
-            <template v-slot:feedback="{data}">
-              <div class="list-image" :key="'all-' + data.basename + '-feedback'"></div>
+            <template #feedback="{data}">
+              <div
+                :key="'all-' + data.basename + '-feedback'"
+                class="list-image"
+              />
             </template>
-            <template v-slot:reordering-feedback="{item}">
-              <div class="list-image" :key="'all-' + item.basename + '-reordering-feedback'"></div>
+            <template #reordering-feedback="{item}">
+              <div
+                :key="'all-' + item.basename + '-reordering-feedback'"
+                class="list-image"
+              />
             </template>
           </drop-list>
         </v-card-text>

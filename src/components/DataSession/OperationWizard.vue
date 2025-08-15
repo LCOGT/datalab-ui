@@ -250,13 +250,12 @@ function removeSelectedImage(inputKey, image) {
       >
         <div class="operation-input-wrapper">
           <multi-image-input-selector
-            :inputDescriptions="imageInputDescriptions"
-            :selectedImages="operationInputs"
+            :input-descriptions="imageInputDescriptions"
+            :selected-images="operationInputs"
             :images="props.images"
             @insert-selected-image="insertSelectedImage"
             @remove-selected-image="removeSelectedImage"
-          >
-          </multi-image-input-selector>
+          />
         </div>
         <div
           v-for="(inputDescription, inputKey) in inputDescriptions"
