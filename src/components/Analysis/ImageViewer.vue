@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref, nextTick, watch } from 'vue'
+import { onMounted, ref, nextTick, watch, computed } from 'vue'
 import L from 'leaflet'
 import '@geoman-io/leaflet-geoman-free'
 import '@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css'
@@ -19,6 +19,7 @@ const props = defineProps({
 
 const emit = defineEmits(['analysisAction'])
 
+// Leaflet map
 let imageMap = null
 let imageBounds = null
 let imageOverlay = null
@@ -27,13 +28,27 @@ let catalogLayerGroup = null
 const imageWidth = ref(0)
 const imageHeight = ref(0)
 const leafletDiv = ref(null)
+// Hover chip
+const isHoveringLeaflet = ref(false)
+const mousePos = ref({ x: 0, y: 0 })
+const latlng = ref({ lat: 0, lng: 0 })
 const alerts = useAlertsStore()
 const analysisStore = useAnalysisStore()
 const showVariableStarDialog = ref(false)
 const variableTargetCoords = ref({ ra: null, dec: null })
 
+const chipStyle = computed(() => {
+  return {
+    position: 'fixed',
+    left: `${mousePos.value.x}px`,
+    top: `${mousePos.value.y}px`,
+    zIndex: 2000,
+  }
+})
+
 onMounted(() => {
-  leafletSetup()
+  createMap()
+  addMapHandlers()
 })
 
 watch(() => props.catalog, () => createCatalogLayer())
@@ -49,7 +64,13 @@ async function initImageOverlay(imgSrc) {
   imageHeight.value = img.height
 
   // Fetch catalog only if empty
-  if (!props.catalog.length) fetchCatalog()
+  if (!props.catalog.length){
+    const catalogInput = {
+      width: imageWidth.value,
+      height: imageHeight.value
+    }
+    emit('analysisAction', 'source-catalog', catalogInput)
+  }
 
   imageBounds = [[0, 0], [imageHeight.value, imageWidth.value]]
   imageOverlay = L.imageOverlay(imgSrc, imageBounds).addTo(imageMap)
@@ -66,7 +87,7 @@ async function initImageOverlay(imgSrc) {
   })
 }
 
-function leafletSetup(){
+function createMap(){
   // Create leaflet map (here referred to as image)
   imageMap = L.map(leafletDiv.value, {
     maxZoom: 5,
@@ -105,14 +126,15 @@ function leafletSetup(){
     drawPolygon: false,
     drawText: false,
     drawRectangle: false,
-    editMode: true,
+    editMode: false,
     dragMode: false,
     cutPolygon: false,
     rotateMode: false,
-    removalMode: true
+    removalMode: false
   })
+}
 
-  // Logic to only allow the user to draw one line with two points
+function addMapHandlers() {
   imageMap.on('pm:drawstart', ({ workingLayer }) => {
     // Remove last drawn line when starting new one
     if (lineLayer && imageMap.hasLayer(lineLayer)) {
@@ -128,25 +150,20 @@ function leafletSetup(){
 
   // Requests a Line Profile when a line is drawn/edited
   imageMap.on('pm:create', (e) => {
-    // Save last drawn line
     lineLayer = e.layer
-    lineLayer.on('pm:edit', handleEdit)
     requestLineProfile(lineLayer.getLatLngs())
   })
-}
 
-// Adjusts the point to be within the bounds of the image
-function adjustToBounds(point) {
-  const lat = Math.max(0, Math.min(imageBounds[1][0], point.lat))
-  const lng = Math.max(0, Math.min(imageBounds[1][1], point.lng))
-  return L.latLng(lat, lng)
-}
-
-// Adjust edited lines to bounds and requests line profile
-function handleEdit() {
-  const boundedLatLngs = lineLayer.getLatLngs().map(adjustToBounds)
-  lineLayer.setLatLngs(boundedLatLngs)
-  requestLineProfile(lineLayer.getLatLngs())
+  imageMap.on('mousemove', (e) => {
+    //console.log(e.originalEvent)
+    //console.log(e.latlng.lat, e.latlng.lng)
+    const mouseMove = e.originalEvent
+    // Add a slight delay for a "following" effect
+    setTimeout(() => {
+      mousePos.value = { x: mouseMove.pageX, y: mouseMove.pageY }
+      latlng.value = { lat: e.latlng.lat, lng: e.latlng.lng }
+    }, 20)
+  })
 }
 
 // Event handler for drawn lines, emits an action that will trigger an api call in the parent
@@ -217,20 +234,21 @@ function createCatalogLayer(){
   }
 }
 
-function fetchCatalog(){
-  const catalogInput = {
-    width: imageWidth.value,
-    height: imageHeight.value
-  }
-  emit('analysisAction', 'source-catalog', catalogInput)
-}
-
 </script>
 <template>
   <div
     ref="leafletDiv"
     :style="{ width: imageWidth + 'px' }"
+    @mouseenter="isHoveringLeaflet = true"
+    @mouseleave="isHoveringLeaflet = false"
   />
+  <v-chip
+    v-show="isHoveringLeaflet"
+    :style="chipStyle"
+    color="var(--info)"
+  >
+    Ra: {{ latlng.lat }}, Dec: {{ latlng.lng }}
+  </v-chip>
   <v-dialog
     v-model="showVariableStarDialog"
     width="600px"
@@ -249,19 +267,9 @@ function fetchCatalog(){
   filter: invert(1);
 }
 
-.leaflet-pm-toolbar .leaflet-pm-icon-delete {
-  background-image: url('../../assets/images/delete.svg');
-  filter: invert(1);
-}
-
 .leaflet-pm-toolbar .leaflet-pm-icon-polyline {
   background-image: url('../../assets/images/vector-line.svg');
   filter: invert(1);
-}
-
-.leaflet-pm-toolbar .leaflet-pm-icon-edit {
-  background-image: url('../../assets/images/vector-polyline-edit.svg');
-  filter: invert(1); /* Adjust the color of the background image */
 }
 /* Custom styling for toolbar */
 
