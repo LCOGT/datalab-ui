@@ -6,12 +6,18 @@ import '@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css'
 import 'leaflet/dist/leaflet.css'
 import { useAlertsStore } from '@/stores/alerts'
 import { useAnalysisStore } from '@/stores/analysis'
-import { loadImage } from '@/utils/common'
+import { loadImage, scalePoint } from '@/utils/common'
+import WCS from '@/utils/wcs'
 import VariableStarDialog from './VariableStarDialog.vue'
 
 const props = defineProps({
   catalog: {
     type: Array,
+    required: false,
+    default: null,
+  },
+  wcsSolution: {
+    type: Object,
     required: false,
     default: null,
   }
@@ -24,14 +30,13 @@ let imageMap = null
 let imageBounds = null
 let imageOverlay = null
 let lineLayer = null
+let wcs = null
 let catalogLayerGroup = null
-const imageWidth = ref(0)
-const imageHeight = ref(0)
+let imageDimensions = ref({ width: 0, height: 0 })
 const leafletDiv = ref(null)
-// Hover chip
 const isHoveringLeaflet = ref(false)
 const mousePos = ref({ x: 0, y: 0 })
-const latlng = ref({ lat: 0, lng: 0 })
+const raDec = ref({ ra: 0, dec: 0 })
 const alerts = useAlertsStore()
 const analysisStore = useAnalysisStore()
 const showVariableStarDialog = ref(false)
@@ -60,19 +65,21 @@ watch(() => analysisStore.imageUrl, (newImageUrl) => {
 // Loads image overlay and sets bounds
 async function initImageOverlay(imgSrc) {
   const img = await loadImage(imgSrc)
-  imageWidth.value = img.width
-  imageHeight.value = img.height
+  imageDimensions.value = { width: img.width, height: img.height }
 
   // Fetch catalog only if empty
   if (!props.catalog.length){
     const catalogInput = {
-      width: imageWidth.value,
-      height: imageHeight.value
+      width: imageDimensions.value.width,
+      height: imageDimensions.value.height,
     }
     emit('analysisAction', 'source-catalog', catalogInput)
   }
 
-  imageBounds = [[0, 0], [imageHeight.value, imageWidth.value]]
+  // Fetch WCS data for pix to world transformation
+  emit('analysisAction', 'wcs')
+
+  imageBounds = [[0, 0], [imageDimensions.value.height, imageDimensions.value.width]]
   imageOverlay = L.imageOverlay(imgSrc, imageBounds).addTo(imageMap)
 
   /**
@@ -154,14 +161,32 @@ function addMapHandlers() {
     requestLineProfile(lineLayer.getLatLngs())
   })
 
-  imageMap.on('mousemove', (e) => {
-    //console.log(e.originalEvent)
-    //console.log(e.latlng.lat, e.latlng.lng)
-    const mouseMove = e.originalEvent
-    // Add a slight delay for a "following" effect
+  // Handler for displaying ra, dec coordinates when hovering over the image
+  imageMap.on('click', (e) => {
+    // If we don't have a WCS solution, we can't display coordinates
+    if(!props.wcsSolution) return
+
+    // Initialize WCS helper class if not already done
+    if(!wcs){
+      const { crval, crpix, cd1, cd2, fits_dimensions } = props.wcsSolution
+      wcs = new WCS(crval[0], crval[1], crpix[0], crpix[1], cd1[0], cd1[1], cd2[0], cd2[1], fits_dimensions)
+    }
+
     setTimeout(() => {
+      const mouseMove = e.originalEvent
       mousePos.value = { x: mouseMove.pageX, y: mouseMove.pageY }
-      latlng.value = { lat: e.latlng.lat, lng: e.latlng.lng }
+
+      const fitsWidth = wcs.fits_dimensions[0]
+      const fitsHeight = wcs.fits_dimensions[1]
+
+      const imageX = e.latlng.lat
+      const imageY = e.latlng.lng
+
+      const {x, y} = scalePoint(imageDimensions.value.width, imageDimensions.value.height, fitsWidth, fitsHeight, imageX, imageY)
+
+      const ra = wcs.pixelToRa(x, y)
+      const dec = wcs.pixelToDec(x, y)
+      raDec.value = { ra, dec }
     }, 20)
   })
 }
@@ -174,14 +199,12 @@ function requestLineProfile(latLngs) {
     return
   }
 
-  const startCoordinates = { x1: latLngs[0].lat, y1: latLngs[0].lng }
-  const endCoordinates = { x2: latLngs[1].lat, y2: latLngs[1].lng }
-  const imageSize = {width: imageWidth.value, height: imageHeight.value}
-
   const lineProfileInput = {
-    ...startCoordinates,
-    ...endCoordinates,
-    ...imageSize
+    x1: latLngs[0].lat,
+    y1: latLngs[0].lng,
+    x2: latLngs[1].lat,
+    y2: latLngs[1].lng,
+    ...imageDimensions.value
   }
 
   emit('analysisAction', 'line-profile', lineProfileInput)
@@ -197,20 +220,16 @@ function createCatalogLayer(){
       <b>Flux:</b> ${source.flux ?? 'N/A'}<br>
       <b>Ra:</b> ${source.ra ?? 'N/A'}<br>
       <b>Dec:</b> ${source.dec ?? 'N/A'}<br>
+      <button class="variableAnalysisButton">Light Curve</button>
     `
-    // Marker popup button for variable star analysis
-    const button = document.createElement('button')
-    button.innerHTML = 'Light Curve'
-    button.className = 'variableAnalysisButton'
-    button.addEventListener('click',() => {
+
+    div.querySelector('button').addEventListener('click',() => {
       showVariableStarDialog.value = true
       variableTargetCoords.value = {
         ra: source.ra,
         dec: source.dec
       }
     })
-
-    div.appendChild(button)
 
     // Create a circle marker for the source
     return new L.Circle([source.y, source.x], {
@@ -238,16 +257,16 @@ function createCatalogLayer(){
 <template>
   <div
     ref="leafletDiv"
-    :style="{ width: imageWidth + 'px' }"
+    :style="{ width: imageDimensions.width + 'px' }"
     @mouseenter="isHoveringLeaflet = true"
     @mouseleave="isHoveringLeaflet = false"
   />
   <v-chip
-    v-show="isHoveringLeaflet"
+    v-show="isHoveringLeaflet && wcs"
     :style="chipStyle"
     color="var(--info)"
   >
-    Ra: {{ latlng.lat }}, Dec: {{ latlng.lng }}
+    Ra: {{ raDec.ra }}, Dec: {{ raDec.dec }}
   </v-chip>
   <v-dialog
     v-model="showVariableStarDialog"
