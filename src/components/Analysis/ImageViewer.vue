@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref, nextTick, watch, computed } from 'vue'
+import { onMounted, ref, nextTick, watch } from 'vue'
 import L from 'leaflet'
 import '@geoman-io/leaflet-geoman-free'
 import '@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css'
@@ -35,21 +35,11 @@ let catalogLayerGroup = null
 let imageDimensions = ref({ width: 0, height: 0 })
 const leafletDiv = ref(null)
 const isHoveringLeaflet = ref(false)
-const mousePos = ref({ x: 0, y: 0 })
 const raDec = ref({ ra: 0, dec: 0 })
 const alerts = useAlertsStore()
 const analysisStore = useAnalysisStore()
 const showVariableStarDialog = ref(false)
 const variableTargetCoords = ref({ ra: null, dec: null })
-
-const chipStyle = computed(() => {
-  return {
-    position: 'fixed',
-    left: `${mousePos.value.x}px`,
-    top: `${mousePos.value.y}px`,
-    zIndex: 2000,
-  }
-})
 
 onMounted(() => {
   createMap()
@@ -162,7 +152,7 @@ function addMapHandlers() {
   })
 
   // Handler for displaying ra, dec coordinates when hovering over the image
-  imageMap.on('click', (e) => {
+  imageMap.on('mousemove', (e) => {
     // If we don't have a WCS solution, we can't display coordinates
     if(!props.wcsSolution) return
 
@@ -173,14 +163,11 @@ function addMapHandlers() {
     }
 
     setTimeout(() => {
-      const mouseMove = e.originalEvent
-      mousePos.value = { x: mouseMove.pageX, y: mouseMove.pageY }
-
       const fitsWidth = wcs.fits_dimensions[0]
       const fitsHeight = wcs.fits_dimensions[1]
 
-      const imageX = e.latlng.lat
-      const imageY = e.latlng.lng
+      const imageX = e.latlng.lng
+      const imageY = e.latlng.lat
 
       const {x, y} = scalePoint(imageDimensions.value.width, imageDimensions.value.height, fitsWidth, fitsHeight, imageX, imageY)
 
@@ -257,17 +244,24 @@ function createCatalogLayer(){
 <template>
   <div
     ref="leafletDiv"
+    class="position-relative"
     :style="{ width: imageDimensions.width + 'px' }"
     @mouseenter="isHoveringLeaflet = true"
     @mouseleave="isHoveringLeaflet = false"
-  />
-  <v-chip
-    v-show="isHoveringLeaflet && wcs"
-    :style="chipStyle"
-    color="var(--info)"
   >
-    Ra: {{ raDec.ra }}, Dec: {{ raDec.dec }}
-  </v-chip>
+    <v-fade-transition>
+      <v-chip
+        v-show="isHoveringLeaflet && props.wcsSolution"
+        :style="{ zIndex: 2000, color: 'var(--text)' }"
+        class="position-absolute ma-2 top-0 right-0 elevation-2"
+        color="var(--primary-interactive)"
+        variant="flat"
+        prepend-icon="mdi-crosshairs"
+      >
+        Ra: {{ raDec.ra.toFixed(6) }}, Dec: {{ raDec.dec.toFixed(6) }}
+      </v-chip>
+    </v-fade-transition>
+  </div>
   <v-dialog
     v-model="showVariableStarDialog"
     width="600px"
