@@ -37,6 +37,7 @@ const catalog = ref([])
 const sideChart = ref('')
 const fluxSliderRange = ref([0, 10000])
 const positionAngle = ref()
+const wcsSolution = ref()
 const showHeaderDialog = ref(false)
 const imgWorker = new Worker('drawImageWorker.js')
 let imgWorkerProcessing = false
@@ -74,7 +75,7 @@ onUnmounted(() => {
 })
 
 // This function runs when imageViewer emits an analysis-action event and should be extended to handle other analysis types
-function requestAnalysis(action, input, action_callback=null){
+function requestAnalysis(action, input={}, action_callback=null){
   const url = configStore.datalabApiBaseUrl + 'analysis/' + action + '/'
   const body = {
     'basename': props.image.basename,
@@ -97,6 +98,9 @@ function handleAnalysisOutput(response, action, action_callback){
     break
   case 'source-catalog':
     catalog.value = response
+    break
+  case 'wcs':
+    wcsSolution.value = response
     break
   case 'variable-star':
     analysisStore.setVariableStarData(response)
@@ -194,6 +198,7 @@ function updateScaling(min, max){
     <div class="analysis-content">
       <image-viewer
         :catalog="filteredCatalog"
+        :wcs-solution="wcsSolution"
         @analysis-action="requestAnalysis"
       />
       <div class="side-panel-container">
@@ -210,7 +215,7 @@ function updateScaling(min, max){
                 density="compact"
                 icon="mdi-flare"
                 :color="userDataStore.catalogToggle ? 'var(--primary-interactive)' : 'var(--disabled-text)'"
-                @click="() => userDataStore.catalogToggle = !userDataStore.catalogToggle"
+                @click="userDataStore.catalogToggle = !userDataStore.catalogToggle"
               />
               <b>{{ filteredCatalog.length }} Sources in flux range</b>
             </div>

@@ -53,6 +53,13 @@ function initializeDate(dateString = 'none', defaultOffsetDays = 0) {
   return isNaN(date.getTime()) ? new Date(Date.now() + defaultOffsetDays * 24 * 3600 * 1000) : date
 }
 
+function scalePoint(width1, height1, width2, height2, x, y){
+  return {
+    x: (x / width1) * width2,
+    y: (y / height1) * height2
+  }
+}
+
 // Utility function to load an image
 function loadImage(src) {
   return new Promise((resolve, reject) => {
@@ -63,4 +70,4 @@ function loadImage(src) {
   })
 }
 
-export { calculateColumnSpan, siteIDToName, initializeDate, filterToPixelIndex, filterToColor, loadImage }
+export { calculateColumnSpan, siteIDToName, initializeDate, filterToPixelIndex, filterToColor, loadImage, scalePoint }
