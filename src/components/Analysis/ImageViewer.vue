@@ -6,7 +6,8 @@ import '@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css'
 import 'leaflet/dist/leaflet.css'
 import { useAlertsStore } from '@/stores/alerts'
 import { useAnalysisStore } from '@/stores/analysis'
-import { loadImage } from '@/utils/common'
+import { loadImage, scalePoint } from '@/utils/common'
+import WCS from '@/utils/wcs'
 import VariableStarDialog from './VariableStarDialog.vue'
 
 const props = defineProps({
@@ -14,26 +15,35 @@ const props = defineProps({
     type: Array,
     required: false,
     default: null,
+  },
+  wcsSolution: {
+    type: Object,
+    required: false,
+    default: null,
   }
 })
 
 const emit = defineEmits(['analysisAction'])
 
+// Leaflet map
 let imageMap = null
 let imageBounds = null
 let imageOverlay = null
 let lineLayer = null
+let wcs = null
 let catalogLayerGroup = null
-const imageWidth = ref(0)
-const imageHeight = ref(0)
+let imageDimensions = ref({ width: 0, height: 0 })
 const leafletDiv = ref(null)
+const isHoveringLeaflet = ref(false)
+const raDec = ref({ ra: 0, dec: 0 })
 const alerts = useAlertsStore()
 const analysisStore = useAnalysisStore()
 const showVariableStarDialog = ref(false)
 const variableTargetCoords = ref({ ra: null, dec: null })
 
 onMounted(() => {
-  leafletSetup()
+  createMap()
+  addMapHandlers()
 })
 
 watch(() => props.catalog, () => createCatalogLayer())
@@ -45,13 +55,21 @@ watch(() => analysisStore.imageUrl, (newImageUrl) => {
 // Loads image overlay and sets bounds
 async function initImageOverlay(imgSrc) {
   const img = await loadImage(imgSrc)
-  imageWidth.value = img.width
-  imageHeight.value = img.height
+  imageDimensions.value = { width: img.width, height: img.height }
 
   // Fetch catalog only if empty
-  if (!props.catalog.length) fetchCatalog()
+  if (!props.catalog.length){
+    const catalogInput = {
+      width: imageDimensions.value.width,
+      height: imageDimensions.value.height,
+    }
+    emit('analysisAction', 'source-catalog', catalogInput)
+  }
 
-  imageBounds = [[0, 0], [imageHeight.value, imageWidth.value]]
+  // Fetch WCS data for pix to world transformation
+  emit('analysisAction', 'wcs')
+
+  imageBounds = [[0, 0], [imageDimensions.value.height, imageDimensions.value.width]]
   imageOverlay = L.imageOverlay(imgSrc, imageBounds).addTo(imageMap)
 
   /**
@@ -66,7 +84,7 @@ async function initImageOverlay(imgSrc) {
   })
 }
 
-function leafletSetup(){
+function createMap(){
   // Create leaflet map (here referred to as image)
   imageMap = L.map(leafletDiv.value, {
     maxZoom: 5,
@@ -105,14 +123,15 @@ function leafletSetup(){
     drawPolygon: false,
     drawText: false,
     drawRectangle: false,
-    editMode: true,
+    editMode: false,
     dragMode: false,
     cutPolygon: false,
     rotateMode: false,
-    removalMode: true
+    removalMode: false
   })
+}
 
-  // Logic to only allow the user to draw one line with two points
+function addMapHandlers() {
   imageMap.on('pm:drawstart', ({ workingLayer }) => {
     // Remove last drawn line when starting new one
     if (lineLayer && imageMap.hasLayer(lineLayer)) {
@@ -128,25 +147,33 @@ function leafletSetup(){
 
   // Requests a Line Profile when a line is drawn/edited
   imageMap.on('pm:create', (e) => {
-    // Save last drawn line
     lineLayer = e.layer
-    lineLayer.on('pm:edit', handleEdit)
     requestLineProfile(lineLayer.getLatLngs())
   })
-}
 
-// Adjusts the point to be within the bounds of the image
-function adjustToBounds(point) {
-  const lat = Math.max(0, Math.min(imageBounds[1][0], point.lat))
-  const lng = Math.max(0, Math.min(imageBounds[1][1], point.lng))
-  return L.latLng(lat, lng)
-}
+  // Handler for displaying ra, dec coordinates when hovering over the image
+  imageMap.on('mousemove', (e) => {
+    // If we don't have a WCS solution, we can't display coordinates
+    if(!props.wcsSolution) return
 
-// Adjust edited lines to bounds and requests line profile
-function handleEdit() {
-  const boundedLatLngs = lineLayer.getLatLngs().map(adjustToBounds)
-  lineLayer.setLatLngs(boundedLatLngs)
-  requestLineProfile(lineLayer.getLatLngs())
+    // Initialize WCS helper class if not already done
+    if(!wcs){
+      const { crval, crpix, cd1, cd2, fits_dimensions } = props.wcsSolution
+      wcs = new WCS(crval[0], crval[1], crpix[0], crpix[1], cd1[0], cd1[1], cd2[0], cd2[1], fits_dimensions)
+    }
+
+    const fitsWidth = wcs.fits_dimensions[0]
+    const fitsHeight = wcs.fits_dimensions[1]
+
+    const imageX = e.latlng.lng
+    const imageY = e.latlng.lat
+
+    const {x, y} = scalePoint(imageDimensions.value.width, imageDimensions.value.height, fitsWidth, fitsHeight, imageX, imageY)
+
+    const ra = wcs.pixelToRa(x, y)
+    const dec = wcs.pixelToDec(x, y)
+    raDec.value = { ra, dec }
+  })
 }
 
 // Event handler for drawn lines, emits an action that will trigger an api call in the parent
@@ -157,14 +184,12 @@ function requestLineProfile(latLngs) {
     return
   }
 
-  const startCoordinates = { x1: latLngs[0].lat, y1: latLngs[0].lng }
-  const endCoordinates = { x2: latLngs[1].lat, y2: latLngs[1].lng }
-  const imageSize = {width: imageWidth.value, height: imageHeight.value}
-
   const lineProfileInput = {
-    ...startCoordinates,
-    ...endCoordinates,
-    ...imageSize
+    x1: latLngs[0].lat,
+    y1: latLngs[0].lng,
+    x2: latLngs[1].lat,
+    y2: latLngs[1].lng,
+    ...imageDimensions.value
   }
 
   emit('analysisAction', 'line-profile', lineProfileInput)
@@ -180,20 +205,16 @@ function createCatalogLayer(){
       <b>Flux:</b> ${source.flux ?? 'N/A'}<br>
       <b>Ra:</b> ${source.ra ?? 'N/A'}<br>
       <b>Dec:</b> ${source.dec ?? 'N/A'}<br>
+      <button class="variableAnalysisButton">Light Curve</button>
     `
-    // Marker popup button for variable star analysis
-    const button = document.createElement('button')
-    button.innerHTML = 'Light Curve'
-    button.className = 'variableAnalysisButton'
-    button.addEventListener('click',() => {
+
+    div.querySelector('button').addEventListener('click',() => {
       showVariableStarDialog.value = true
       variableTargetCoords.value = {
         ra: source.ra,
         dec: source.dec
       }
     })
-
-    div.appendChild(button)
 
     // Create a circle marker for the source
     return new L.Circle([source.y, source.x], {
@@ -217,20 +238,28 @@ function createCatalogLayer(){
   }
 }
 
-function fetchCatalog(){
-  const catalogInput = {
-    width: imageWidth.value,
-    height: imageHeight.value
-  }
-  emit('analysisAction', 'source-catalog', catalogInput)
-}
-
 </script>
 <template>
   <div
     ref="leafletDiv"
-    :style="{ width: imageWidth + 'px' }"
-  />
+    class="position-relative"
+    :style="{ width: imageDimensions.width + 'px' }"
+    @mouseenter="isHoveringLeaflet = true"
+    @mouseleave="isHoveringLeaflet = false"
+  >
+    <v-fade-transition>
+      <v-chip
+        v-show="isHoveringLeaflet && props.wcsSolution"
+        :style="{ zIndex: 2000, color: 'var(--text)' }"
+        class="position-absolute ma-2 top-0 right-0 elevation-2"
+        color="var(--primary-interactive)"
+        variant="flat"
+        prepend-icon="mdi-crosshairs"
+      >
+        Ra: {{ raDec.ra.toFixed(6) }}, Dec: {{ raDec.dec.toFixed(6) }}
+      </v-chip>
+    </v-fade-transition>
+  </div>
   <v-dialog
     v-model="showVariableStarDialog"
     width="600px"
@@ -249,19 +278,9 @@ function fetchCatalog(){
   filter: invert(1);
 }
 
-.leaflet-pm-toolbar .leaflet-pm-icon-delete {
-  background-image: url('../../assets/images/delete.svg');
-  filter: invert(1);
-}
-
 .leaflet-pm-toolbar .leaflet-pm-icon-polyline {
   background-image: url('../../assets/images/vector-line.svg');
   filter: invert(1);
-}
-
-.leaflet-pm-toolbar .leaflet-pm-icon-edit {
-  background-image: url('../../assets/images/vector-polyline-edit.svg');
-  filter: invert(1); /* Adjust the color of the background image */
 }
 /* Custom styling for toolbar */
 
