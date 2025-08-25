@@ -162,19 +162,17 @@ function addMapHandlers() {
       wcs = new WCS(crval[0], crval[1], crpix[0], crpix[1], cd1[0], cd1[1], cd2[0], cd2[1], fits_dimensions)
     }
 
-    setTimeout(() => {
-      const fitsWidth = wcs.fits_dimensions[0]
-      const fitsHeight = wcs.fits_dimensions[1]
+    const fitsWidth = wcs.fits_dimensions[0]
+    const fitsHeight = wcs.fits_dimensions[1]
 
-      const imageX = e.latlng.lng
-      const imageY = e.latlng.lat
+    const imageX = e.latlng.lng
+    const imageY = e.latlng.lat
 
-      const {x, y} = scalePoint(imageDimensions.value.width, imageDimensions.value.height, fitsWidth, fitsHeight, imageX, imageY)
+    const {x, y} = scalePoint(imageDimensions.value.width, imageDimensions.value.height, fitsWidth, fitsHeight, imageX, imageY)
 
-      const ra = wcs.pixelToRa(x, y)
-      const dec = wcs.pixelToDec(x, y)
-      raDec.value = { ra, dec }
-    }, 20)
+    const ra = wcs.pixelToRa(x, y)
+    const dec = wcs.pixelToDec(x, y)
+    raDec.value = { ra, dec }
   })
 }
 
