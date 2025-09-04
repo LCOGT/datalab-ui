@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted, computed} from 'vue'
 import { fetchApiCall, handleError } from '@/utils/api'
+import { rgbFilterMap, colorRGBMap } from '@/utils/color'
 import MultiImageInputSelector from '@/components/DataSession/MultiImageInputSelector.vue'
 import ImageScalingGroup from '@/components/Global/Scaling/ImageScalingGroup'
 import { useConfigurationStore } from '@/stores/configuration'
@@ -166,12 +167,19 @@ function selectOperation(name) {
     if ('default' in value) {
       operationInputs.value[key] = value.default
     }
-    else if (value.maximum === 1 && value.filter) {
-      // If this entry wants on file and has pre-specified filter preferences, preselect the closest file for them
-      const preselectedImage = props.images.find(image => value.filter.includes(image.filter?.trim().toLowerCase()))
-      if (preselectedImage) {
-        operationInputs.value[key] = [preselectedImage]
-      }
+    else if (value.color_picker) {
+      /**
+       * Custom handling for color image operation
+       * Since we can add and remove channels all inputs fall under the same key in an array of objects
+       * Default: start with 3 channels (RGB) and try to preselect images for those
+       */
+      operationInputs.value[key] = Object.entries(rgbFilterMap).map(([color, filters]) => {
+        const preselectedImage = props.images.find(image => filters.includes(image.filter.toLowerCase()))
+        return {
+          image: preselectedImage ? [preselectedImage] : [],
+          color: colorRGBMap[color]
+        }
+      })
     }
     else {
       operationInputs.value[key] = []
@@ -179,31 +187,42 @@ function selectOperation(name) {
   }
 }
 
-function insertSelectedImage(inputKey, image) {
-  if (inputKey in operationInputs.value && !operationInputs.value[inputKey].includes(image)) {
-    if (imageInputDescriptions.value[inputKey].maximum === 1) {
-      // This case of only wanting a single image should have the behavior of replacing the image rather than adding to the list of inputs
-      operationInputs.value[inputKey] = [image]
-    }
-    else if(operationInputs.value[inputKey].length >= imageInputDescriptions.value[inputKey].maximum) {
-      operationInputs.value[inputKey].pop(image)
-      operationInputs.value[inputKey].push(image)
-    }
-    else{
-      operationInputs.value[inputKey].push(image)
-    }
+function insertSelectedImage(inputKey, image, inputIndex=0) {
+  // skip if duplicate or invalid input key
+  if (operationInputs.value[inputKey].includes(image) || !(inputKey in operationInputs.value)) 
+    return
+
+  // color inputs and normal inputs store their selected images in different ways
+  const inputImages = imageInputDescriptions.value[inputKey].color_picker
+    ? operationInputs.value[inputKey][inputIndex].image
+    : operationInputs.value[inputKey]
+
+  if(inputImages.length >= imageInputDescriptions.value[inputKey].maximum) {
+    inputImages.pop()
+    inputImages.push(image)
+  }
+  else {
+    inputImages.push(image)
   }
 }
 
-function removeSelectedImage(inputKey, image) {
-  operationInputs.value[inputKey].splice(operationInputs.value[inputKey].indexOf(image), 1)
+function removeSelectedImage(inputKey, image, inputIndex=0) {
+  // color inputs and normal inputs store their selected images in different ways
+  const inputImages = imageInputDescriptions.value[inputKey].color_picker
+    ? operationInputs.value[inputKey][inputIndex].image
+    : operationInputs.value[inputKey]
+  
+  inputImages.splice(inputImages.indexOf(image), 1)
 }
-
 </script>
-
 <template>
-  <v-card class="wizard-background">
-    <v-toolbar class="wizard-toolbar">
+  <v-card
+    class="wizard-background"
+    color="var(--primary-background)"
+  >
+    <v-toolbar
+      color="var(--header)"
+    >
       <v-toolbar-title class="wizard-title">
         {{ wizardTitle }}
       </v-toolbar-title>
@@ -235,9 +254,7 @@ function removeSelectedImage(inputKey, image) {
             class="selected-operation"
           >
             <v-card-text>
-              <span class="operation-description">
-                {{ selectedOperation.description }}
-              </span>
+              {{ selectedOperation.description }}
             </v-card-text>
           </v-card>
         </v-col>
@@ -248,19 +265,18 @@ function removeSelectedImage(inputKey, image) {
         v-show="page == WIZARD_PAGES.CONFIGURE"
         class="wizard-card"
       >
-        <div class="operation-input-wrapper">
-          <multi-image-input-selector
-            :input-descriptions="imageInputDescriptions"
-            :selected-images="operationInputs"
-            :images="props.images"
-            @insert-selected-image="insertSelectedImage"
-            @remove-selected-image="removeSelectedImage"
-          />
-        </div>
+        <multi-image-input-selector
+          :input-descriptions="imageInputDescriptions"
+          :selected-images="operationInputs"
+          :images="props.images"
+          @insert-selected-image="insertSelectedImage"
+          @remove-selected-image="removeSelectedImage"
+          @add-channel="() => operationInputs.color_channels.push({ image: [], color: [0,0,0] })"
+          @remove-channel="() => operationInputs.color_channels.pop( )"
+        />
         <div
           v-for="(inputDescription, inputKey) in inputDescriptions"
           :key="inputKey"
-          class="operation-input-wrapper"
         >
           <v-text-field
             v-if="inputDescription.type == 'text'"
@@ -285,37 +301,24 @@ function removeSelectedImage(inputKey, image) {
         />
       </v-card-text>
     </v-slide-y-reverse-transition>
-
-    <v-card-actions class="buttons-container">
-      <v-spacer />
+    <div class="buttons-container d-flex ga-4">
       <v-btn
-        class="goback-btn"
         prepend-icon="mdi-arrow-left"
+        text="Back"
+        color="var(--cancel)"
         @click="goBack"
-      >
-        Back
-      </v-btn>
+      />
       <v-btn
-        class="gofwd-btn"
         :disabled="disableGoForward"
+        :text="goForwardText"
+        color="var(--primary-interactive)"
         @click="goForward"
-      >
-        {{ goForwardText }}
-      </v-btn>
-    </v-card-actions>
+      />
+    </div>
   </v-card>
 </template>
 
 <style scoped>
-.wizard-background {
-  background-color: var(--primary-background);
-  height: 100vh;
-}
-
-.wizard-toolbar {
-  background-color: var(--header);
-}
-
 .wizard-title {
   color: var(--text);
   font-family: var(--font-headers);
@@ -349,39 +352,14 @@ function removeSelectedImage(inputKey, image) {
   font-size: 3rem;
 }
 
-.operation-description {
-  font-size: 1rem;
-}
-
 .operation-input {
   margin-top: 2rem;
   width: 12rem;
-}
-
-.input-images {
-  font-family: var(--font-stack);
-  color: var(--text);
-  font-size: 1.5rem;
-  text-transform: uppercase;
-}
-
-.selected-image {
-  border: 0.3rem solid var(--secondary-interactive);
 }
 
 .buttons-container {
   position: fixed;
   right: 2rem;
   bottom: 2rem;
-}
-
-.goback-btn {
-  background-color: var(--cancel);
-  font-size: 1.2rem;
-}
-
-.gofwd-btn {
-  background-color: var(--primary-interactive);
-  font-size: 1.2rem;
 }
 </style>

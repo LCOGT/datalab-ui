@@ -1,5 +1,5 @@
 <script setup>
-import { filterToColor } from '@/utils/common'
+import { filterToColor } from '@/utils/color'
 
 const props = defineProps({
   filter: {

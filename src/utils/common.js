@@ -13,19 +13,6 @@ function filterToPixelIndex(filter) {
   return filterPixelMap[filter.trim().toLowerCase()]
 }
 
-const filterToColor = (filter) => {
-  filter = filter || ''
-  const filterColorMap = [
-    { color: 'red', filters: ['r', 'rp', 'ip', 'h-alpha'] },
-    { color: 'green', filters: ['v', 'gp', 'oiii'] },
-    { color: 'blue', filters: ['b', 'sii'] },
-  ]
-
-  const lowerCaseFilter = filter.trim().toLowerCase()
-  const found = filterColorMap.find(({ filters }) => filters.includes(lowerCaseFilter))
-  return found ? found.color : 'var(--info)'
-}
-
 function siteIDToName(siteID) {
   const siteIDMap = {
     'COJ': 'COJ @ Siding Spring',
@@ -63,4 +50,4 @@ function loadImage(src) {
   })
 }
 
-export { calculateColumnSpan, siteIDToName, initializeDate, filterToPixelIndex, filterToColor, loadImage }
+export { calculateColumnSpan, siteIDToName, initializeDate, filterToPixelIndex, loadImage }
