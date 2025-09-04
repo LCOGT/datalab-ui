@@ -187,31 +187,31 @@ function selectOperation(name) {
   }
 }
 
-function insertSelectedImage(inputKey, image, inputIndex=0) {
-  // skip if duplicate or invalid input key
-  if (operationInputs.value[inputKey].includes(image) || !(inputKey in operationInputs.value)) 
-    return
-
-  // color inputs and normal inputs store their selected images in different ways
-  const inputImages = imageInputDescriptions.value[inputKey].color_picker
-    ? operationInputs.value[inputKey][inputIndex].image
-    : operationInputs.value[inputKey]
-
-  if(inputImages.length >= imageInputDescriptions.value[inputKey].maximum) {
-    inputImages.pop()
-    inputImages.push(image)
-  }
-  else {
-    inputImages.push(image)
-  }
+// color inputs and normal inputs store their selected images in different ways
+const _inputImages = (key, index) => {
+  return imageInputDescriptions.value[key].color_picker
+    ? operationInputs.value[key][index].image
+    : operationInputs.value[key]
 }
 
-function removeSelectedImage(inputKey, image, inputIndex=0) {
-  // color inputs and normal inputs store their selected images in different ways
-  const inputImages = imageInputDescriptions.value[inputKey].color_picker
-    ? operationInputs.value[inputKey][inputIndex].image
-    : operationInputs.value[inputKey]
-  
+function insertImage(inputKey, image, inputIndex=0) {
+  const inputImages = _inputImages(inputKey, inputIndex)
+  const description = imageInputDescriptions.value[inputKey]
+
+  // skip if duplicate or invalid input key
+  if (inputImages.includes(image) || !inputImages) return
+
+  if(inputImages.length >= description.maximum) {
+    inputImages.pop()
+  }
+  inputImages.push(image)
+}
+
+function removeImage(inputKey, image, inputIndex=0) {
+  const inputImages = _inputImages(inputKey, inputIndex)
+
+  if (!inputImages) return
+
   inputImages.splice(inputImages.indexOf(image), 1)
 }
 </script>
@@ -267,10 +267,10 @@ function removeSelectedImage(inputKey, image, inputIndex=0) {
       >
         <multi-image-input-selector
           :input-descriptions="imageInputDescriptions"
-          :selected-images="operationInputs"
+          :input-images="operationInputs"
           :images="props.images"
-          @insert-selected-image="insertSelectedImage"
-          @remove-selected-image="removeSelectedImage"
+          @insert-image="insertImage"
+          @remove-image="removeImage"
           @add-channel="() => operationInputs.color_channels.push({ image: [], color: [0,0,0] })"
           @remove-channel="() => operationInputs.color_channels.pop( )"
         />

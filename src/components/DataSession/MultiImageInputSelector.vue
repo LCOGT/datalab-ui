@@ -10,7 +10,7 @@ const props = defineProps({
     type: Object,
     default: () => {}
   },
-  selectedImages: {
+  inputImages: {
     type: Object,
     default: () => {}
   },
@@ -20,7 +20,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['insertSelectedImage', 'removeSelectedImage', 'addChannel', 'removeChannel'])
+const emit = defineEmits(['insertImage', 'removeImage', 'addChannel', 'removeChannel'])
 
 const thumbnailsStore = useThumbnailsStore()
 const configurationStore = useConfigurationStore()
@@ -29,7 +29,7 @@ var imageDetails = ref({})
 
 const inputCount = computed(() => {
   return props.inputDescriptions.color_channels 
-    ? props.selectedImages.color_channels.length
+    ? props.inputImages.color_channels.length
     : Object.keys(props.inputDescriptions).length
 })
 
@@ -50,14 +50,14 @@ onMounted(() => {
 })
 
 function insert(inputKey, index, event) {
-  if (inputKey !== 'all' && ! props.selectedImages[inputKey].includes(event.data)) {
-    emit('insertSelectedImage', inputKey, event.data, index)
+  if (inputKey !== 'all' && ! props.inputImages[inputKey].includes(event.data)) {
+    emit('insertImage', inputKey, event.data, index)
   }
 }
 
 function remove(inputKey, index, value) {
   if (inputKey !== 'all') {
-    emit('removeSelectedImage', inputKey, value, index)
+    emit('removeImage', inputKey, value, index)
   }
 }
 
@@ -92,7 +92,7 @@ function reloadImages(newImages) {
       >
         <v-card-text>
           <drop-list
-            :items="props.inputDescriptions.color_channels? props.selectedImages[inputKey][index].image : props.selectedImages[inputKey]"
+            :items="props.inputDescriptions.color_channels? props.inputImages[inputKey][index].image : props.inputImages[inputKey]"
             mode="cut"
             :row="true"
             class="drop-section"
