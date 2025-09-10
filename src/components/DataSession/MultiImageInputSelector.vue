@@ -27,6 +27,8 @@ const configurationStore = useConfigurationStore()
 const MAX_COLUMN_LENGTH = 12
 var imageDetails = ref({})
 
+const colorChannelMode = computed(() => { return props.inputDescriptions.color_channels != null })
+
 const inputCount = computed(() => {
   return props.inputDescriptions.color_channels 
     ? props.inputImages.color_channels.length
@@ -92,7 +94,7 @@ function reloadImages(newImages) {
       >
         <v-card-text>
           <drop-list
-            :items="props.inputDescriptions.color_channels? props.inputImages[inputKey][index].image : props.inputImages[inputKey]"
+            :items="colorChannelMode? props.inputImages[inputKey][index].image : props.inputImages[inputKey]"
             mode="cut"
             :row="true"
             class="drop-section"
@@ -125,23 +127,29 @@ function reloadImages(newImages) {
               />
             </template>
           </drop-list>
+          <v-color-picker
+            v-if="colorChannelMode"
+            class="fill-width"
+            hide-canvas
+            :modes="['rgb']"
+          />
         </v-card-text>
       </v-card>
     </v-col>
-    <v-col>
-      <v-btn
-        v-if="props.inputDescriptions.color_channels"
-        prepend-icon="mdi-plus"
-        color="var(--primary-interactive)"
-        @click="emit('addChannel')"
-      /> 
-      <v-btn
-        v-if="props.inputDescriptions.color_channels"
-        prepend-icon="mdi-minus"
-        color="var(--primary-interactive)"
-        @click="emit('removeChannel')"
-      />
-    </v-col>
+  </v-row>
+  <v-row>
+    <v-btn
+      v-if="colorChannelMode"
+      icon="mdi-plus"
+      color="var(--primary-interactive)"
+      @click="emit('addChannel')"
+    /> 
+    <v-btn
+      v-if="colorChannelMode"
+      icon="mdi-minus"
+      color="var(--primary-interactive)"
+      @click="emit('removeChannel')"
+    />
   </v-row>
   <v-row>
     <v-col v-if="imageDetails">

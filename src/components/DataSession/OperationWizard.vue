@@ -20,6 +20,8 @@ const dataSessionsUrl = store.datalabApiBaseUrl
 const availableOperations = ref({})
 const selectedOperation = ref('')
 const operationInputs = ref({})
+const MAX_COLOR_CHANNELS = 5
+const MIN_COLOR_CHANNELS = 1
 
 const WIZARD_PAGES = {
   SELECT: 'select',
@@ -271,8 +273,16 @@ function removeImage(inputKey, image, inputIndex=0) {
           :images="props.images"
           @insert-image="insertImage"
           @remove-image="removeImage"
-          @add-channel="() => operationInputs.color_channels.push({ image: [], color: [0,0,0] })"
-          @remove-channel="() => operationInputs.color_channels.pop( )"
+          @add-channel="() => {
+            const colorChannels = operationInputs.color_channels
+            if (colorChannels.length < MAX_COLOR_CHANNELS)
+              colorChannels.push({ image: [], color: [0,0,0] })
+          }"
+          @remove-channel="() => {
+            const colorChannels = operationInputs.color_channels
+            if (colorChannels.length != MIN_COLOR_CHANNELS)
+              operationInputs.color_channels.pop( )
+          }"
         />
         <div
           v-for="(inputDescription, inputKey) in inputDescriptions"
