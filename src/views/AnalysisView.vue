@@ -56,7 +56,7 @@ const filteredCatalog = computed(() => {
 const sideChartItems = computed(() => {
   const chartItems = []
   if (analysisStore.variableStarData.magPeriodogram?.length) chartItems.push('Periodogram')
-  if (analysisStore.variableStarData.magTimeSeries?.length) chartItems.push('Light Curve')
+  if (analysisStore.magTimeSeries?.length) chartItems.push('Light Curve')
   if (lineProfile.value?.length) chartItems.push('Line Profile')
   return chartItems
 })
@@ -104,7 +104,8 @@ function handleAnalysisOutput(response, action, action_callback){
     break
   case 'variable-star':
     analysisStore.setVariableStarData(response)
-    sideChart.value = 'Periodogram'
+    // Default to periodogram if available, otherwise light curve
+    analysisStore.variableStarData.period ? sideChart.value = 'Periodogram' : sideChart.value = 'Light Curve'
     break
   case 'get-tif':
     // ImageDownloadMenu.vue downloadFile()
@@ -245,7 +246,7 @@ function updateScaling(min, max){
         </v-expand-transition>
         <v-expand-transition>
           <v-sheet
-            v-show="lineProfile.length || analysisStore.variableStarData.magTimeSeries.length"
+            v-show="lineProfile.length || analysisStore.magTimeSeries.length"
             class="side-panel-item"
           >
             <v-select
@@ -256,15 +257,15 @@ function updateScaling(min, max){
               density="compact"
             />
             <line-plot
-              v-show="lineProfile.length && sideChart === 'Line Profile'"
+              v-show="lineProfile?.length && sideChart === 'Line Profile'"
               :y-axis-data="lineProfile"
               :x-axis-length="lineProfileLength"
               :start-coords="startCoords"
               :end-coords="endCoords"
               :position-angle="positionAngle"
             />
-            <period-plot v-show="analysisStore.variableStarData.magPeriodogram.length && sideChart === 'Periodogram'" />
-            <light-curve-plot v-show="analysisStore.variableStarData.magTimeSeries.length && sideChart === 'Light Curve'" />
+            <period-plot v-show="analysisStore.variableStarData.magPeriodogram?.length && sideChart === 'Periodogram'" />
+            <light-curve-plot v-show="analysisStore.magTimeSeries?.length && sideChart === 'Light Curve'" />
           </v-sheet>
         </v-expand-transition>
       </div>

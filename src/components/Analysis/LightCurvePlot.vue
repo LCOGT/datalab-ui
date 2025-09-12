@@ -11,7 +11,7 @@ const CHART_PADDING = 0.5
 const DECIMAL_PLACES = 4
 
 const chartData = computed(() => {
-  const magTimeSeries = analysisStore.variableStarData.magTimeSeries
+  const magTimeSeries = analysisStore.magTimeSeries
 
   const dates = magTimeSeries.map(({ julian_date }) => julian_date)
   const magnitudes = magTimeSeries.map(({ mag }) => mag.toFixed(DECIMAL_PLACES))
@@ -31,7 +31,7 @@ const chartData = computed(() => {
 })
 
 watch(() => analysisStore.variableStarData, () => {
-  lightCurveChart && analysisStore.variableStarData.magTimeSeries ? updateChart() : createChart()
+  lightCurveChart && analysisStore.magTimeSeries ? updateChart() : createChart()
 }, { deep: true})
 
 function updateChart() {
