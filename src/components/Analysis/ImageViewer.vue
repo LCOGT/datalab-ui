@@ -203,7 +203,7 @@ function createCatalogLayer(){
     const div = document.createElement('div')
     div.innerHTML = `
       <b>Flux:</b> ${source.flux ?? 'N/A'}<br>
-      <b>Ra:</b> ${source.ra ?? 'N/A'}<br>
+      <b>RA:</b> ${source.ra ?? 'N/A'}<br>
       <b>Dec:</b> ${source.dec ?? 'N/A'}<br>
       <button class="variableAnalysisButton">Light Curve</button>
     `
@@ -256,7 +256,7 @@ function createCatalogLayer(){
         variant="flat"
         prepend-icon="mdi-crosshairs"
       >
-        Ra: {{ raDec.ra.toFixed(6) }}, Dec: {{ raDec.dec.toFixed(6) }}
+        RA: {{ raDec.ra.toFixed(6) }}, Dec: {{ raDec.dec.toFixed(6) }}
       </v-chip>
     </v-fade-transition>
   </div>
