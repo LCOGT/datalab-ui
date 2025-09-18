@@ -42,7 +42,7 @@ const filters = ref({
   },
   dec: {
     value: route.query.dec || '',
-    label: 'DEC',
+    label: 'Dec',
     class: 'coords-search order-2',
     type: computed(() => userDataStore.coordsToggle ? 'hidden' : 'text'),
   },
@@ -184,7 +184,7 @@ async function loadProposals(){
 function invalidFilters() {
   const errors = []
   if (isNaN(filters.value.ra.value) || isNaN(filters.value.dec.value)) {
-    errors.push('RA and DEC must be numbers.')
+    errors.push('RA and Dec must be numbers.')
   }
   if (isNaN(filters.value.observation_id.value)) {
     errors.push('Observation ID must be a number.')
@@ -213,7 +213,7 @@ watch(() => Object.values(filters.value)
 watch(() => filters.value.search.value, async () => {
   clearTimeout(filtersDebounceTimer)
 
-  // Kicks off a call the the Simbad2k API to get the RA and DEC for the object
+  // Kicks off a call the the Simbad2k API to get the RA and Dec for the object
   if(filters.value.search.value){
     filtersDebounceTimer = setTimeout(async () => {
       const url = `https://simbad2k.lco.global/${filters.value.search.value}`
