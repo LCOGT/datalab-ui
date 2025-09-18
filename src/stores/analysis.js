@@ -22,11 +22,12 @@ export const useAnalysisStore = defineStore('analysis', {
     imageWidth: null, // width of the image in pixels
     imageHeight: null, // height of the image in pixels
     imageScaleLoading: false, // flag to indicate if the image scale is loading
+    // Light Curve
+    magTimeSeries: [], // time series data for the variable star
     // Variable Star Analysis
     variableStarData: {
       loading: false, // flag to indicate if variable star data is loading
       targetCoords: 0, // target coordinates for the variable star
-      magTimeSeries: [], // time series data for the variable star
       magPeriodogram: [], // magTimeSeries sorted by phase
       period: 0, // period of the variable star
       falseAlarmProbability: 0, // false alarm probability for the variable star
@@ -132,16 +133,7 @@ export const useAnalysisStore = defineStore('analysis', {
     setVariableStarData(data) {
       const { light_curve, target_coords, period, fap, flux_fallback, excluded_images } = data
 
-      this.variableStarData = {
-        loading: false,
-        targetCoords: target_coords,
-        magTimeSeries: light_curve,
-        magPeriodogram: light_curve,
-        period: period,
-        falseAlarmProbability: fap,
-        fluxFallback: flux_fallback,
-        excludedImages: excluded_images,
-      }
+      this.magTimeSeries = light_curve
 
       function foldPeriod(magTimeSeries, period) {
         // Perf testing shows precalculating the inverse is faster
@@ -153,10 +145,22 @@ export const useAnalysisStore = defineStore('analysis', {
         }
       }
 
-      foldPeriod(this.variableStarData.magTimeSeries, this.variableStarData.period)
+      if(period && this.magTimeSeries.length > 0){
+        this.variableStarData = {
+          loading: false,
+          targetCoords: target_coords,
+          magPeriodogram: [],
+          period: period,
+          falseAlarmProbability: fap,
+          fluxFallback: flux_fallback,
+          excludedImages: excluded_images,
+        }
+      
+        foldPeriod(this.magTimeSeries, this.variableStarData.period)
 
-      // Sort the light curve data by phase
-      this.variableStarData.magPeriodogram = [...this.variableStarData.magTimeSeries].sort((a, b) => a.phase - b.phase)
+        // Sort the light curve data by phase
+        this.variableStarData.magPeriodogram = [...this.magTimeSeries].sort((a, b) => a.phase - b.phase)
+      }
 
       this.variableStarData.loading = false
     }
