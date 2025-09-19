@@ -17,14 +17,21 @@ const props = defineProps({
   images: {
     type: Array,
     default: () => []
-  }
+  },
+  maxInputs: {
+    type: Number,
+    default: 5
+  },
+  minInputs: {
+    type: Number,
+    default: 1
+  },
 })
 
-const emit = defineEmits(['insertImage', 'removeImage', 'addChannel', 'removeChannel'])
+const emit = defineEmits(['insertImage', 'removeImage', 'addChannel', 'removeChannel', 'updateChannelColor'])
 
 const thumbnailsStore = useThumbnailsStore()
 const configurationStore = useConfigurationStore()
-const MAX_COLUMN_LENGTH = 12
 var imageDetails = ref({})
 
 const colorChannelMode = computed(() => { return props.inputDescriptions.color_channels != null })
@@ -35,16 +42,16 @@ const inputCount = computed(() => {
     : Object.keys(props.inputDescriptions).length
 })
 
-const fitsImages = computed(() => {
-  return props.images.filter(image => {
-    return image.type == null || image.type == 'fits'
-  })
-})
-
 const inputList = computed(() => {
   return props.inputDescriptions.color_channels
     ? Array.from({ length: inputCount.value }, () => 'color_channels')
     : Object.keys(props.inputDescriptions)
+})
+
+const fitsImages = computed(() => {
+  return props.images.filter(image => {
+    return image.type == null || image.type == 'fits'
+  })
 })
 
 onMounted(() => {
@@ -81,15 +88,12 @@ function reloadImages(newImages) {
 
 <template>
   <v-row>
-    <v-col
-      v-for="(inputKey, index) in inputList"
-      :key="inputKey"
-      :cols="Math.floor(MAX_COLUMN_LENGTH / inputCount.value)"
-      class="drop-section"
-    >
+    <div class="d-flex ma-3 ga-2 w-100">
       <v-card
+        v-for="(inputKey, index) in inputList"
+        :key="inputKey+index"
         :title="props.inputDescriptions[inputKey].name"
-        variant="outlined"
+        color="var(--card-background)"
         density="compact"
       >
         <v-card-text>
@@ -104,7 +108,7 @@ function reloadImages(newImages) {
               <drag
                 :key="inputKey + '-' + item.basename"
                 :data="item"
-                class="m-1 fill-width"
+                class="m-1 w-100"
                 @cut="remove(inputKey, index, item)"
               >
                 <thumbnail-image
@@ -129,33 +133,44 @@ function reloadImages(newImages) {
           </drop-list>
           <v-color-picker
             v-if="colorChannelMode"
-            class="fill-width"
+            :model-value="props.inputImages[inputKey][index].color"
+            class="w-100"
+            bg-color="var(--card-background)"
+            :elevation="0"
+            landscape
             hide-canvas
+            hide-eye-dropper
             :modes="['rgb']"
+            @update:model-value="(value) => emit('updateChannelColor', index, value)"
           />
         </v-card-text>
       </v-card>
-    </v-col>
-  </v-row>
-  <v-row>
-    <v-btn
-      v-if="colorChannelMode"
-      icon="mdi-plus"
-      color="var(--primary-interactive)"
-      @click="emit('addChannel')"
-    /> 
-    <v-btn
-      v-if="colorChannelMode"
-      icon="mdi-minus"
-      color="var(--primary-interactive)"
-      @click="emit('removeChannel')"
-    />
+      <div
+        v-if="colorChannelMode"
+        class="d-flex flex-column ga-4 justify-center ms-auto"
+      >
+        <v-btn
+          class="h-50 rounded-lg"
+          icon="mdi-plus"
+          :disabled="props.inputImages.color_channels.length >= props.maxInputs"
+          color="var(--primary-interactive)"
+          @click="emit('addChannel')"
+        /> 
+        <v-btn
+          class="h-50 rounded-lg"
+          icon="mdi-minus"
+          :disabled="props.inputImages.color_channels.length <= props.minInputs"
+          color="var(--primary-interactive)"
+          @click="emit('removeChannel')"
+        />
+      </div>
+    </div>
   </v-row>
   <v-row>
     <v-col v-if="imageDetails">
       <v-card
         title="Select Images from:"
-        variant="outlined"
+        color="var(--card-background)"
         density="compact"
       >
         <v-card-text>
@@ -211,20 +226,8 @@ function reloadImages(newImages) {
   display: inline-block;
 }
 
-.fill-width {
-  width: 100%;
-}
-
-.empty-slot {
-  flex: 0 0 0;
-  align-self: stretch;
-  outline: 1px solid blue;
-}
-
 .drop-section {
-  border-width: 2px;
   flex-direction: row;
-  border-color: white;
   width: 100%;
   min-width: 200px;
   min-height: 200px;

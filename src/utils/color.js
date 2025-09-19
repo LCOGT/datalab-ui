@@ -21,9 +21,9 @@ const colorToFilter = (color) => {
 }
 
 const colorRGBMap = {
-  'red': [255, 0, 0],
-  'green': [0, 255, 0],
-  'blue': [0, 0, 255],
+  'red': { r: 255, g: 0, b: 0 },
+  'green': { r: 0, g: 255, b: 0 },
+  'blue': { r: 0, g: 0, b: 255 },
 }
 
 export { rgbFilterMap, filterToColor, colorToFilter , colorRGBMap }

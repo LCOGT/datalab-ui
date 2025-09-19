@@ -20,7 +20,7 @@ const dataSessionsUrl = store.datalabApiBaseUrl
 const availableOperations = ref({})
 const selectedOperation = ref('')
 const operationInputs = ref({})
-const MAX_COLOR_CHANNELS = 5
+const MAX_COLOR_CHANNELS = 6
 const MIN_COLOR_CHANNELS = 1
 
 const WIZARD_PAGES = {
@@ -271,17 +271,22 @@ function removeImage(inputKey, image, inputIndex=0) {
           :input-descriptions="imageInputDescriptions"
           :input-images="operationInputs"
           :images="props.images"
+          :max-inputs="MAX_COLOR_CHANNELS"
+          :min-inputs="MIN_COLOR_CHANNELS"
           @insert-image="insertImage"
           @remove-image="removeImage"
           @add-channel="() => {
             const colorChannels = operationInputs.color_channels
             if (colorChannels.length < MAX_COLOR_CHANNELS)
-              colorChannels.push({ image: [], color: [0,0,0] })
+              colorChannels.push({ image: [], color: {r: 255, g: 0, b:255} })
           }"
           @remove-channel="() => {
             const colorChannels = operationInputs.color_channels
             if (colorChannels.length != MIN_COLOR_CHANNELS)
               operationInputs.color_channels.pop( )
+          }"
+          @update-channel-color="(index, color) => {
+            operationInputs.color_channels[index].color = color
           }"
         />
         <div
