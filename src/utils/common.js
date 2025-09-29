@@ -3,16 +3,6 @@ const calculateColumnSpan = (imageCount, imagesPerRow) => {
   return totalColumns
 }
 
-function filterToPixelIndex(filter) {
-  const filterPixelMap = {
-    'red': 0,
-    'green': 1,
-    'blue': 2,
-  }
-
-  return filterPixelMap[filter.trim().toLowerCase()]
-}
-
 function siteIDToName(siteID) {
   const siteIDMap = {
     'COJ': 'COJ @ Siding Spring',
@@ -57,4 +47,4 @@ function loadImage(src) {
   })
 }
 
-export { calculateColumnSpan, siteIDToName, initializeDate, filterToPixelIndex, loadImage, scalePoint }
+export { calculateColumnSpan, siteIDToName, initializeDate, loadImage, scalePoint }

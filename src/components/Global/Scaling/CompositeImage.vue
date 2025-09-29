@@ -19,17 +19,15 @@ const props = defineProps({
   }
 })
 
-const store = useScalingStore()
+const scalingStore = useScalingStore()
 const imageCanvas = ref(null)
 var context = null
 
-const ableToDraw = computed(() => {
-  return (store.scaledImageArrays[props.imageName] && store.scaledImageArrays[props.imageName].combined)
-})
+const ableToDraw = computed(() => { return scalingStore.compositeImageData })
 
 function redrawImage() {
   if (ableToDraw.value) {
-    const compositeImage = store.scaledImageArrays[props.imageName].combined
+    const compositeImage = scalingStore.compositeImageData
     // convert to ImageBitMap to use drawImage
     createImageBitmap(compositeImage).then((compositeImageBitMap) => {
       // scale image to fit canvas
@@ -42,14 +40,7 @@ onMounted(() => {
   context = imageCanvas.value.getContext('2d')
 })
 
-watch(
-  () => store.arrayChanged[props.imageName], () => {
-    // Triggering on this arrayChanged trigger variable is so we avoid trying
-    // to redraw until the image array is done being modified
-    redrawImage()
-  },
-  { deep: true }
-)
+watch(() => scalingStore.compositeImageData, () => { redrawImage() })
 
 </script>
 <template>

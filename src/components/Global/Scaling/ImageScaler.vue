@@ -13,18 +13,18 @@ const props = defineProps({
     type: Object,
     required: true
   },
+  color: {
+    type: Object,
+    required: true
+  },
+  channelIndex: {
+    type: Number,
+    required: true
+  },
   maxSize: {
     type: Number,
     default: 700 // Determines the resolution of the RGB image and preview images
-  },
-  imageName: {
-    type: String,
-    required: true
-  },
-  compositeName: {
-    type: String,
-    required: true
-  },
+  }
 })
 
 const emit = defineEmits(['updateScaling'])
@@ -34,10 +34,6 @@ const errorReason = ref('')
 const rawData = ref({})
 const sliderRange = ref([0, 65535])
 const zScaleValues = ref([0, 65535])
-
-const filterName = computed(() => {
-  return props.imageName.replace('_input', ' ')
-})
 
 const maxPixelValue = computed(() => {
   if (rawData.value && rawData.value.bitdepth) {
@@ -69,7 +65,7 @@ const bins = computed(() => {
 
 function updateScaleRange(lowerValue, upperValue) {
   sliderRange.value = [Number(lowerValue), Number(upperValue)]
-  emit('updateScaling', props.imageName, sliderRange.value[0], sliderRange.value[1])
+  emit('updateScaling', props.channelIndex, sliderRange.value[0], sliderRange.value[1])
 }
 
 function fetchRawData(){
@@ -100,40 +96,28 @@ onMounted(async () => {
 
 </script>
 <template>
-  <div class="image-scaler">
+  <div class="image-scaler d-flex ga-4 align-center justify-center pa-2 rounded-lg">
     <raw-scaled-image
       :max-size="props.maxSize"
-      :image-data="rawData"
+      :raw-data="rawData"
       :scale-points="sliderRange"
-      :filter="filterName"
-      :image-name="props.imageName"
-      :composite-name="props.compositeName"
+      :color="color"
+      :image-name="image.basename"
     />
-    <v-col class="pa-0">
-      <h3 class="image-scale-title">
-        {{ filterName }} Channel
-      </h3>
-      <histogram-slider
-        :selected-color="filterName.trim().toLowerCase()"
-        :histogram="histogram"
-        :bins="bins"
-        :max-value="maxPixelValue"
-        :z-min="zScaleValues[0]"
-        :z-max="zScaleValues[1]"
-        @update-scaling="updateScaleRange"
-      />
-    </v-col>
+    <histogram-slider
+      :color="color"
+      :histogram="histogram"
+      :bins="bins"
+      :max-value="maxPixelValue"
+      :z-min="zScaleValues[0]"
+      :z-max="zScaleValues[1]"
+      @update-scaling="updateScaleRange"
+    />
   </div>
 </template>
 <style scoped>
-.image-scaler{
-  display: flex;
-  gap: 1.5rem;
-}
-.image-scale-title {
-  margin-bottom: 0.5rem;
-  color: var(--text);
-  font-weight: bold;
+.image-scaler {
+  background-color: var(--card-background);
 }
 
 </style>

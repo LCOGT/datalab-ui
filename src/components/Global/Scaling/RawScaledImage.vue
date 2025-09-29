@@ -6,7 +6,7 @@ import { useScalingStore } from '@/stores/scaling'
 // the scale points change
 
 const props = defineProps({
-  imageData: {
+  rawData: {
     type: Object,
     required: true
   },
@@ -14,8 +14,8 @@ const props = defineProps({
     type: Number,
     default: 500
   },
-  filter: {
-    type: String,
+  color: {
+    type: Object,
     required: true
   },
   scalePoints: {
@@ -25,14 +25,10 @@ const props = defineProps({
   imageName: {
     type: String,
     required: true
-  },
-  compositeName: {
-    type: String,
-    required: true
   }
 })
 
-const store = useScalingStore()
+const scalingStore = useScalingStore()
 const imageCanvas = ref(null)
 var offscreen = null
 // SharedArrayBuffer is used for the web worker to fill in data that will then be sent
@@ -49,11 +45,9 @@ onMounted(() => {
 
   // If we are storing color channels for a composite image preview, set a callback
   // for the web-worker to extract that data from the shared array and send to the store
-  if (props.compositeName != 'default') {
-    worker.onmessage = () => {
-      store.updateImageArray(props.compositeName, props.filter, sharedArray, props.maxSize)
-      isCanvasReady.value = true
-    }
+  worker.onmessage = () => {
+    scalingStore.updateImageArray(props.color, sharedArray, props.maxSize)
+    isCanvasReady.value = true
   }
 })
 
@@ -70,10 +64,10 @@ watch(
 )
 
 watch(
-  () => props.imageData, () => {
+  () => props.rawData, () => {
     // This should only be called once, but might not happen when component is created
-    if (props.imageData) {
-      worker.postMessage({imageData: structuredClone(props.imageData)})
+    if (props.rawData) {
+      worker.postMessage({imageData: structuredClone(props.rawData)})
     }
   },
   { immediate: false }
@@ -81,7 +75,7 @@ watch(
 
 </script>
 <template>
-  <div>
+  <div class="position-relative">
     <canvas
       ref="imageCanvas"
       :width="props.maxSize"
@@ -97,9 +91,6 @@ watch(
   </div>
 </template>
 <style scoped>
-div{
-  position: relative;
-}
 canvas{
   width: 200px;
   height: 200px;

@@ -3,7 +3,7 @@ import { ref, onMounted, computed} from 'vue'
 import { fetchApiCall, handleError } from '@/utils/api'
 import { rgbFilterMap, colorRGBMap } from '@/utils/color'
 import MultiImageInputSelector from '@/components/DataSession/MultiImageInputSelector.vue'
-import ImageScalingGroup from '@/components/Global/Scaling/ImageScalingGroup'
+import WizardScalingPage from '@/components/Global/Scaling/WizardScalingPage.vue'
 import { useConfigurationStore } from '@/stores/configuration'
 
 const props = defineProps({
@@ -37,7 +37,7 @@ const goForwardText = computed(() => {
     return WIZARD_PAGES.SELECT
   }
   else if (page.value == WIZARD_PAGES.CONFIGURE){
-    if (operationRequiresInputScaling.value) {
+    if (isInputScaling.value) {
       return 'Set Image Scaling'
     }
     else{
@@ -56,7 +56,7 @@ const wizardTitle = computed(() => {
   else if (page.value == WIZARD_PAGES.SCALING) {
     return 'Configure ' + selectedOperation.value.name + ' Operation: Select scale points for each channel'
   }
-  else if (page.value == WIZARD_PAGES.CONFIGURE && operationRequiresInputScaling.value) {
+  else if (page.value == WIZARD_PAGES.CONFIGURE && isInputScaling.value) {
     return 'Configure ' + selectedOperation.value.name + ' Operation: Select input images for channels'
   }
   else {
@@ -85,7 +85,7 @@ const isInputComplete = computed(() => {
   return true
 })
 
-const operationRequiresInputScaling = computed(() => {
+const isInputScaling = computed(() => {
   for (const inputKey in inputDescriptions.value) {
     if (inputDescriptions.value[inputKey].include_custom_scale) {
       return true
@@ -111,13 +111,6 @@ onMounted(async () => {
   }
 })
 
-function updateScaling(imageName, zmin, zmax) {
-  // When input image scaling is updated, we set it inside the operation input object
-  // that will then be sent to the server when we add the operation
-  operationInputs.value[imageName][0].zmin = zmin
-  operationInputs.value[imageName][0].zmax = zmax
-}
-
 function goForward() {
   if (page.value == WIZARD_PAGES.SELECT) {
     // if there are no images for a filter required by the operation, do not proceed
@@ -130,7 +123,7 @@ function goForward() {
     page.value = WIZARD_PAGES.CONFIGURE
   }
   else if (page.value == WIZARD_PAGES.CONFIGURE){
-    if (operationRequiresInputScaling.value) {
+    if (isInputScaling.value) {
       page.value = WIZARD_PAGES.SCALING
     }
     else {
@@ -215,6 +208,13 @@ function removeImage(inputKey, image, inputIndex=0) {
   if (!inputImages) return
 
   inputImages.splice(inputImages.indexOf(image), 1)
+}
+
+function updateScaling(channelIndex, zmin, zmax) {
+  // update the zmin/zmax for the operationInput channel
+  const channel = operationInputs.value.color_channels[channelIndex]
+  channel.zmin = zmin
+  channel.zmax = zmax
 }
 </script>
 <template>
@@ -305,13 +305,12 @@ function removeImage(inputKey, image, inputIndex=0) {
     </v-slide-y-reverse-transition>
     <v-slide-y-reverse-transition hide-on-leave>
       <v-card-text
-        v-show="page == WIZARD_PAGES.SCALING"
+        v-if="page == WIZARD_PAGES.SCALING"
         class="wizard-card"
       >
-        <image-scaling-group
+        <wizard-scaling-page
           v-if="isInputComplete && inputDescriptions"
-          :input-description="inputDescriptions"
-          :inputs="operationInputs"
+          :color-channels="operationInputs.color_channels"
           @update-scaling="updateScaling"
         />
       </v-card-text>
@@ -346,6 +345,10 @@ function removeImage(inputKey, image, inputIndex=0) {
 
 .wizard-list {
   background-color: var(--header);
+}
+
+.wizard-background{
+  max-height: 100vh;
 }
 
 .wizard-subheader {
