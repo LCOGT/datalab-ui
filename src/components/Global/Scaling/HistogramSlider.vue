@@ -183,6 +183,7 @@ function zScaleImage() {
 .v-range-slider {
   width: 100%;
   position: absolute;
-  top: 75px;
+  top: 100%;
+  transform: translateY(-50%)
 }
 </style>

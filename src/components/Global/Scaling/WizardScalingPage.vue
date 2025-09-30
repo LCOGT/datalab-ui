@@ -1,5 +1,5 @@
 <script setup>
-// import CompositeImage from './CompositeImage.vue'
+import CompositeImage from './CompositeImage.vue'
 import ImageScaler from './ImageScaler.vue'
 
 // This component defines a page in the OperationWizard that takes in operation wizard
@@ -18,11 +18,10 @@ const emit = defineEmits(['updateScaling'])
 
 </script>
 <template>
-  <div class="scaling-page d-flex">
+  <div class="scaling-page d-flex ga-2">
     <composite-image
       :width="compositeImageMaxWidth"
       :height="compositeImageMaxWidth"
-      :image-name="groupName"
     />
     <div class="scale-controls d-flex flex-column align-center ga-4">
       <image-scaler
@@ -43,6 +42,5 @@ const emit = defineEmits(['updateScaling'])
 .scale-controls {
   overflow-y: scroll;
   max-height: 100%;
-  min-width: 532px;
 }
 </style>

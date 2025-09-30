@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { useScalingStore } from '@/stores/scaling'
 
 // This component draws a composite RGB image from the scaling store
@@ -12,40 +12,35 @@ const props = defineProps({
   height: {
     type: Number,
     required: true
-  },
-  imageName: {
-    type: String,
-    required: true
   }
 })
 
 const scalingStore = useScalingStore()
-const imageCanvas = ref(null)
+const compositeImageCanvas = ref(null)
 var context = null
 
-const ableToDraw = computed(() => { return scalingStore.compositeImageData })
-
 function redrawImage() {
-  if (ableToDraw.value) {
-    const compositeImage = scalingStore.compositeImageData
-    // convert to ImageBitMap to use drawImage
-    createImageBitmap(compositeImage).then((compositeImageBitMap) => {
-      // scale image to fit canvas
-      context.drawImage(compositeImageBitMap, 0, 0, compositeImageBitMap.width, compositeImageBitMap.height, 0, 0, props.width, props.height)
-    })
-  }
+  if (!scalingStore.compositeImageData || !context) return
+
+  // convert to ImageBitMap to use drawImage
+  createImageBitmap(scalingStore.compositeImageData).then((compositeImageBitMap) => {
+    // scale image to fit canvas
+    context.drawImage(compositeImageBitMap, 0, 0, compositeImageBitMap.width, compositeImageBitMap.height, 0, 0, props.width, props.height)
+    compositeImageBitMap.close()
+  })
 }
 
-onMounted(() => {
-  context = imageCanvas.value.getContext('2d')
+onMounted(() => { 
+  context = compositeImageCanvas.value.getContext('2d')
+  redrawImage()
 })
 
-watch(() => scalingStore.compositeImageData, () => { redrawImage() })
+watch(() => scalingStore.compositeImageData, redrawImage)
 
 </script>
 <template>
   <canvas
-    ref="imageCanvas"
+    ref="compositeImageCanvas"
     class="composite-canvas elevation-8 rounded-md"
     :width="props.width"
     :height="props.height"
