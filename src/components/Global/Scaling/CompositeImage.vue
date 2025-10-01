@@ -12,6 +12,10 @@ const props = defineProps({
   height: {
     type: Number,
     required: true
+  },
+  imageSize: {
+    type: Number,
+    default: 700
   }
 })
 
@@ -28,7 +32,7 @@ function redrawImage() {
   })
 }
 
-onMounted(() => { scalingStore.initializeCanvas(Math.max(props.width, props.height)) })
+onMounted(() => { scalingStore.initializeCanvas(props.imageSize) })
 
 watch(() => scalingStore.version, () => { redrawImage() })
 
