@@ -46,7 +46,7 @@ onMounted(() => {
   // If we are storing color channels for a composite image preview, set a callback
   // for the web-worker to extract that data from the shared array and send to the store
   worker.onmessage = () => {
-    scalingStore.updateImageArray(props.color, sharedArray, props.maxSize)
+    scalingStore.updateImageArray(props.color, sharedArray)
     isCanvasReady.value = true
   }
 })

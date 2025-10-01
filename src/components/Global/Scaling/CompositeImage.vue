@@ -17,31 +17,26 @@ const props = defineProps({
 
 const scalingStore = useScalingStore()
 const compositeImageCanvas = ref(null)
-var context = null
 
 function redrawImage() {
-  if (!scalingStore.compositeImageData || !context) return
-
   // convert to ImageBitMap to use drawImage
   createImageBitmap(scalingStore.compositeImageData).then((compositeImageBitMap) => {
     // scale image to fit canvas
-    context.drawImage(compositeImageBitMap, 0, 0, compositeImageBitMap.width, compositeImageBitMap.height, 0, 0, props.width, props.height)
+    const compositeCanvasContext = compositeImageCanvas.value.getContext('2d')
+    compositeCanvasContext.drawImage(compositeImageBitMap, 0, 0, compositeImageBitMap.width, compositeImageBitMap.height, 0, 0, props.width, props.height)
     compositeImageBitMap.close()
   })
 }
 
-onMounted(() => { 
-  context = compositeImageCanvas.value.getContext('2d')
-  redrawImage()
-})
+onMounted(() => { scalingStore.initializeCanvas(Math.max(props.width, props.height)) })
 
-watch(() => scalingStore.compositeImageData, redrawImage)
+watch(() => scalingStore.version, () => { redrawImage() })
 
 </script>
 <template>
   <canvas
     ref="compositeImageCanvas"
-    class="composite-canvas elevation-8 rounded-md"
+    class="composite-canvas rounded-lg"
     :width="props.width"
     :height="props.height"
   />

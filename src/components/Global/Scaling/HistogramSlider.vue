@@ -119,7 +119,7 @@ function zScaleImage() {
 
 </script>
 <template>
-  <div class="histogram-range-slider d-flex flex-column">
+  <div class="histogram-range-slider d-flex flex-column ga-4">
     <div class="slider-controls d-flex ga-2 ma-2">
       <v-text-field
         v-model="scaleRange[0]"
