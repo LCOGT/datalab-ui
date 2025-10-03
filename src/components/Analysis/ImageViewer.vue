@@ -42,17 +42,20 @@ const showVariableStarDialog = ref(false)
 const variableTargetCoords = ref({ ra: null, dec: null })
 
 onMounted(() => {
+  // Initialize the map and its event listeners before adding the image overlay
   createMap()
   addMapHandlers()
 })
 
+// When the catalog is updated we want to recreate the catalog layer
 watch(() => props.catalog, () => createCatalogLayer())
 
+// update url property of the ImageOverlay Layer or create it
 watch(() => analysisStore.imageUrl, (newImageUrl) => {
   imageOverlay ? imageOverlay.setUrl(newImageUrl) : initImageOverlay(newImageUrl)
 })
 
-// Loads image overlay and sets bounds
+// Creates image overlay and sets bounds
 async function initImageOverlay(imgSrc) {
   const img = await loadImage(imgSrc)
   imageDimensions.value = { width: img.width, height: img.height }
@@ -74,7 +77,7 @@ async function initImageOverlay(imgSrc) {
 
   /**
    * Fills map space with image, set max/min zoom
-   * Next tick is used here otherwise the methods will not work due to bugs in leaflets code.
+   * Next tick is used here otherwise the bounds will update before the ImageOverlay is added to the map
    */
   nextTick(() => {
     imageMap.invalidateSize()
@@ -85,15 +88,15 @@ async function initImageOverlay(imgSrc) {
 }
 
 function createMap(){
-  // Create leaflet map (here referred to as image)
+  // Create leaflet map (here referred to as imageMap)
   imageMap = L.map(leafletDiv.value, {
     maxZoom: 5,
     minZoom: -3,
-    zoomSnap: 0,
+    zoomSnap: 0, // disable snap for smooth zoom
     zoomDelta: 0.5,
     crs: L.CRS.Simple,
     attributionControl: false,
-    maxBoundsViscosity: 1.0,
+    maxBoundsViscosity: 1.0, // Prevents panning outside of image
   })
 
   // Create custom control to reset view after zooming in
@@ -132,8 +135,8 @@ function createMap(){
 }
 
 function addMapHandlers() {
+  // Remove last drawn line when starting new one
   imageMap.on('pm:drawstart', ({ workingLayer }) => {
-    // Remove last drawn line when starting new one
     if (lineLayer && imageMap.hasLayer(lineLayer)) {
       imageMap.removeLayer(lineLayer)
     }
@@ -164,6 +167,8 @@ function addMapHandlers() {
 
     const fitsWidth = wcs.fits_dimensions[0]
     const fitsHeight = wcs.fits_dimensions[1]
+
+    // TODO: up to here might be able to be moved outside of the mousemove event
 
     const imageX = e.latlng.lng
     const imageY = e.latlng.lat

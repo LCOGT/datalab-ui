@@ -5,8 +5,7 @@ import { useAnalysisStore } from '@/stores/analysis'
 
 const analysisStore = useAnalysisStore()
 
-const search = ref('')
-
+const search = ref('') // v-data-table search model
 const headerDataKeyValueList = Object.entries(analysisStore.headerData)
 
 const tableHeaders = [
@@ -14,6 +13,7 @@ const tableHeaders = [
   { title: 'Value', sortable: false, key:'1' },
 ]
 
+// Loopable chip dict for v-chips
 const headerChips = computed(() => [
   { icon: 'mdi-earth', text: siteIDToName(analysisStore.headerData.SITEID) },
   { icon: 'mdi-telescope', text: analysisStore.headerData.TELID },

@@ -8,6 +8,7 @@ const periodCanvas = ref(null)
 let periodChart = null
 const DECIMAL_PLACES = 4
 
+// Determines color of the false alarm probability chip
 const probabilityChipColor = computed(() => {
   const ONE_SIGMA = 0.32
   const TWO_SIGMA = 0.045
@@ -18,6 +19,7 @@ const probabilityChipColor = computed(() => {
   return 'var(--red)'
 })
 
+// Periodogram data formatted for chartJs
 const chartData = computed(() => {
   const periodogram = analysisStore.variableStarData.magPeriodogram
 
@@ -37,10 +39,11 @@ watch(() => analysisStore.variableStarData, () => {
 }, { deep: true})
 
 function updateChart() {
-  // Updates the chart when user runs flux analysis again
+  // Updates the chart with new data
   const { period1, period2 } = chartData.value
   periodChart.data.datasets[0].data = period1
   periodChart.data.datasets[1].data = period2
+  // Call Chart.js update method
   periodChart.update()
 }
 
@@ -58,14 +61,14 @@ function createChart() {
   periodChart = new Chart(periodCanvas.value, {
     data: {
       datasets: [
-        {
+        { // First Period
           type: 'scatter',
           label: 'Period 1',
           data: period1,
           backgroundColor: primary,
           pointHoverBackgroundColor: info,
         },
-        {
+        { // Second Period (Phase + 1)
           type: 'scatter',
           label: 'Period 2',
           data: period2,

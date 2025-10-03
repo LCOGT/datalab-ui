@@ -49,8 +49,8 @@ function openDeleteOperationDialog(operation) {
   showDeleteDialog.value = true
 }
 
+// Reset the selected operation after its deleted, otherwise the next operation will be selected 
 function itemDeleted(deletedIds) {
-  // Reset the selected operation after its deleted, otherwise the next operation will be selected 
   emit('selectOperation', -1)
   emit('operationWasDeleted', deletedIds)
 }

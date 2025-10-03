@@ -61,6 +61,7 @@ async function processScalePoints(scalePoints) {
   const srcData = imageData.data
   const scale = 255 / (high16Bit - low16Bit)
 
+  // Loop through each pixel, normalize according to the Zscale (low16bit, high16bit) and apply gamma correction
   for (let i = 0; i < len; i++) {
     const clippedValue = Math.max(low16Bit, Math.min(high16Bit, srcData[i]))
     const normalizedValue = Math.floor((clippedValue - low16Bit) * scale)

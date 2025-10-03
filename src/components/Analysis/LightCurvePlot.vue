@@ -10,17 +10,20 @@ let lightCurveChart = null
 const CHART_PADDING = 0.5
 const DECIMAL_PLACES = 4
 
+// Chart data for brightness over linear time
 const chartData = computed(() => {
   const magTimeSeries = analysisStore.magTimeSeries
 
   const dates = magTimeSeries.map(({ julian_date }) => julian_date)
   const magnitudes = magTimeSeries.map(({ mag }) => mag.toFixed(DECIMAL_PLACES))
+  // Error bars as [lowerBound, upperBound]
   const errors = magTimeSeries.map(({ mag, magerr }) => {
     const lowerBound = (mag - magerr).toFixed(DECIMAL_PLACES)
     const upperBound = (mag + magerr).toFixed(DECIMAL_PLACES)
     return [lowerBound, upperBound]
   })
 
+  // Formatted dict for the chart to use
   return {
     dates: dates,
     magnitudes: magnitudes,
@@ -35,18 +38,19 @@ watch(() => analysisStore.variableStarData, () => {
 }, { deep: true})
 
 function updateChart() {
-  // Updates the chart when user runs flux analysis again
+  // Set all the new data
   const { dates, magnitudes, errors, chartMin, chartMax } = chartData.value
   lightCurveChart.data.labels = dates
   lightCurveChart.data.datasets[0].data = magnitudes
   lightCurveChart.data.datasets[1].data = errors
   lightCurveChart.options.scales.y.min = chartMin
   lightCurveChart.options.scales.y.max = chartMax
+  // Call Chart.js update method
   lightCurveChart.update()
 }
 
 function createChart() {
-  // chartJs can't use css vars as strings, so we need to get the actual value
+  // chartJs can't use css vars as strings, so we need to get the values
   var style = getComputedStyle(document.body)
   const text = style.getPropertyValue('--text')
   const primary = style.getPropertyValue('--primary-interactive')
@@ -61,27 +65,24 @@ function createChart() {
     data: {
       labels: dates,
       datasets: [
-        {
+        { // Main magnitude dataset is a line chart
           label: 'Magnitude',
           data: magnitudes,
           order: 0,
-          // Line styling
           borderColor: primary,
           borderWidth: 2,
           borderJoinStyle: 'round',
           backgroundColor: primary,
           cubicInterpolationMode: 'monotone',
           tension: 0.4,
-          // Point hover styling
           pointHoverBorderColor: secondary,
           pointHoverBackgroundColor: secondary,
         },
-        {
+        { // Error bar dataset is a bar chart overlaid
           label: 'Mag Error',
           data: errors,
           order: 1,
           type: 'bar',
-          // Error bar styling
           borderColor: info,
           backgroundColor: info,
           barPercentage: 0.1,
@@ -92,7 +93,7 @@ function createChart() {
     },
     options: {
       scales: {
-        x: {
+        x: { // Formating the x time axis
           type: 'timeseries',
           title: { display: true, text: 'Date', color: text },
           border: { color: text, width: 2 },
@@ -119,7 +120,7 @@ function createChart() {
         legend: { display: false },
         tooltip: { mode: 'index', intersect: false },
       },
-      hover: {
+      hover: { // A more permissive hover that doesn't require intersecting a point
         mode: 'index',
         intersect: false,
       }

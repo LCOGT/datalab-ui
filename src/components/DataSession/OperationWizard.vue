@@ -5,7 +5,16 @@ import MultiImageInputSelector from '@/components/DataSession/MultiImageInputSel
 import ImageScalingGroup from '@/components/Global/Scaling/ImageScalingGroup'
 import { useConfigurationStore } from '@/stores/configuration'
 
+/*
+  This component is a step wizard for configuring the input of a new operation to the data session.
+  It has three main pages:
+    1. Select Operation
+    2. Configure Operation
+    3. Set Image Scaling (if required)
+*/
+
 const props = defineProps({
+  // Available images to select from
   images: {
     type: Array,
     required: true
@@ -25,10 +34,12 @@ const WIZARD_PAGES = {
   CONFIGURE: 'configure',
   SCALING: 'scaling'
 }
+// Start on the select operation page
 const page = ref(WIZARD_PAGES.SELECT)
 
 const inputDescriptions = computed(() => { return selectedOperation.value.inputs })
 
+// Text for the forward button changes based on the current page
 const goForwardText = computed(() => {
   if (page.value == WIZARD_PAGES.SELECT) {
     return WIZARD_PAGES.SELECT
@@ -46,6 +57,7 @@ const goForwardText = computed(() => {
   }
 })
 
+// Text for the wizard title changes based on the current page
 const wizardTitle = computed(() => {
   if (page.value == WIZARD_PAGES.SELECT) {
     return 'SELECT OPERATION'
@@ -82,6 +94,7 @@ const isInputComplete = computed(() => {
   return true
 })
 
+// Bool to check if any of the operation inputs require image scaling, only for Color operation currently
 const operationRequiresInputScaling = computed(() => {
   for (const inputKey in inputDescriptions.value) {
     if (inputDescriptions.value[inputKey].include_custom_scale) {
@@ -179,10 +192,11 @@ function selectOperation(name) {
   }
 }
 
+// Image dragged into the selected images area
 function insertSelectedImage(inputKey, image) {
   if (inputKey in operationInputs.value && !operationInputs.value[inputKey].includes(image)) {
+    // This case of only wanting a single image should have the behavior of replacing the image rather than adding to the list of inputs
     if (imageInputDescriptions.value[inputKey].maximum === 1) {
-      // This case of only wanting a single image should have the behavior of replacing the image rather than adding to the list of inputs
       operationInputs.value[inputKey] = [image]
     }
     else if(operationInputs.value[inputKey].length >= imageInputDescriptions.value[inputKey].maximum) {
@@ -195,6 +209,7 @@ function insertSelectedImage(inputKey, image) {
   }
 }
 
+// Image removed from the selected images area
 function removeSelectedImage(inputKey, image) {
   operationInputs.value[inputKey].splice(operationInputs.value[inputKey].indexOf(image), 1)
 }
