@@ -35,8 +35,8 @@ const POLL_WAIT_TIME = 5000
 
 var operationMap = {}
 
+// When a user clicks on an operation, we filter to only show the outputs of that operation
 const filteredImages = computed(() => {
-  // If no operation is selected, return all images, otherwise filter by selected operation
   if (selectedOperation.value === -1) {
     return images.value
   } else {
@@ -44,10 +44,23 @@ const filteredImages = computed(() => {
   }
 })
 
+// Runs when a user clicks on an operation to select/deselect it
+function selectOperation(operationId) {
+  if (operationId == selectedOperation.value) {
+    selectedOperation.value = -1
+  }
+  else {
+    selectedOperation.value = operationId
+  }
+}
+
+
+// Image Equality Check
 function imagesContainsFile(file) {
   return images.value.some(image => image.basename == file.basename && image.source == file.source && image.operation == file.operation)
 }
 
+// Add completed operation images to image list and attach operation metadata to identify their source
 function addCompletedOperation(operation) {
   if ('output' in operation && 'output_files' in operation.output) {
     operation.output.output_files.forEach(outputFile => {
@@ -58,15 +71,6 @@ function addCompletedOperation(operation) {
         images.value.push(outputFile)
       }
     })
-  }
-}
-
-function selectOperation(operationId) {
-  if (operationId == selectedOperation.value) {
-    selectedOperation.value = -1
-  }
-  else {
-    selectedOperation.value = operationId
   }
 }
 
@@ -103,6 +107,7 @@ function operationDeleted(operationIDs){
   })
 }
 
+// Main lifecycle function for managing operation polling and updates
 async function pollOperationCompletion(operation) {
   // Success Callback for checking operation status
   const updateOperationStatus = (response) => {
@@ -143,6 +148,7 @@ async function pollOperationCompletion(operation) {
   await fetchApiCall({ url: url, method: 'GET', successCallback: updateOperationStatus, failCallback: handleError })
 }
 
+// Kicks off the lifecycle function above for any operations that are not completed
 function startOperationPolling() {
   operations.value.forEach(operation => {
     if (operation.status != 'COMPLETED' && operation.status != 'FAILED') {

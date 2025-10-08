@@ -8,6 +8,7 @@ const MAX_IMAGE_DIMENSION = 1024 // Maximum dimension for performance
 
 /**
  * This store manages the images and analysis results displayed on the analysis page.
+ * TODO: add line profiles here or split into multiple stores if it gets too large
  */
 export const useAnalysisStore = defineStore('analysis', {
   state: () => ({

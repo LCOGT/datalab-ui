@@ -19,14 +19,16 @@ const configStore = useConfigurationStore()
 const analysisStore = useAnalysisStore()
 const alertsStore = useAlertsStore()
 
+// Date range to query images from the archive, default to last 7 days
 const endDate = ref(new Date(analysisStore.headerData.DATE))
 const startDate = ref(new Date(endDate.value))
 startDate.value.setDate(endDate.value.getDate() - 7)
-const matchingImages = ref({ count: 0, results: [] })
-
 const ISOStartDate = computed(() => startDate.value.toISOString())
 const ISOEndDate = computed(() => endDate.value.toISOString())
 
+const matchingImages = ref({ count: 0, results: [] })
+
+// When date range changes, queries the archive and updates tooltip with how many images are available
 watch([startDate, endDate], () => {
   const { datalabArchiveApiUrl } = configStore
   const { imageFilter, imageProposalId } = analysisStore
@@ -49,16 +51,17 @@ watch([startDate, endDate], () => {
   })
 }, { immediate: true })
 
+// Run when user clicks "Analyze" kicks off the variable star analysis
 function dispatchVariableAnalysis() {
   emit ('analysisAction', 'variable-star', {
-    images: matchingImages.value.results.map((image) => {
+    images: matchingImages.value.results.map((image) => { // a list of images
       return {
         id: image.id,
         basename: image.basename,
         observation_date: image.observation_date,
       }
     }),
-    target_coords: props.coords,
+    target_coords: props.coords, // the target coordinates
   })
   analysisStore.variableStarData.loading = true
   emit('closeDialog')

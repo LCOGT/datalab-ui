@@ -1,5 +1,10 @@
 import { defineStore } from 'pinia'
 
+/*
+  This store manages user data and preferences.
+  Persisted between reloads using pinia-plugin-persistedstate.
+  It includes authentication details, user profile information, and UI preferences.
+*/
 
 export const useUserDataStore = defineStore('userData', {
   state() {

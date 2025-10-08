@@ -30,7 +30,7 @@ function createChart (){
     data: {
       labels: generateLabels(),
       datasets: [
-        {
+        { // Flux value along the drawn line as a line plot
           label: 'Flux',
           data: props.yAxisData,
           // Line styling
@@ -49,7 +49,7 @@ function createChart (){
     },
     options: {
       scales: {
-        x: {
+        x: { // Autoskip labels if there are too many to display
           title: { display: true, text: distanceLabel(), color: text },
           border: { color: text, width: 2 },
           ticks: { color: text, autoSkip: true, autoSkipPadding: 10 , maxRotation: 0 },
@@ -66,7 +66,7 @@ function createChart (){
         legend: { display: false },
         tooltip: { mode: 'index', intersect: false },
       },
-      hover: {
+      hover: { // Permissive hover, shows tooltips when cursor is near a point
         mode: 'index',
         intersect: false,
       }
@@ -75,13 +75,14 @@ function createChart (){
 }
 
 function updateChart(){
+  // Set the changed data
   lineProfileChart.data.labels = generateLabels()
   lineProfileChart.data.datasets[0].data = props.yAxisData
   lineProfileChart.options.scales.x.title.text = distanceLabel()
+  // Call Chart.js update method
   lineProfileChart.update()
 }
-
-// Creates the labels for the x-axis
+// Uses length of the line to generate step size in arcseconds or pixels as x-axis labels
 function generateLabels() {
   const length = props.xAxisLength
   const data = props.yAxisData
