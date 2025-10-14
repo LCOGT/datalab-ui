@@ -2,6 +2,11 @@
 import { ref, watch } from 'vue'
 import { useAlertsStore } from '../../stores/alerts'
 
+/*
+  This component shows alert toasts for user notifications.
+  It listens to the alerts store for changes and displays the alert message accordingly.
+*/
+
 const alertStore = useAlertsStore()
 const showAlert = ref(false)
 

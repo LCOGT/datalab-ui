@@ -58,12 +58,14 @@ onMounted(() => {
   imageDetails.value = reloadImages(props.images)
 })
 
+// Image dragged into the selected images area
 function insert(inputKey, index, event) {
   if (inputKey !== 'all' && ! props.inputImages[inputKey].includes(event.data)) {
     emit('insertImage', inputKey, event.data, index)
   }
 }
 
+// Image removed from the selected images area
 function remove(inputKey, index, value) {
   if (inputKey !== 'all') {
     emit('removeImage', inputKey, value, index)

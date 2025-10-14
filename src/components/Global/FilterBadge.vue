@@ -1,6 +1,11 @@
 <script setup>
 import { filterToColor } from '@/utils/color'
 
+/*
+  This component displays a badge for a given filter name. Added to images in ImageGrid.vue.
+  The background color of the badge is determined by the filter name using the filterToColor utility function.
+*/
+
 const props = defineProps({
   filter: {
     type: String,

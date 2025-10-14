@@ -6,7 +6,16 @@ import MultiImageInputSelector from '@/components/DataSession/MultiImageInputSel
 import WizardScalingPage from '@/components/Global/Scaling/WizardScalingPage.vue'
 import { useConfigurationStore } from '@/stores/configuration'
 
+/*
+  This component is a step wizard for configuring the input of a new operation to the data session.
+  It has three main pages:
+    1. Select Operation
+    2. Configure Operation
+    3. Set Image Scaling (if required)
+*/
+
 const props = defineProps({
+  // Available images to select from
   images: {
     type: Array,
     required: true
@@ -28,10 +37,12 @@ const WIZARD_PAGES = {
   CONFIGURE: 'configure',
   SCALING: 'scaling'
 }
+// Start on the select operation page
 const page = ref(WIZARD_PAGES.SELECT)
 
 const inputDescriptions = computed(() => { return selectedOperation.value.inputs })
 
+// Text for the forward button changes based on the current page
 const goForwardText = computed(() => {
   if (page.value == WIZARD_PAGES.SELECT) {
     return WIZARD_PAGES.SELECT
@@ -49,6 +60,7 @@ const goForwardText = computed(() => {
   }
 })
 
+// Text for the wizard title changes based on the current page
 const wizardTitle = computed(() => {
   if (page.value == WIZARD_PAGES.SELECT) {
     return 'SELECT OPERATION'
@@ -85,6 +97,7 @@ const isInputComplete = computed(() => {
   return true
 })
 
+// Bool to check if any of the operation inputs require image scaling, only for Color operation currently
 const isInputScaling = computed(() => {
   for (const inputKey in inputDescriptions.value) {
     if (inputDescriptions.value[inputKey].include_custom_scale) {
@@ -189,6 +202,7 @@ const _inputImages = (key, index) => {
     : operationInputs.value[key]
 }
 
+// Image dragged into the selected images area
 function insertImage(inputKey, image, inputIndex=0) {
   const inputImages = _inputImages(inputKey, inputIndex)
   const description = imageInputDescriptions.value[inputKey]
@@ -202,6 +216,7 @@ function insertImage(inputKey, image, inputIndex=0) {
   inputImages.push(image)
 }
 
+// Image removed from the selected images area
 function removeImage(inputKey, image, inputIndex=0) {
   const inputImages = _inputImages(inputKey, inputIndex)
 
