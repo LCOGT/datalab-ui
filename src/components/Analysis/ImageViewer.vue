@@ -222,7 +222,7 @@ function createCatalogLayer(){
     })
 
     // Create a circle marker for the source
-    return new L.Circle([source.y, source.x], {
+    return new L.Circle([source.y_win, source.x_win], {
       color: 'var(--info)',
       fillOpacity: 0.2,
       radius: 3,
