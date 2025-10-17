@@ -114,6 +114,7 @@ function distanceLabel(){
     />
     <div class="line-details">
       <template v-if="startCoords && endCoords">
+        <p>PRECISE ASTROMETRIC COORDINATES</p>
         <p><b>Start:</b> RA {{ startCoords[0].toFixed(6) }} Dec {{ startCoords[1].toFixed(6) }}</p>
         <p><b>End:</b> RA {{ endCoords[0].toFixed(6) }} Dec {{ endCoords[1].toFixed(6) }}</p>
       </template>
