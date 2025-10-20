@@ -1,6 +1,8 @@
 <script setup>
-import CompositeImage from './CompositeImage.vue'
+import { onMounted, onUnmounted } from 'vue'
+import OffscreenCompositeImage from './OffscreenCompositeImage.vue'
 import ImageScaler from './ImageScaler.vue'
+import { useScalingStore } from '@/stores/scaling'
 
 // This component defines a page in the OperationWizard that takes in operation wizard
 // of input images that you want scaling parameters for.
@@ -12,14 +14,22 @@ const props = defineProps({
   }
 })
 
-const compositeImageMaxWidth = window.innerWidth * 0.4
-
+const scalingStore = useScalingStore()
+const compositeImageMaxWidth = 700
 const emit = defineEmits(['updateScaling'])
+
+onMounted(() => {
+  scalingStore.readyToBegin = true
+})
+
+onUnmounted(() => {
+  scalingStore.clearChannels()
+})
 
 </script>
 <template>
   <div class="scaling-page d-flex ga-2">
-    <composite-image
+    <offscreen-composite-image
       :width="compositeImageMaxWidth"
       :height="compositeImageMaxWidth"
     />
@@ -28,7 +38,7 @@ const emit = defineEmits(['updateScaling'])
         v-for="(channel, index) in props.colorChannels"
         :key="index"
         :channel-index="index"
-        :image="channel.image[0]"
+        :image="channel"
         :color="channel.color"
         @update-scaling="(channelIndex, zmin, zmax) => emit('updateScaling', channelIndex, zmin, zmax)"
       />

@@ -183,10 +183,12 @@ function selectOperation(name) {
        */
       operationInputs.value[key] = Object.entries(rgbFilterMap).map(([color, filters]) => {
         const preselectedImage = props.images.find(image => filters.includes(image.filter.toLowerCase()))
-        return {
-          image: preselectedImage ? [preselectedImage] : [],
-          color: colorRGBMap[color]
+        let output = {}
+        if (preselectedImage) {
+          output = {...preselectedImage}
         }
+        output.color = colorRGBMap[color]
+        return output
       })
     }
     else {
@@ -195,34 +197,42 @@ function selectOperation(name) {
   }
 }
 
-// color inputs and normal inputs store their selected images in different ways
-const _inputImages = (key, index) => {
-  return imageInputDescriptions.value[key].color_picker
-    ? operationInputs.value[key][index].image
-    : operationInputs.value[key]
-}
-
 // Image dragged into the selected images area
 function insertImage(inputKey, image, inputIndex=0) {
-  const inputImages = _inputImages(inputKey, inputIndex)
   const description = imageInputDescriptions.value[inputKey]
+  if (!imageInputDescriptions.value[inputKey].color_picker) {
+    const inputImages = operationInputs.value[inputKey]
+    // skip if duplicate or invalid input key
+    if (inputImages.includes(image) || !inputImages) return
 
-  // skip if duplicate or invalid input key
-  if (inputImages.includes(image) || !inputImages) return
-
-  if(inputImages.length >= description.maximum) {
-    inputImages.pop()
+    if(inputImages.length >= description.maximum) {
+      inputImages.pop()
+    }
+    inputImages.push(image)
   }
-  inputImages.push(image)
+  else {
+    // inputImage is object (color inputs), so overwrite it with new one
+    operationInputs.value[inputKey][inputIndex] = {
+      ...operationInputs.value[inputKey][inputIndex],
+      ...image
+    }
+  }
 }
 
 // Image removed from the selected images area
 function removeImage(inputKey, image, inputIndex=0) {
-  const inputImages = _inputImages(inputKey, inputIndex)
+  if (imageInputDescriptions.value[inputKey].color_picker) {
+    operationInputs.value[inputKey][inputIndex] = {
+      color: operationInputs.value[inputKey][inputIndex].color
+    }
+  }
+  else{
+    const inputImages = operationInputs.value[inputKey]
 
-  if (!inputImages) return
+    if (!inputImages) return
 
-  inputImages.splice(inputImages.indexOf(image), 1)
+    inputImages.splice(inputImages.indexOf(image), 1)
+  }
 }
 
 function updateScaling(channelIndex, zmin, zmax) {
@@ -293,7 +303,7 @@ function updateScaling(channelIndex, zmin, zmax) {
           @add-channel="() => {
             const colorChannels = operationInputs.color_channels
             if (colorChannels.length < MAX_COLOR_CHANNELS)
-              colorChannels.push({ image: [], color: {r: 255, g: 0, b:255} })
+              colorChannels.push({ color: {r: 255, g: 0, b:255} })
           }"
           @remove-channel="() => {
             const colorChannels = operationInputs.color_channels

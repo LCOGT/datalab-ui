@@ -1,6 +1,7 @@
 <script setup>
 import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { useScalingStore } from '@/stores/scaling'
+import _ from 'lodash'
 
 // This component uses a web worker to redraw a scaled raw image when
 // the scale points change
@@ -31,22 +32,22 @@ const props = defineProps({
 const scalingStore = useScalingStore()
 const imageCanvas = ref(null)
 var offscreen = null
-// SharedArrayBuffer is used for the web worker to fill in data that will then be sent
-// by the main thread to the store for the composite image preview
-const sharedArrayBuffer = new SharedArrayBuffer(Uint8ClampedArray.BYTES_PER_ELEMENT * props.maxSize * props.maxSize)
-var sharedArray = new Uint8ClampedArray(sharedArrayBuffer)
 const worker = new Worker('drawImageWorker.js')
 const isCanvasReady = ref(false)
+var index = null
 
 onMounted(() => {
+  // Initialize the sharedArrayBuffer
+  index = scalingStore.initializeChannel(props.color, props.maxSize, props.maxSize)
+
   // Seed the web worker with initial data including a reference to the offscreen canvas
   offscreen = imageCanvas.value.transferControlToOffscreen()
-  worker.postMessage({canvas: offscreen, width: props.maxSize, height: props.maxSize, sharedArrayBuffer: sharedArrayBuffer}, [offscreen])
+  worker.postMessage({canvas: offscreen, width: props.maxSize, height: props.maxSize, sharedArrayBuffer: scalingStore.sharedArrayBuffers[index]}, [offscreen])
 
   // If we are storing color channels for a composite image preview, set a callback
   // for the web-worker to extract that data from the shared array and send to the store
   worker.onmessage = () => {
-    scalingStore.updateImageArray(props.color, sharedArray)
+    scalingStore.readyToUpdate[index] = true
     isCanvasReady.value = true
   }
 })
@@ -56,10 +57,10 @@ onUnmounted(() => {
 })
 
 watch(
-  () => props.scalePoints, () => {
+  () => props.scalePoints, _.debounce(() => {
     // This triggers the web worker to recompute and redraw the scaled image to screen
     worker.postMessage({ scalePoints: structuredClone(props.scalePoints)})
-  },
+  }, 25),
   { immediate: false }
 )
 

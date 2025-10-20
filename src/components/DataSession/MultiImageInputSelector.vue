@@ -100,7 +100,7 @@ function reloadImages(newImages) {
       >
         <v-card-text>
           <drop-list
-            :items="colorChannelMode? props.inputImages[inputKey][index].image : props.inputImages[inputKey]"
+            :items="colorChannelMode? [props.inputImages[inputKey][index]] : props.inputImages[inputKey]"
             mode="cut"
             :row="true"
             class="drop-section"

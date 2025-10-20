@@ -61,28 +61,38 @@ const sideChartItems = computed(() => {
   return chartItems
 })
 
+const isFitsImage = computed(() => {
+  return props.image && (!('type' in props.image) || props.image?.type === 'fits')
+})
+
 onMounted(() => {
   analysisStore.image = props.image
   analysisStore.imageUrl = props.image.largeCachedUrl
-  analysisStore.loadHeaderData()
-  instantiateScalerWorker()
+  if (isFitsImage.value) {
+    analysisStore.loadHeaderData()
+    instantiateScalerWorker()
+  }
 })
 
 onUnmounted(() => {
-  imgWorker.terminate()
+  if (isFitsImage.value) {
+    imgWorker.terminate()
+  }
   analysisStore.$dispose()
   delete getActivePinia().state.value[analysisStore.$id]
 })
 
 // This function runs when imageViewer emits an analysis-action event and should be extended to handle other analysis types
 function requestAnalysis(action, input={}, action_callback=null){
-  const url = configStore.datalabApiBaseUrl + 'analysis/' + action + '/'
-  const body = {
-    'basename': props.image.basename,
-    'source': props.image.source,
-    ...input
+  if(isFitsImage.value || action === 'get-tif' || action === 'get-jpg'){
+    const url = configStore.datalabApiBaseUrl + 'analysis/' + action + '/'
+    const body = {
+      'basename': props.image.basename,
+      'source': props.image.source,
+      ...input
+    }
+    fetchApiCall({url: url, method: 'POST', body: body, successCallback: (response) => {handleAnalysisOutput(response, action, action_callback)}})
   }
-  fetchApiCall({url: url, method: 'POST', body: body, successCallback: (response) => {handleAnalysisOutput(response, action, action_callback)}})
 }
 
 // The successCallback function for the fetchApiCall in requestAnalysis new operations can be added here as an additional case
@@ -150,12 +160,14 @@ async function instantiateScalerWorker(){
 }
 
 function updateScaling(min, max){
-  imgWorkerNextScale = [min, max]
+  if (isFitsImage.value) {
+    imgWorkerNextScale = [min, max]
 
-  if (imgWorkerNextScale && !imgWorkerProcessing){
-    imgWorkerProcessing = true
-    imgWorker.postMessage({scalePoints: [...imgWorkerNextScale]})
-    imgWorkerNextScale = null
+    if (imgWorkerNextScale && !imgWorkerProcessing){
+      imgWorkerProcessing = true
+      imgWorker.postMessage({scalePoints: [...imgWorkerNextScale]})
+      imgWorkerNextScale = null
+    }
   }
 }
 
@@ -176,6 +188,7 @@ function updateScaling(min, max){
         :image-name="image.basename"
         :fits-url="image.url || image.fits_url"
         :jpg-url="image.largeCachedUrl"
+        :enable-scaled-download="isFitsImage"
         @analysis-action="requestAnalysis"
       />
       <v-btn
@@ -240,6 +253,7 @@ function updateScaling(min, max){
               :max-value="analysisStore.maxPixelValue"
               :z-min="Number(analysisStore.zmin)"
               :z-max="Number(analysisStore.zmax)"
+              :color="{ r: 255, g: 255, b: 255 }"
               @update-scaling="updateScaling"
             />
           </v-sheet>
