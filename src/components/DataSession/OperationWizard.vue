@@ -235,6 +235,22 @@ function removeImage(inputKey, image, inputIndex=0) {
   }
 }
 
+function addColorChannel() {
+  const colorChannels = operationInputs.value.color_channels
+  if (colorChannels.length < MAX_COLOR_CHANNELS)
+    colorChannels.push({ color: {r: 255, g: 0, b:255} })
+}
+
+function removeColorChannel() {
+  const colorChannels = operationInputs.value.color_channels
+  if (colorChannels.length != MIN_COLOR_CHANNELS)
+    operationInputs.value.color_channels.pop( )
+}
+
+function updateColorChannel(index, color) {
+  operationInputs.value.color_channels[index].color = color
+}
+
 function updateScaling(channelIndex, zmin, zmax) {
   // update the zmin/zmax for the operationInput channel
   const channel = operationInputs.value.color_channels[channelIndex]
@@ -300,19 +316,9 @@ function updateScaling(channelIndex, zmin, zmax) {
           :min-inputs="MIN_COLOR_CHANNELS"
           @insert-image="insertImage"
           @remove-image="removeImage"
-          @add-channel="() => {
-            const colorChannels = operationInputs.color_channels
-            if (colorChannels.length < MAX_COLOR_CHANNELS)
-              colorChannels.push({ color: {r: 255, g: 0, b:255} })
-          }"
-          @remove-channel="() => {
-            const colorChannels = operationInputs.color_channels
-            if (colorChannels.length != MIN_COLOR_CHANNELS)
-              operationInputs.color_channels.pop( )
-          }"
-          @update-channel-color="(index, color) => {
-            operationInputs.color_channels[index].color = color
-          }"
+          @add-channel="addColorChannel"
+          @remove-channel="removeColorChannel"
+          @update-channel-color="updateColorChannel"
         />
         <div
           v-for="(inputDescription, inputKey) in inputDescriptions"
