@@ -1,8 +1,9 @@
 <script setup>
 import { ref, onMounted, computed} from 'vue'
 import { fetchApiCall, handleError } from '@/utils/api'
+import { rgbFilterMap, colorRGBMap } from '@/utils/color'
 import MultiImageInputSelector from '@/components/DataSession/MultiImageInputSelector.vue'
-import ImageScalingGroup from '@/components/Global/Scaling/ImageScalingGroup'
+import WizardScalingPage from '@/components/Global/Scaling/WizardScalingPage.vue'
 import { useConfigurationStore } from '@/stores/configuration'
 
 /*
@@ -28,6 +29,8 @@ const dataSessionsUrl = store.datalabApiBaseUrl
 const availableOperations = ref({})
 const selectedOperation = ref('')
 const operationInputs = ref({})
+const MAX_COLOR_CHANNELS = 6
+const MIN_COLOR_CHANNELS = 1
 
 const WIZARD_PAGES = {
   SELECT: 'select',
@@ -45,7 +48,7 @@ const goForwardText = computed(() => {
     return WIZARD_PAGES.SELECT
   }
   else if (page.value == WIZARD_PAGES.CONFIGURE){
-    if (operationRequiresInputScaling.value) {
+    if (isInputScaling.value) {
       return 'Set Image Scaling'
     }
     else{
@@ -65,7 +68,7 @@ const wizardTitle = computed(() => {
   else if (page.value == WIZARD_PAGES.SCALING) {
     return 'Configure ' + selectedOperation.value.name + ' Operation: Select scale points for each channel'
   }
-  else if (page.value == WIZARD_PAGES.CONFIGURE && operationRequiresInputScaling.value) {
+  else if (page.value == WIZARD_PAGES.CONFIGURE && isInputScaling.value) {
     return 'Configure ' + selectedOperation.value.name + ' Operation: Select input images for channels'
   }
   else {
@@ -95,7 +98,7 @@ const isInputComplete = computed(() => {
 })
 
 // Bool to check if any of the operation inputs require image scaling, only for Color operation currently
-const operationRequiresInputScaling = computed(() => {
+const isInputScaling = computed(() => {
   for (const inputKey in inputDescriptions.value) {
     if (inputDescriptions.value[inputKey].include_custom_scale) {
       return true
@@ -121,13 +124,6 @@ onMounted(async () => {
   }
 })
 
-function updateScaling(imageName, zmin, zmax) {
-  // When input image scaling is updated, we set it inside the operation input object
-  // that will then be sent to the server when we add the operation
-  operationInputs.value[imageName][0].zmin = zmin
-  operationInputs.value[imageName][0].zmax = zmax
-}
-
 function goForward() {
   if (page.value == WIZARD_PAGES.SELECT) {
     // if there are no images for a filter required by the operation, do not proceed
@@ -140,7 +136,7 @@ function goForward() {
     page.value = WIZARD_PAGES.CONFIGURE
   }
   else if (page.value == WIZARD_PAGES.CONFIGURE){
-    if (operationRequiresInputScaling.value) {
+    if (isInputScaling.value) {
       page.value = WIZARD_PAGES.SCALING
     }
     else {
@@ -179,12 +175,21 @@ function selectOperation(name) {
     if ('default' in value) {
       operationInputs.value[key] = value.default
     }
-    else if (value.maximum === 1 && value.filter) {
-      // If this entry wants on file and has pre-specified filter preferences, preselect the closest file for them
-      const preselectedImage = props.images.find(image => value.filter.includes(image.filter?.trim().toLowerCase()))
-      if (preselectedImage) {
-        operationInputs.value[key] = [preselectedImage]
-      }
+    else if (value.color_picker) {
+      /**
+       * Custom handling for color image operation
+       * Since we can add and remove channels all inputs fall under the same key in an array of objects
+       * Default: start with 3 channels (RGB) and try to preselect images for those
+       */
+      operationInputs.value[key] = Object.entries(rgbFilterMap).map(([color, filters]) => {
+        const preselectedImage = props.images.find(image => filters.includes(image.filter.toLowerCase()))
+        let output = {}
+        if (preselectedImage) {
+          output = {...preselectedImage}
+        }
+        output.color = colorRGBMap[color]
+        return output
+      })
     }
     else {
       operationInputs.value[key] = []
@@ -193,32 +198,74 @@ function selectOperation(name) {
 }
 
 // Image dragged into the selected images area
-function insertSelectedImage(inputKey, image) {
-  if (inputKey in operationInputs.value && !operationInputs.value[inputKey].includes(image)) {
-    // This case of only wanting a single image should have the behavior of replacing the image rather than adding to the list of inputs
-    if (imageInputDescriptions.value[inputKey].maximum === 1) {
-      operationInputs.value[inputKey] = [image]
+function insertImage(inputKey, image, inputIndex=0) {
+  const description = imageInputDescriptions.value[inputKey]
+  if (!imageInputDescriptions.value[inputKey].color_picker) {
+    const inputImages = operationInputs.value[inputKey]
+    // skip if duplicate or invalid input key
+    if (inputImages.includes(image) || !inputImages) return
+
+    if(inputImages.length >= description.maximum) {
+      inputImages.pop()
     }
-    else if(operationInputs.value[inputKey].length >= imageInputDescriptions.value[inputKey].maximum) {
-      operationInputs.value[inputKey].pop(image)
-      operationInputs.value[inputKey].push(image)
-    }
-    else{
-      operationInputs.value[inputKey].push(image)
+    inputImages.push(image)
+  }
+  else {
+    // inputImage is object (color inputs), so overwrite it with new one
+    operationInputs.value[inputKey][inputIndex] = {
+      ...operationInputs.value[inputKey][inputIndex],
+      ...image
     }
   }
 }
 
 // Image removed from the selected images area
-function removeSelectedImage(inputKey, image) {
-  operationInputs.value[inputKey].splice(operationInputs.value[inputKey].indexOf(image), 1)
+function removeImage(inputKey, image, inputIndex=0) {
+  if (imageInputDescriptions.value[inputKey].color_picker) {
+    operationInputs.value[inputKey][inputIndex] = {
+      color: operationInputs.value[inputKey][inputIndex].color
+    }
+  }
+  else{
+    const inputImages = operationInputs.value[inputKey]
+
+    if (!inputImages) return
+
+    inputImages.splice(inputImages.indexOf(image), 1)
+  }
 }
 
-</script>
+function addColorChannel() {
+  const colorChannels = operationInputs.value.color_channels
+  if (colorChannels.length < MAX_COLOR_CHANNELS)
+    colorChannels.push({ color: {r: 255, g: 0, b:255} })
+}
 
+function removeColorChannel() {
+  const colorChannels = operationInputs.value.color_channels
+  if (colorChannels.length != MIN_COLOR_CHANNELS)
+    operationInputs.value.color_channels.pop( )
+}
+
+function updateColorChannel(index, color) {
+  operationInputs.value.color_channels[index].color = color
+}
+
+function updateScaling(channelIndex, zmin, zmax) {
+  // update the zmin/zmax for the operationInput channel
+  const channel = operationInputs.value.color_channels[channelIndex]
+  channel.zmin = zmin
+  channel.zmax = zmax
+}
+</script>
 <template>
-  <v-card class="wizard-background">
-    <v-toolbar class="wizard-toolbar">
+  <v-card
+    class="wizard-background"
+    color="var(--primary-background)"
+  >
+    <v-toolbar
+      color="var(--header)"
+    >
       <v-toolbar-title class="wizard-title">
         {{ wizardTitle }}
       </v-toolbar-title>
@@ -250,9 +297,7 @@ function removeSelectedImage(inputKey, image) {
             class="selected-operation"
           >
             <v-card-text>
-              <span class="operation-description">
-                {{ selectedOperation.description }}
-              </span>
+              {{ selectedOperation.description }}
             </v-card-text>
           </v-card>
         </v-col>
@@ -263,19 +308,21 @@ function removeSelectedImage(inputKey, image) {
         v-show="page == WIZARD_PAGES.CONFIGURE"
         class="wizard-card"
       >
-        <div class="operation-input-wrapper">
-          <multi-image-input-selector
-            :input-descriptions="imageInputDescriptions"
-            :selected-images="operationInputs"
-            :images="props.images"
-            @insert-selected-image="insertSelectedImage"
-            @remove-selected-image="removeSelectedImage"
-          />
-        </div>
+        <multi-image-input-selector
+          :input-descriptions="imageInputDescriptions"
+          :input-images="operationInputs"
+          :images="props.images"
+          :max-inputs="MAX_COLOR_CHANNELS"
+          :min-inputs="MIN_COLOR_CHANNELS"
+          @insert-image="insertImage"
+          @remove-image="removeImage"
+          @add-channel="addColorChannel"
+          @remove-channel="removeColorChannel"
+          @update-channel-color="updateColorChannel"
+        />
         <div
           v-for="(inputDescription, inputKey) in inputDescriptions"
           :key="inputKey"
-          class="operation-input-wrapper"
         >
           <v-text-field
             v-if="inputDescription.type == 'text'"
@@ -289,48 +336,34 @@ function removeSelectedImage(inputKey, image) {
     </v-slide-y-reverse-transition>
     <v-slide-y-reverse-transition hide-on-leave>
       <v-card-text
-        v-show="page == WIZARD_PAGES.SCALING"
+        v-if="page == WIZARD_PAGES.SCALING"
         class="wizard-card"
       >
-        <image-scaling-group
+        <wizard-scaling-page
           v-if="isInputComplete && inputDescriptions"
-          :input-description="inputDescriptions"
-          :inputs="operationInputs"
+          :color-channels="operationInputs.color_channels"
           @update-scaling="updateScaling"
         />
       </v-card-text>
     </v-slide-y-reverse-transition>
-
-    <v-card-actions class="buttons-container">
-      <v-spacer />
+    <div class="buttons-container d-flex ga-4">
       <v-btn
-        class="goback-btn"
         prepend-icon="mdi-arrow-left"
+        text="Back"
+        color="var(--cancel)"
         @click="goBack"
-      >
-        Back
-      </v-btn>
+      />
       <v-btn
-        class="gofwd-btn"
         :disabled="disableGoForward"
+        :text="goForwardText"
+        color="var(--primary-interactive)"
         @click="goForward"
-      >
-        {{ goForwardText }}
-      </v-btn>
-    </v-card-actions>
+      />
+    </div>
   </v-card>
 </template>
 
 <style scoped>
-.wizard-background {
-  background-color: var(--primary-background);
-  height: 100vh;
-}
-
-.wizard-toolbar {
-  background-color: var(--header);
-}
-
 .wizard-title {
   color: var(--text);
   font-family: var(--font-headers);
@@ -343,6 +376,10 @@ function removeSelectedImage(inputKey, image) {
 
 .wizard-list {
   background-color: var(--header);
+}
+
+.wizard-background{
+  max-height: 100vh;
 }
 
 .wizard-subheader {
@@ -364,39 +401,14 @@ function removeSelectedImage(inputKey, image) {
   font-size: 3rem;
 }
 
-.operation-description {
-  font-size: 1rem;
-}
-
 .operation-input {
   margin-top: 2rem;
   width: 12rem;
-}
-
-.input-images {
-  font-family: var(--font-stack);
-  color: var(--text);
-  font-size: 1.5rem;
-  text-transform: uppercase;
-}
-
-.selected-image {
-  border: 0.3rem solid var(--secondary-interactive);
 }
 
 .buttons-container {
   position: fixed;
   right: 2rem;
   bottom: 2rem;
-}
-
-.goback-btn {
-  background-color: var(--cancel);
-  font-size: 1.2rem;
-}
-
-.gofwd-btn {
-  background-color: var(--primary-interactive);
-  font-size: 1.2rem;
 }
 </style>

@@ -45,6 +45,7 @@ onMounted(async () => {
 <style>
 body {
   background-color: var(--primary-background);
+  scrollbar-color: var(--primary-interactive) var(--primary-background);
 }
 
 #app {

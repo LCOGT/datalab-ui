@@ -1,5 +1,5 @@
 <script setup>
-import { filterToColor } from '@/utils/common'
+import { filterToColor } from '@/utils/color'
 
 /*
   This component displays a badge for a given filter name. Added to images in ImageGrid.vue.

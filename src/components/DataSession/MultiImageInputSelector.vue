@@ -1,7 +1,6 @@
 <script setup>
 import { useThumbnailsStore } from '@/stores/thumbnails'
 import { useConfigurationStore } from '@/stores/configuration'
-import { filterToColor } from '@/utils/common'
 import ThumbnailImage from '@/components/Global/ThumbnailImage.vue'
 import {Drag,DropList} from 'vue-easy-dnd'
 import { ref, onMounted, computed } from 'vue'
@@ -11,28 +10,45 @@ const props = defineProps({
     type: Object,
     default: () => {}
   },
-  selectedImages: {
+  inputImages: {
     type: Object,
     default: () => {}
   },
   images: {
     type: Array,
     default: () => []
-  }
+  },
+  maxInputs: {
+    type: Number,
+    default: 5
+  },
+  minInputs: {
+    type: Number,
+    default: 1
+  },
 })
 
-const emit = defineEmits(['insertSelectedImage', 'removeSelectedImage'])
+const emit = defineEmits(['insertImage', 'removeImage', 'addChannel', 'removeChannel', 'updateChannelColor'])
 
 const thumbnailsStore = useThumbnailsStore()
 const configurationStore = useConfigurationStore()
 var imageDetails = ref({})
 
-const columnSize = computed(() => {
-  const inputCount = Object.keys(props.inputDescriptions).length
-  return Math.floor(12 / inputCount)
+const colorChannelMode = computed(() => { return props.inputDescriptions.color_channels != null })
+
+const inputCount = computed(() => {
+  return props.inputDescriptions.color_channels 
+    ? props.inputImages.color_channels.length
+    : Object.keys(props.inputDescriptions).length
 })
 
-const validInputImages = computed(() => {
+const inputList = computed(() => {
+  return props.inputDescriptions.color_channels
+    ? Array.from({ length: inputCount.value }, () => 'color_channels')
+    : Object.keys(props.inputDescriptions)
+})
+
+const fitsImages = computed(() => {
   return props.images.filter(image => {
     return image.type == null || image.type == 'fits'
   })
@@ -43,16 +59,16 @@ onMounted(() => {
 })
 
 // Image dragged into the selected images area
-function insert(inputKey, event) {
-  if (inputKey !== 'all' && ! props.selectedImages[inputKey].includes(event.data)) {
-    emit('insertSelectedImage', inputKey, event.data)
+function insert(inputKey, index, event) {
+  if (inputKey !== 'all' && ! props.inputImages[inputKey].includes(event.data)) {
+    emit('insertImage', inputKey, event.data, index)
   }
 }
 
 // Image removed from the selected images area
-function remove(inputKey, value) {
+function remove(inputKey, index, value) {
   if (inputKey !== 'all') {
-    emit('removeSelectedImage', inputKey, value)
+    emit('removeImage', inputKey, value, index)
   }
 }
 
@@ -70,51 +86,39 @@ function reloadImages(newImages) {
   return newImageDetails
 }
 
-function colorFromInput(inputKey) {
-  if (props.inputDescriptions[inputKey].filter) {
-    return filterToColor(props.inputDescriptions[inputKey].filter[0])
-  }
-  return 'white'
-}
-
 </script>
 
 <template>
   <v-row>
-    <v-col
-      v-for="inputKey in Object.keys(props.inputDescriptions)"
-      :key="inputKey"
-      :cols="columnSize"
-      class="drop-section"
-    >
+    <div class="d-flex ma-3 ga-2 w-100">
       <v-card
-        :title="'Selected ' + props.inputDescriptions[inputKey].name + ':'"
-        variant="outlined"
+        v-for="(inputKey, index) in inputList"
+        :key="inputKey+index"
+        :title="props.inputDescriptions[inputKey].name"
+        color="var(--card-background)"
         density="compact"
-        elevation="0"
-        :color="colorFromInput(inputKey)"
       >
         <v-card-text>
           <drop-list
-            :items="props.selectedImages[inputKey]"
+            :items="colorChannelMode? [props.inputImages[inputKey][index]] : props.inputImages[inputKey]"
             mode="cut"
             :row="true"
             class="drop-section"
-            @insert="insert(inputKey, $event)"
+            @insert="insert(inputKey, index, $event)"
           >
             <template #item="{item}">
               <drag
                 :key="inputKey + '-' + item.basename"
                 :data="item"
-                class="m-1 fill-width"
-                @cut="remove(inputKey, item)"
+                class="m-1 w-100"
+                @cut="remove(inputKey, index, item)"
               >
                 <thumbnail-image
                   :image="item"
                   :image-url="imageDetails[item.basename]"
                   :enable-image-cards="false"
                   :enable-removal="true"
-                  @remove-image="remove(inputKey, $event)"
+                  @remove-image="remove(inputKey, index, $event)"
                 />
               </drag>
             </template>
@@ -125,24 +129,55 @@ function colorFromInput(inputKey) {
                 :image-url="imageDetails[data.basename]"
                 :enable-image-cards="false"
                 :enable-removal="true"
-                @remove-image="remove(inputKey, $event)"
+                @remove-image="remove(inputKey, index, $event)"
               />
             </template>
           </drop-list>
+          <v-color-picker
+            v-if="colorChannelMode"
+            :model-value="props.inputImages[inputKey][index].color"
+            class="w-100"
+            bg-color="var(--card-background)"
+            :elevation="0"
+            landscape
+            hide-canvas
+            hide-eye-dropper
+            :modes="['rgb']"
+            @update:model-value="(value) => emit('updateChannelColor', index, value)"
+          />
         </v-card-text>
       </v-card>
-    </v-col>
+      <div
+        v-if="colorChannelMode"
+        class="d-flex flex-column ga-4 justify-center ms-auto"
+      >
+        <v-btn
+          class="h-50 rounded-lg"
+          icon="mdi-plus"
+          :disabled="props.inputImages.color_channels.length >= props.maxInputs"
+          color="var(--primary-interactive)"
+          @click="emit('addChannel')"
+        /> 
+        <v-btn
+          class="h-50 rounded-lg"
+          icon="mdi-minus"
+          :disabled="props.inputImages.color_channels.length <= props.minInputs"
+          color="var(--primary-interactive)"
+          @click="emit('removeChannel')"
+        />
+      </div>
+    </div>
   </v-row>
   <v-row>
     <v-col v-if="imageDetails">
       <v-card
         title="Select Images from:"
-        variant="outlined"
+        color="var(--card-background)"
         density="compact"
       >
         <v-card-text>
           <drop-list
-            :items="validInputImages"
+            :items="fitsImages"
             mode="cut"
             :row="true"
             :no-animations="true"
@@ -193,20 +228,8 @@ function colorFromInput(inputKey) {
   display: inline-block;
 }
 
-.fill-width {
-  width: 100%;
-}
-
-.empty-slot {
-  flex: 0 0 0;
-  align-self: stretch;
-  outline: 1px solid blue;
-}
-
 .drop-section {
-  border-width: 2px;
   flex-direction: row;
-  border-color: white;
   width: 100%;
   min-width: 200px;
   min-height: 200px;

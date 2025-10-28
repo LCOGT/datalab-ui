@@ -1,5 +1,6 @@
 <script setup>
-import { ref, watch, computed, onMounted } from 'vue'
+import { ref, watch, computed } from 'vue'
+import { rgbObjectToString } from '@/utils/color'
 
 // This component draws a sparkline histogram with range slider controls on top of it.
 // It has two coordinate systems - sliderRange which is a linear system of bins for the
@@ -33,10 +34,9 @@ const props = defineProps({
     required: false,
     default: 65500
   },
-  selectedColor: {
-    type: String,
-    required: false,
-    default: 'var(--primary-interactive)'
+  color: {
+    type: Object,
+    required: true
   },
 })
 
@@ -48,21 +48,19 @@ const initZmin = ref(props.zMin)
 const initZmax = ref(props.zMax)
 const backgroundColor = 'var(--text)'
 
+const colorRGBAStr = computed(() => rgbObjectToString(props.color))
+
 const gradient = computed(() => {
-  const { bins, selectedColor } = props
+  const { bins } = props
   const [start, end] = sliderRange.value
   
   // Initialize array with background color
   const gradientArray = new Array(bins.length).fill(backgroundColor)
   
   // Fill selected range
-  gradientArray.fill(selectedColor, Math.max(0, start), Math.min(bins.length, end + 1))
+  gradientArray.fill(colorRGBAStr.value, Math.max(0, start), Math.min(bins.length, end + 1))
 
   return gradientArray
-})
-
-onMounted(() => {
-  zScaleImage()
 })
 
 // In case the zMax or zMin change, update the initZmax/Zmin
@@ -70,7 +68,7 @@ watch([() => props.zMax, () => props.zMin], () => {
   initZmax.value = props.zMax
   initZmin.value = props.zMin
   zScaleImage()
-})
+}, { immediate: true })
 
 watch(() => scaleRange.value, (newValue) => {
   // This is called when the scale range is changed
@@ -121,8 +119,8 @@ function zScaleImage() {
 
 </script>
 <template>
-  <v-row class="histogram-range-controls mb-1">
-    <v-col>
+  <div class="histogram-range-slider d-flex flex-column ga-4">
+    <div class="slider-controls d-flex ga-2 ma-2">
       <v-text-field
         v-model="scaleRange[0]"
         :min="0"
@@ -134,8 +132,6 @@ function zScaleImage() {
         hide-spin-buttons
         hide-details
       />
-    </v-col>
-    <v-col>
       <v-text-field
         v-model="scaleRange[1]"
         :max="props.maxValue"
@@ -147,8 +143,6 @@ function zScaleImage() {
         hide-spin-buttons
         hide-details
       />
-    </v-col>
-    <v-col>
       <v-btn
         color="var(--primary-interactive)"
         prepend-icon="mdi-refresh"
@@ -156,44 +150,40 @@ function zScaleImage() {
         rounded="lg"
         @click="zScaleImage"
       />
-    </v-col>
-  </v-row>
-  <div class="histogram-range-slider">
-    <v-sparkline
-      :smooth="true"
-      :fill="true"
-      line-width="0.1"
-      height="50"
-      :gradient="gradient"
-      gradient-direction="left"
-      :model-value="props.histogram"
-      auto-draw
-      padding="1"
-    />
-    <v-range-slider
-      v-model="sliderRange"
-      step="1"
-      :ripple="false"
-      track-size="0"
-      :track-color="backgroundColor"
-      :track-fill-color="selectedColor"
-      thumb-color="var(--secondary-interactive)"
-      :max="props.bins.length-1"
-      strict
-      hide-details
-      @update:model-value="updateScaleRange"
-    />
+    </div>
+    <div class="slider d-flex position-relative">
+      <v-sparkline
+        :smooth="true"
+        :fill="true"
+        line-width="0.1"
+        height="50"
+        :gradient="gradient"
+        gradient-direction="left"
+        :model-value="props.histogram"
+        auto-draw
+        padding="1"
+      />
+      <v-range-slider
+        v-model="sliderRange"
+        step="1"
+        :ripple="false"
+        track-size="0"
+        :track-color="backgroundColor"
+        :track-fill-color="colorRGBAStr"
+        thumb-color="var(--secondary-interactive)"
+        :max="props.bins.length-1"
+        strict
+        hide-details
+        @update:model-value="updateScaleRange"
+      />
+    </div>
   </div>
 </template>
 <style scoped>
-.histogram-range-slider {
-  position: relative;
-  margin-left: 0.5rem;
-  margin-right: 0.5rem;
-}
-
 .v-range-slider {
-  position: relative;
-  bottom: 17px;
+  width: 100%;
+  position: absolute;
+  top: 100%;
+  transform: translateY(-50%)
 }
 </style>

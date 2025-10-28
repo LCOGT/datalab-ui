@@ -24,6 +24,11 @@ const props = defineProps({
     required: false,
     default: true,
   },
+  enableTifDownload: {
+    type: Boolean,
+    required: false,
+    default: true,
+  },
   speedDialLocation: {
     type: String,
     required: false,
@@ -85,13 +90,14 @@ function downloadFile(file, filename, fileType='file'){
       text=".JPG"
       @click="downloadJpg(props.jpgUrl, props.imageName, 'JPG')"
     />
+    <v-btn
+      v-if="props.enableTifDownload"
+      key="3"
+      class="file-download"
+      text=".TIF"
+      @click="$emit('analysisAction', 'get-tif', {'basename': props.imageName}, downloadFile)"
+    />
     <template v-if="props.enableScaledDownload">
-      <v-btn
-        key="3"
-        class="file-download"
-        text=".TIF"
-        @click="$emit('analysisAction', 'get-tif', {'basename': props.imageName}, downloadFile)"
-      />
       <v-btn
         key="4"
         class="file-download"

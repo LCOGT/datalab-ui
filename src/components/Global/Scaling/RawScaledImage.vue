@@ -1,12 +1,13 @@
 <script setup>
 import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { useScalingStore } from '@/stores/scaling'
+import _ from 'lodash'
 
 // This component uses a web worker to redraw a scaled raw image when
 // the scale points change
 
 const props = defineProps({
-  imageData: {
+  rawData: {
     type: Object,
     required: true
   },
@@ -14,8 +15,8 @@ const props = defineProps({
     type: Number,
     default: 500
   },
-  filter: {
-    type: String,
+  color: {
+    type: Object,
     required: true
   },
   scalePoints: {
@@ -25,35 +26,29 @@ const props = defineProps({
   imageName: {
     type: String,
     required: true
-  },
-  compositeName: {
-    type: String,
-    required: true
   }
 })
 
-const store = useScalingStore()
+const scalingStore = useScalingStore()
 const imageCanvas = ref(null)
 var offscreen = null
-// SharedArrayBuffer is used for the web worker to fill in data that will then be sent
-// by the main thread to the store for the composite image preview
-const sharedArrayBuffer = new SharedArrayBuffer(Uint8ClampedArray.BYTES_PER_ELEMENT * props.maxSize * props.maxSize)
-var sharedArray = new Uint8ClampedArray(sharedArrayBuffer)
 const worker = new Worker('drawImageWorker.js')
 const isCanvasReady = ref(false)
+var index = null
 
 onMounted(() => {
+  // Initialize the sharedArrayBuffer
+  index = scalingStore.initializeChannel(props.color, props.maxSize, props.maxSize)
+
   // Seed the web worker with initial data including a reference to the offscreen canvas
   offscreen = imageCanvas.value.transferControlToOffscreen()
-  worker.postMessage({canvas: offscreen, width: props.maxSize, height: props.maxSize, sharedArrayBuffer: sharedArrayBuffer}, [offscreen])
+  worker.postMessage({canvas: offscreen, width: props.maxSize, height: props.maxSize, sharedArrayBuffer: scalingStore.sharedArrayBuffers[index]}, [offscreen])
 
   // If we are storing color channels for a composite image preview, set a callback
   // for the web-worker to extract that data from the shared array and send to the store
-  if (props.compositeName != 'default') {
-    worker.onmessage = () => {
-      store.updateImageArray(props.compositeName, props.filter, sharedArray, props.maxSize)
-      isCanvasReady.value = true
-    }
+  worker.onmessage = () => {
+    scalingStore.readyToUpdate[index] = true
+    isCanvasReady.value = true
   }
 })
 
@@ -62,18 +57,18 @@ onUnmounted(() => {
 })
 
 watch(
-  () => props.scalePoints, () => {
+  () => props.scalePoints, _.debounce(() => {
     // This triggers the web worker to recompute and redraw the scaled image to screen
     worker.postMessage({ scalePoints: structuredClone(props.scalePoints)})
-  },
+  }, 25),
   { immediate: false }
 )
 
 watch(
-  () => props.imageData, () => {
+  () => props.rawData, () => {
     // This should only be called once, but might not happen when component is created
-    if (props.imageData) {
-      worker.postMessage({imageData: structuredClone(props.imageData)})
+    if (props.rawData) {
+      worker.postMessage({imageData: structuredClone(props.rawData)})
     }
   },
   { immediate: false }
@@ -81,7 +76,7 @@ watch(
 
 </script>
 <template>
-  <div>
+  <div class="position-relative">
     <canvas
       ref="imageCanvas"
       :width="props.maxSize"
@@ -97,9 +92,6 @@ watch(
   </div>
 </template>
 <style scoped>
-div{
-  position: relative;
-}
 canvas{
   width: 200px;
   height: 200px;

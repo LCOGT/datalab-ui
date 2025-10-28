@@ -1,3 +1,4 @@
+// This web worker is used to apply scaling and draw a single channel image offscreen.
 var canvas, context, imageData, sharedArrayBuffer, sharedArray, gammaTable, outputImage, scalePointMessage
 let hasImageData = false
 let hasCanvas = false
@@ -60,6 +61,7 @@ async function processScalePoints(scalePoints) {
   const high16Bit = parseInt(scalePoints[1])
   const srcData = imageData.data
   const scale = 255 / (high16Bit - low16Bit)
+  const outputImageData = outputImage.data
 
   // Loop through each pixel, normalize according to the Zscale (low16bit, high16bit) and apply gamma correction
   for (let i = 0; i < len; i++) {
@@ -67,9 +69,8 @@ async function processScalePoints(scalePoints) {
     const normalizedValue = Math.floor((clippedValue - low16Bit) * scale)
     const gammaCorrected = gammaTable[normalizedValue]
 
-    if(sharedArray) sharedArray[i] = gammaCorrected
+    if(sharedArray) sharedArray[i] = normalizedValue
 
-    const outputImageData = outputImage.data
     const j = i * 4
 
     outputImageData[j] = gammaCorrected

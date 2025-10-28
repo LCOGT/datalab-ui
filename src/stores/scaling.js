@@ -1,5 +1,4 @@
 import { defineStore } from 'pinia'
-import { filterToPixelIndex } from '@/utils/common'
 
 /**
  * This store is used to store intermediate images in scaling to then use in a composite image
@@ -9,35 +8,36 @@ import { filterToPixelIndex } from '@/utils/common'
 export const useScalingStore = defineStore('scaling', {
   state() {
     return{
-      scaledImageArrays: {},
-      arrayChanged: {}
+      sharedArrayBuffers: new Array(),
+      sharedArrays: new Array(),
+      colors: new Array(),
+      readyToUpdate: new Array(),
+      readyToBegin: false,
     }
   },
   actions: {
-    updateImageArray(combinedImageName, filter, imageDataArray, maxSize) {
-      let scaledImages = this.scaledImageArrays
-      let arrayChanged = this.arrayChanged
-
-      if (!(combinedImageName in scaledImages)) {
-        scaledImages[combinedImageName] = {}
+    clearChannels() {
+      this.sharedArrayBuffers = new Array(),
+      this.sharedArrays = new Array(),
+      this.readyToUpdate = new Array(),
+      this.colors = new Array()
+      this.readyToBegin = false
+    },
+    clearReadyToUpdate() {
+      for (let i = 0; i < this.readyToUpdate.length; i++) {
+        this.readyToUpdate[i] = false
       }
-
-      var combined = scaledImages[combinedImageName]['combined']
-
-      if (!('combined' in scaledImages[combinedImageName])) {
-        arrayChanged[combinedImageName] = 0
-        combined = new ImageData(maxSize, maxSize)
-        combined.data.fill(255)
-        scaledImages[combinedImageName]['combined'] = combined
-      }
-
-      const filterIndex = filterToPixelIndex(filter)
-      const combinedData = combined.data
-
-      for (let i = filterIndex, j=0; j < imageDataArray.length; i += 4, j++) {
-        combinedData[i] = imageDataArray[j]
-      }
-      arrayChanged[combinedImageName]++
+    },
+    initializeChannel(color, width, height) {
+      let index = this.sharedArrayBuffers.length
+      // SharedArrayBuffer is used for the web worker to fill in data that will then be sent
+      // by the main thread to the store for the composite image preview
+      this.sharedArrayBuffers.push(new SharedArrayBuffer(Uint8ClampedArray.BYTES_PER_ELEMENT * width * height))
+      this.sharedArrays.push(new Uint8ClampedArray(this.sharedArrayBuffers[index]))
+      this.readyToUpdate.push(false)
+      let normalizedColor = [color.r / 255, color.g / 255, color.b / 255]
+      this.colors.push(normalizedColor)
+      return index
     }
   }
 })
