@@ -14,7 +14,7 @@ const DECIMAL_PLACES = 4
 const chartData = computed(() => {
   const magTimeSeries = analysisStore.magTimeSeries
 
-  const dates = magTimeSeries.map(({ julian_date }) => julian_date)
+  const dates = magTimeSeries.map(({ observation_date }) => observation_date)
   const magnitudes = magTimeSeries.map(({ mag }) => mag.toFixed(DECIMAL_PLACES))
   // Error bars as [lowerBound, upperBound]
   const errors = magTimeSeries.map(({ mag, magerr }) => {

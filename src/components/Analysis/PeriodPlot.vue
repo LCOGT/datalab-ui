@@ -21,7 +21,7 @@ const probabilityChipColor = computed(() => {
 
 // Periodogram data formatted for chartJs
 const chartData = computed(() => {
-  const periodogram = analysisStore.variableStarData.magPeriodogram
+  const periodogram = analysisStore.variableStarData.magPhasedLightCurve
 
   const period1 = periodogram.map(( p ) => ({ x: p.phase, y: p.mag}))
   const period2 = periodogram.map(( p ) => ({ x: p.phase + 1, y: p.mag}))
@@ -35,7 +35,7 @@ const chartData = computed(() => {
 })
 
 watch(() => analysisStore.variableStarData, () => {
-  periodChart && analysisStore.variableStarData.magPeriodogram ? updateChart() : createChart()
+  periodChart && analysisStore.variableStarData.magPhasedLightCurve ? updateChart() : createChart()
 }, { deep: true})
 
 function updateChart() {

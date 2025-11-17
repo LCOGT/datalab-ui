@@ -55,7 +55,7 @@ const filteredCatalog = computed(() => {
 
 const sideChartItems = computed(() => {
   const chartItems = []
-  if (analysisStore.variableStarData.magPeriodogram?.length) chartItems.push('Periodogram')
+  if (analysisStore.variableStarData.magPhasedLightCurve?.length) chartItems.push('Phased Light Curve')
   if (analysisStore.magTimeSeries?.length) chartItems.push('Light Curve')
   if (lineProfile.value?.length) chartItems.push('Line Profile')
   return chartItems
@@ -115,7 +115,7 @@ function handleAnalysisOutput(response, action, action_callback){
   case 'variable-star':
     analysisStore.setVariableStarData(response)
     // Default to periodogram if available, otherwise light curve
-    analysisStore.variableStarData.period ? sideChart.value = 'Periodogram' : sideChart.value = 'Light Curve'
+    analysisStore.variableStarData.period ? sideChart.value = 'Phased Light Curve' : sideChart.value = 'Light Curve'
     break
   case 'get-tif':
     // ImageDownloadMenu.vue downloadFile()
@@ -278,7 +278,7 @@ function updateScaling(min, max){
               :end-coords="endCoords"
               :position-angle="positionAngle"
             />
-            <period-plot v-show="analysisStore.variableStarData.magPeriodogram?.length && sideChart === 'Periodogram'" />
+            <period-plot v-show="analysisStore.variableStarData.magPhasedLightCurve?.length && sideChart === 'Phased Light Curve'" />
             <light-curve-plot v-show="analysisStore.magTimeSeries?.length && sideChart === 'Light Curve'" />
           </v-sheet>
         </v-expand-transition>
