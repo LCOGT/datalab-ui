@@ -35,6 +35,15 @@ export const useAnalysisStore = defineStore('analysis', {
       fluxFallback: false, // flag to indicate if flux fallback is used
       excludedImages: [], // list of excluded images for the variable star
     },
+    periodogram: {
+      frequencies: [],
+      periods: [],
+      power: [],
+      peakIndex: null,
+      peakFrequency: null,
+      peakPeriod: null,
+      peakPower: null,
+    }
   }),
   getters: {
     // General
@@ -132,19 +141,8 @@ export const useAnalysisStore = defineStore('analysis', {
       })
     },
     setVariableStarData(data) {
-      const { light_curve, target_coords, period, fap, flux_fallback, excluded_images } = data
-
+      const { light_curve, target_coords, period, fap, flux_fallback, excluded_images, power, frequency } = data
       this.magTimeSeries = light_curve
-
-      function foldPeriod(magTimeSeries, period) {
-        // Perf testing shows precalculating the inverse is faster
-        const invPeriod = 1.0 / period
-  
-        for (let i = 0; i < magTimeSeries.length; i++) {
-          const mts = magTimeSeries[i]
-          mts.phase = (mts.julian_date % period) * invPeriod
-        }
-      }
 
       if(period && this.magTimeSeries.length > 0){
         this.variableStarData = {
@@ -157,12 +155,66 @@ export const useAnalysisStore = defineStore('analysis', {
           excludedImages: excluded_images,
         }
       
-        foldPeriod(this.magTimeSeries, this.variableStarData.period)
+        this.foldPeriod(this.magTimeSeries, this.variableStarData.period)
 
         // Sort the light curve data by phase
         this.variableStarData.magPhasedLightCurve = [...this.magTimeSeries].sort((a, b) => a.phase - b.phase)
       }
 
+      this.variableStarData.loading = false
+      // Pairing frequency and power data
+      if (frequency && power && frequency.length === power.length) {
+        const pairs = frequency.map((f, i) => ({ f: Number(f), p: Number(power[i]) }))
+        // Sorting by frequency
+        pairs.sort((a, b) => a.f - b.f)
+
+        const freqs = pairs.map(x => x.f)
+        const pows = pairs.map(x => x.p)
+        const periods = freqs.map(f => 1.0 / f)
+        let peakIndex = 0
+        let peakPower = pows[0] || 0
+        // Finding peak power
+        for (let i = 1; i < pows.length; i++) {
+          if (pows[i] > peakPower) {
+            peakPower = pows[i]
+            peakIndex = i
+          }
+        }
+        this.periodogram = {
+          frequencies: freqs,
+          power: pows,
+          periods: periods,
+          peakIndex: peakIndex,
+          peakFrequency: freqs[peakIndex],
+          peakPeriod: periods[peakIndex],
+          peakPower: peakPower
+        }
+      } else {
+        this.periodogram = {
+          frequencies: [],
+          power: [],
+          periods: [],
+          peakIndex: null,
+          peakFrequency: null,
+          peakPeriod: null,
+          peakPower: null
+        }
+      }
+    },
+    foldPeriod(magTimeSeries, period) {
+      // Perf testing shows precalculating the inverse is faster
+      const invPeriod = 1.0 / period
+  
+      for (let i = 0; i < magTimeSeries.length; i++) {
+        const mts = magTimeSeries[i]
+        mts.phase = (mts.julian_date % period) * invPeriod
+      }
+    },
+    applySelectedPeriod(period) {
+      this.foldPeriod(this.magTimeSeries, period)
+      // store the selected period and update phased LC
+      this.variableStarData.period = period
+      this.variableStarData.magPhasedLightCurve = [...this.magTimeSeries].sort((a, b) => a.phase - b.phase)
       this.variableStarData.loading = false
     }
   },
