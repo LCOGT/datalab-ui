@@ -2,10 +2,10 @@
 import { ref, onMounted, computed} from 'vue'
 import { fetchApiCall, handleError } from '@/utils/api'
 import { rgbFilterMap, colorRGBMap } from '@/utils/color'
-import MultiImageInputSelector from '@/components/DataSession/MultiImageInputSelector.vue'
+import MultiImageInputSelector from '@/components/DataSession/Operation/MultiImageInputSelector.vue'
 import WizardScalingPage from '@/components/Global/Scaling/WizardScalingPage.vue'
+import SourceInputWidget from './SourceInputWidget.vue'
 import { useConfigurationStore } from '@/stores/configuration'
-
 /*
   This component is a step wizard for configuring the input of a new operation to the data session.
   It has three main pages:
@@ -15,8 +15,8 @@ import { useConfigurationStore } from '@/stores/configuration'
 */
 
 const props = defineProps({
-  // Available images to select from
-  images: {
+  // Available operation data (images or output data) to select from
+  data: {
     type: Array,
     required: true
   }
@@ -40,7 +40,42 @@ const WIZARD_PAGES = {
 // Start on the select operation page
 const page = ref(WIZARD_PAGES.SELECT)
 
+const images = computed(() => {
+  return props.data.filter(image => image.basename)
+})
+
 const inputDescriptions = computed(() => { return selectedOperation.value.inputs })
+
+// Groups of 2 elements to set for inputDescriptions that are not image based
+const groupedInputDescriptions = computed(() => {
+  const typesToGroup = ['string', 'float', 'int']
+  let groups = []
+  let currentGroup = {}
+  if (inputDescriptions.value) {
+    for( const [inputKey, inputDescription] of Object.entries(inputDescriptions.value)) {
+      if (typesToGroup.includes(inputDescription.type)) {
+        currentGroup[inputKey] = inputDescription
+        if (Object.keys(currentGroup).length == 2) {
+          groups.push({...currentGroup})
+          currentGroup = {}
+        }
+      }
+    }
+  }
+  return groups
+})
+
+const sourceInputDescriptions = computed(() => {
+  let sourceDescriptions = {}
+  if (inputDescriptions.value) {
+    for ( const [inputKey, inputDescription] of Object.entries(inputDescriptions.value)) {
+      if (inputDescription.type == 'source') {
+        sourceDescriptions[inputKey] = {...inputDescription}
+      }
+    }
+  }
+  return sourceDescriptions
+})
 
 // Text for the forward button changes based on the current page
 const goForwardText = computed(() => {
@@ -88,10 +123,19 @@ const disableGoForward = computed(() => {
 const isInputComplete = computed(() => {
   for (const inputKey in operationInputs.value) {
     const input = operationInputs.value[inputKey]
-    const minimum = inputDescriptions.value[inputKey].minimum
-    const lessThanMinimumInputs = minimum ? input.length < minimum : input.length == 0
-    if ( input === undefined || input === null || lessThanMinimumInputs) {
+    if ( input === undefined || input === null) {
       return false
+    }
+    if (inputDescriptions.value[inputKey].type == 'source') {
+      if (!input.ra || !input.dec) {
+        return false
+      }
+    }
+    if (Array.isArray(input)) {
+      const minimum = inputDescriptions.value[inputKey].minimum || 0
+      if (input.length < minimum) {
+        return false
+      }
     }
   }
   return true
@@ -129,7 +173,7 @@ function goForward() {
     // if there are no images for a filter required by the operation, do not proceed
     for (const inputKey in inputDescriptions.value) {
       const inputField = inputDescriptions.value[inputKey]
-      if (inputField.type == 'fits' && props.images.length == 0){
+      if (inputField.type == 'fits' && images.value.length == 0){
         return
       }
     }
@@ -182,7 +226,7 @@ function selectOperation(name) {
        * Default: start with 3 channels (RGB) and try to preselect images for those
        */
       operationInputs.value[key] = Object.entries(rgbFilterMap).map(([color, filters]) => {
-        const preselectedImage = props.images.find(image => filters.includes(image.filter.toLowerCase()))
+        const preselectedImage = images.value.find(image => filters.includes(image.filter.toLowerCase()))
         let output = {}
         if (preselectedImage) {
           output = {...preselectedImage}
@@ -191,9 +235,22 @@ function selectOperation(name) {
         return output
       })
     }
-    else {
+    else if (value.type == 'fits') {
       operationInputs.value[key] = []
     }
+    else if (value.type == 'source') {
+      operationInputs.value[key] = {}
+    }
+    else {
+      operationInputs.value[key] = null
+    }
+  }
+}
+
+// Set images to the inputKey - only for non-color images
+function setImages(inputKey, filteredImages) {
+  if (!imageInputDescriptions.value[inputKey].color_picker) {
+    operationInputs.value[inputKey] = [...filteredImages]
   }
 }
 
@@ -308,30 +365,66 @@ function updateScaling(channelIndex, zmin, zmax) {
         v-show="page == WIZARD_PAGES.CONFIGURE"
         class="wizard-card"
       >
+        <v-row
+          v-for="(group, index) in groupedInputDescriptions"
+          :key="'input-row-' + index"
+        >
+          <v-col
+            v-for="(inputDescription, inputKey) in group"
+            class="pb-0"
+            :key="'input-col-' + inputKey"
+          >
+            <source-input-widget
+              v-if="inputDescription.type == 'source'"
+              v-model="operationInputs[inputKey]">
+            </source-input-widget>
+            <v-text-field
+              v-else-if="inputDescription.type == 'string' && !inputDescription.options"
+              v-model="operationInputs[inputKey]"
+              :label="inputDescription.name"
+              type="text"
+              class="operation-input"
+            />
+            <v-select
+              v-else-if="inputDescription.type == 'string' && inputDescription.options"
+              v-model="operationInputs[inputKey]"
+              return-object
+              :label="inputDescription.name"
+              :items="inputDescription.options"
+            />
+            <v-number-input
+              v-else-if="inputDescription.type == 'int'"
+              v-model="operationInputs[inputKey]"
+              :label="inputDescription.name"
+              :precision="0"
+            />
+            <v-number-input
+              v-else-if="inputDescription.type == 'float'"
+              v-model="operationInputs[inputKey]"
+              :label="inputDescription.name"
+              :precision="null"
+              control-variant="hidden"
+            />
+          </v-col>
+        </v-row>
+        <source-input-widget
+          v-for="(inputDescription, inputKey) in sourceInputDescriptions"
+          v-model="operationInputs[inputKey]"
+          :key="'source-input-widget-' + inputKey" >
+        </source-input-widget>
         <multi-image-input-selector
           :input-descriptions="imageInputDescriptions"
           :input-images="operationInputs"
-          :images="props.images"
+          :images="images"
           :max-inputs="MAX_COLOR_CHANNELS"
           :min-inputs="MIN_COLOR_CHANNELS"
+          @set-images="setImages"
           @insert-image="insertImage"
           @remove-image="removeImage"
           @add-channel="addColorChannel"
           @remove-channel="removeColorChannel"
           @update-channel-color="updateColorChannel"
         />
-        <div
-          v-for="(inputDescription, inputKey) in inputDescriptions"
-          :key="inputKey"
-        >
-          <v-text-field
-            v-if="inputDescription.type == 'text'"
-            v-model="operationInputs[inputKey]"
-            :label="inputDescription.name"
-            :type="inputDescription.type"
-            class="operation-input"
-          />
-        </div>
       </v-card-text>
     </v-slide-y-reverse-transition>
     <v-slide-y-reverse-transition hide-on-leave>
