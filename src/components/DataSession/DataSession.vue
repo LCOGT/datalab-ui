@@ -1,13 +1,14 @@
 <script setup>
 import { ref, watch, computed } from 'vue'
-import OperationPipeline from './OperationPipeline.vue'
+import OperationPipeline from './Operation/OperationPipeline.vue'
 import OperationPipelineFlow from './OperationGraph/OperationPipelineFlow.vue'
 import { fetchApiCall, handleError } from '@/utils/api.js'
 import { calculateColumnSpan } from '@/utils/common'
 import { useConfigurationStore } from '@/stores/configuration'
 import { useAlertsStore } from '@/stores/alerts'
-import ImageGrid from '@/components/Global/ImageGrid.vue'
-import OperationWizard from '@/components/DataSession/OperationWizard.vue'
+import OperationOutputGrid from '@/components/Global/OperationOutputGrid.vue'
+import OperationWizard from '@/components/DataSession/Operation/OperationWizard.vue'
+import _ from 'lodash'
 
 const props = defineProps({
   data: {
@@ -24,7 +25,7 @@ const store = useConfigurationStore()
 const alertStore = useAlertsStore()
 
 const operations = ref([...props.data.operations])
-const images = ref([...props.data.input_data])
+const items = ref([...props.data.input_data])
 const showWizardDialog = ref(false)
 const tab = ref('main')
 const operationPollingTimers = {}
@@ -38,9 +39,9 @@ var operationMap = {}
 // When a user clicks on an operation, we filter to only show the outputs of that operation
 const filteredImages = computed(() => {
   if (selectedOperation.value === -1) {
-    return images.value
+    return items.value
   } else {
-    return images.value.filter(image => image.operation === selectedOperation.value)
+    return items.value.filter(item => item.operation === selectedOperation.value)
   }
 })
 
@@ -55,22 +56,27 @@ function selectOperation(operationId) {
 }
 
 
-// Image Equality Check
-function imagesContainsFile(file) {
-  return images.value.some(image => image.basename == file.basename && image.source == file.source && image.operation == file.operation)
+// Output Equality Check
+function itemsContainsOutput(output) {
+  return items.value.some(item => _.isEqual(item, output))
 }
 
-// Add completed operation images to image list and attach operation metadata to identify their source
+// Add completed operation output to output items list and attach operation metadata to identify their source
 function addCompletedOperation(operation) {
-  if ('output' in operation && 'output_files' in operation.output) {
-    operation.output.output_files.forEach(outputFile => {
-      outputFile.operation = operation.id
-      outputFile.operationIndex = operation.index
-      outputFile.operationName = operation.name
-      if (!imagesContainsFile(outputFile)) {
-        images.value.push(outputFile)
+  const outputKeysToExpand = ['output_files', 'output_data']
+  if ('output' in operation){
+    for (const key of outputKeysToExpand) {
+      if (key in operation.output) {
+        operation.output[key].forEach(output => {
+          output.operation = operation.id
+          output.operationIndex = operation.index
+          output.operationName = operation.name
+          if (!itemsContainsOutput(output)) {
+            items.value.push(output)
+          }
+        })
       }
-    })
+    }
   }
 }
 
@@ -101,9 +107,9 @@ function stopPollingById(operationIDs) {
 function operationDeleted(operationIDs){
   // Stop polling for deleted operations
   stopPollingById(operationIDs)
-  // Remove outputFiles with matching operationIDs from images
-  images.value = images.value.filter(image => {
-    return !operationIDs.some(id => image.operation == id)
+  // Remove outputFiles with matching operationIDs from output items
+  items.value = items.value.filter(item => {
+    return !operationIDs.some(id => item.operation == id)
   })
 }
 
@@ -241,7 +247,7 @@ watch(
           :session-id="data.id"
           :operations="operations"
           :selected-operation="selectedOperation"
-          :images="images"
+          :images="items"
           :active="props.active"
           @select-operation="selectOperation"
           @close-graph="tab = 'main'"
@@ -273,8 +279,8 @@ watch(
             @click="showWizardDialog = true"
           />
         </v-col>
-        <image-grid
-          :images="filteredImages"
+        <operation-output-grid
+          :operation-outputs="filteredImages"
           :column-span="calculateColumnSpan(filteredImages.length, IMAGES_PER_ROW)"
         />
       </v-container>
@@ -287,7 +293,7 @@ watch(
     z-index="999"
   >
     <operation-wizard
-      :images="images"
+      :data="items"
       @close-wizard="showWizardDialog = false"
       @add-operation="addOperation"
     />

@@ -3,5 +3,6 @@
   "datalabArchiveApiUrl": "https://archive-api.lco.global/",
   "observationPortalUrl": "https://observe.lco.global/api/",
   "thumbnailServiceUrl": "https://thumbnails.lco.global/",
+  "simbad2kUrl": "https://simbad2k.lco.global/",
   "archiveType": "lco"
 }
