@@ -11,9 +11,6 @@ import ImageDownloadMenu from '@/components/Global/ImageDownloadMenu.vue'
 import FitsHeaderTable from '@/components/Analysis/FitsHeaderTable.vue'
 import ImageViewer from '@/components/Analysis/ImageViewer.vue'
 import LinePlot from '@/components/Analysis/LinePlot.vue'
-import PeriodPlot from '@/components/Analysis/PeriodPlot.vue'
-import LightCurvePlot from '@/components/Analysis/LightCurvePlot.vue'
-import PeriodogramPlot from '@/components/Analysis/PeriodogramPlot.vue'
 import { getActivePinia } from 'pinia'
 
 const props = defineProps({
@@ -52,15 +49,6 @@ const filteredCatalog = computed(() => {
     source.flux >= fluxSliderRange.value[0] &&
     source.flux <= fluxSliderRange.value[1]
   )
-})
-
-const sideChartItems = computed(() => {
-  const chartItems = []
-  if (analysisStore.variableStarData.magPhasedLightCurve?.length) chartItems.push('Phased Light Curve')
-  if (analysisStore.magTimeSeries?.length) chartItems.push('Light Curve')
-  if (lineProfile.value?.length) chartItems.push('Line Profile')
-  if(analysisStore.periodogram?.frequencies?.length) chartItems.push('Periodogram')
-  return chartItems
 })
 
 const isFitsImage = computed(() => {
@@ -113,12 +101,6 @@ function handleAnalysisOutput(response, action, action_callback){
     break
   case 'wcs':
     wcsSolution.value = response
-    break
-  case 'variable-star':
-    analysisStore.setVariableStarData(response)
-    console.log('Variable star analysis completed:', response)
-    // Default to periodogram if available, otherwise light curve
-    analysisStore.variableStarData.period ? sideChart.value = 'Phased Light Curve' : sideChart.value = 'Light Curve'
     break
   case 'get-tif':
     // ImageDownloadMenu.vue downloadFile()
@@ -173,16 +155,6 @@ function updateScaling(min, max){
     }
   }
 }
-
-function onPeriodSelected(period) {
-  // set the UI dropdown to Phased Light Curve so the side panel shows it
-  sideChart.value = 'Phased Light Curve'
-
-  // optional: log or highlight selection
-  console.log('User selected period (days):', period)
-}
-
-
 
 </script>
 <template>
@@ -276,13 +248,7 @@ function onPeriodSelected(period) {
             v-show="lineProfile.length || analysisStore.magTimeSeries.length"
             class="side-panel-item"
           >
-            <v-select
-              v-model="sideChart"
-              :items="sideChartItems"
-              variant="solo-filled"
-              bg-color="var(--card-background)"
-              density="compact"
-            />
+            <p>HELLO</p>
             <line-plot
               v-show="lineProfile?.length && sideChart === 'Line Profile'"
               :y-axis-data="lineProfile"
@@ -290,12 +256,6 @@ function onPeriodSelected(period) {
               :start-coords="startCoords"
               :end-coords="endCoords"
               :position-angle="positionAngle"
-            />
-            <period-plot v-show="analysisStore.variableStarData.magPhasedLightCurve?.length && sideChart === 'Phased Light Curve'" />
-            <light-curve-plot v-show="analysisStore.magTimeSeries?.length && sideChart === 'Light Curve'" />
-            <periodogram-plot 
-              v-show="analysisStore.periodogram.frequencies?.length && sideChart === 'Periodogram'" 
-              @period-selected="onPeriodSelected"
             />
           </v-sheet>
         </v-expand-transition>
