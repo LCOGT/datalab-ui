@@ -192,12 +192,13 @@ const computedProps = computed(() => {
   background-color: var(--header);
 }
 .analysis-row {
-  flex: 0 0 28vh;
+  flex: 0 0 26vh;
   min-height: 0;
   border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
+  margin: 0.2rem
 }
 
 </style>

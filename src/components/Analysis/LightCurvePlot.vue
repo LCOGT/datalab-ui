@@ -143,8 +143,24 @@ onMounted(() => {
 
 </script>
 <template>
-  <canvas
-    ref="lightCurveCanvas"
-    class="light-curve-plot"
-  />
+  <div class="light-curve-plot-wrapper">
+    <h1>Light Curve</h1>
+    <canvas
+      ref="lightCurveCanvas"
+      class="light-curve-plot"
+    />
+  </div>
 </template>
+
+<style scoped>
+.light-curve-plot-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  width: 100%;
+}
+.light-curve-plot {
+  height: 100% !important;
+}
+</style>

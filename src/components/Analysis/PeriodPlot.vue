@@ -129,6 +129,7 @@ onMounted(() => {
 </script>
 <template>
   <div class="period-plot-wrapper">
+    <h1>Phased Light Curve</h1>
     <canvas
       ref="periodCanvas"
       class="period-plot"

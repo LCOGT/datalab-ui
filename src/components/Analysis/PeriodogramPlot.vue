@@ -185,8 +185,24 @@ onUnmounted(() => { if (chart) { chart.destroy(); chart = null } })
 </script>
 
 <template>
-  <canvas
-    ref="canvasEl"
-    class="periodogram-plot"
-  />
+  <div class="periodogram-plot-wrapper">
+    <h1>Periodogram</h1>
+    <canvas
+      ref="canvasEl"
+      class="periodogram-plot"
+    />
+  </div>
 </template>
+
+<style scoped>
+.periodogram-plot-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  width: 100%;
+}
+.periodogram-plot {
+  height: 100% !important;
+}
+</style>
