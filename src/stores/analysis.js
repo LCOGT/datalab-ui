@@ -202,7 +202,6 @@ export const useAnalysisStore = defineStore('analysis', {
       }
     },
     foldPeriod(magTimeSeries, period) {
-      // Perf testing shows precalculating the inverse is faster
       const invPeriod = 1.0 / period
   
       for (let i = 0; i < magTimeSeries.length; i++) {
