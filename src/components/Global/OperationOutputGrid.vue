@@ -23,6 +23,7 @@ const props = defineProps({
   }
 })
 
+
 const configurationStore = useConfigurationStore()
 const alertsStore = useAlertsStore()
 const thumbnailsStore = useThumbnailsStore()
@@ -101,8 +102,7 @@ watch(() => props.operationOutputs, () => {
         :enable-cards="true"
         :enable-removal="false"
         @launch-analysis="launchDataAnalysis(operationOutput)"
-      >
-      </data-output>
+      />
     </v-col>
   </v-row>
   <v-dialog
@@ -121,8 +121,7 @@ watch(() => props.operationOutputs, () => {
     <data-analysis-view
       :data="analysisData"
       @close-analysis-dialog="showDataAnalysisDialog = false"
-    >
-    </data-analysis-view>
+    />
   </v-dialog>
 </template>
 
