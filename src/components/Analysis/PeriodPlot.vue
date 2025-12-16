@@ -1,9 +1,18 @@
 <script setup>
 import Chart from 'chart.js/auto'
-import { ref, watch, computed } from 'vue'
-import { useAnalysisStore } from '@/stores/analysis'
+import { ref, watch, computed, defineProps, onMounted } from 'vue'
 
-const analysisStore = useAnalysisStore()
+const props = defineProps({
+  variableStarData: {
+    type: Object,
+    required: true
+  },
+  periodogramData: {
+    type: Object,
+    required: true
+  }
+})
+
 const periodCanvas = ref(null)
 let periodChart = null
 const DECIMAL_PLACES = 4
@@ -13,7 +22,7 @@ const probabilityChipColor = computed(() => {
   const ONE_SIGMA = 0.32
   const TWO_SIGMA = 0.045
 
-  const fap = analysisStore.variableStarData.falseAlarmProbability
+  const fap = props.variableStarData.falseAlarmProbability
   if (fap < TWO_SIGMA) return 'var(--success)'
   if (fap < ONE_SIGMA) return 'var(--warning)'
   return 'var(--red)'
@@ -21,7 +30,7 @@ const probabilityChipColor = computed(() => {
 
 // Periodogram data formatted for chartJs
 const chartData = computed(() => {
-  const periodogram = analysisStore.variableStarData.magPhasedLightCurve
+  const periodogram = props.variableStarData.magPhasedLightCurve
 
   const period1 = periodogram.map(( p ) => ({ x: p.phase, y: p.mag}))
   const period2 = periodogram.map(( p ) => ({ x: p.phase + 1, y: p.mag}))
@@ -29,13 +38,13 @@ const chartData = computed(() => {
   return {
     period1: period1,
     period2: period2,
-    period: (analysisStore.variableStarData.period).toFixed(DECIMAL_PLACES),
-    falseAlarmPercentage: (analysisStore.variableStarData.falseAlarmProbability * 100).toFixed(DECIMAL_PLACES),
+    period: (props.variableStarData.period).toFixed(DECIMAL_PLACES),
+    falseAlarmPercentage: (props.variableStarData.falseAlarmProbability * 100).toFixed(DECIMAL_PLACES),
   }
 })
 
-watch(() => analysisStore.variableStarData, () => {
-  periodChart && analysisStore.variableStarData.magPhasedLightCurve ? updateChart() : createChart()
+watch(() => props.variableStarData, () => {
+  periodChart && props.variableStarData.magPhasedLightCurve ? updateChart() : createChart()
 }, { deep: true})
 
 function updateChart() {
@@ -111,15 +120,20 @@ function createChart() {
     }
   })
 }
+onMounted(() => {
+  if (props.variableStarData.magPhasedLightCurve) {
+    createChart()
+  }
+})
 
 </script>
 <template>
-  <div>
+  <div class="period-plot-wrapper">
     <canvas
       ref="periodCanvas"
       class="period-plot"
     />
-    <div class="d-flex ga-2 pb-2">
+    <div class="chip-row">
       <v-chip color="var(--info)">
         Period: {{ chartData.period }} days
       </v-chip>
@@ -129,3 +143,23 @@ function createChart() {
     </div>
   </div>
 </template>
+
+<style scoped>
+.period-plot-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  width: 100%;
+}
+.period-plot {
+  height: 100% !important;
+}
+.chip-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 2.5vh;
+}
+</style>

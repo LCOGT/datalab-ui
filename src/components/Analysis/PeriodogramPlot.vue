@@ -1,18 +1,26 @@
 <script setup>
-import { ref, watch, onMounted, onUnmounted } from 'vue'
+import { ref, watch, onMounted, onUnmounted, defineProps, defineEmits } from 'vue'
 import Chart from 'chart.js/auto'
-import { useAnalysisStore } from '@/stores/analysis'
 
 const emit = defineEmits(['periodSelected'])
 
-const analysisStore = useAnalysisStore()
+const props = defineProps({
+  periodogramData: {
+    type: Object,
+    required: true,
+  },
+  variableStarData: {
+    type: Object,
+    required: true,
+  }
+})
 const canvasEl = ref(null)
 let chart = null
 
 // Build an array of {x,y} points from store (x = frequency, y = power)
 function getXYPoints() {
-  const freqs = (analysisStore.periodogram?.frequencies) || []
-  const power = (analysisStore.periodogram?.power) || []
+  const freqs = (props.periodogramData.frequencies) || []
+  const power = (props.periodogramData.power) || []
   const points = []
   for (let i = 0; i < freqs.length; i++) {
     points.push({ x: Number(freqs[i]), y: Number(power[i]) })
@@ -33,6 +41,13 @@ function createChart() {
   const background = style.getPropertyValue('--secondary-background')
 
   const points = getXYPoints()
+  let selected = []
+  if (
+    props.periodogramData.peakIndex != null &&
+    points[props.periodogramData.peakIndex]
+  ) {
+    selected = [points[props.periodogramData.peakIndex]]
+  }
   if (!points.length) {
     chart = new Chart(canvasEl.value, {
       type: 'line',
@@ -57,11 +72,12 @@ function createChart() {
           showLine: true,
           cubicInterpolationMode: 'monotone',
           tension: 0.5,
-          parsing: false
+          parsing: false,
+          order: 1
         },
         {
           label: 'Selected',
-          data: [],
+          data: selected,
           type: 'scatter',
           pointBackgroundColor: secondary,
           pointBorderColor: secondary,
@@ -89,7 +105,6 @@ function createChart() {
         tooltip: {
           callbacks: {
             label: (ctx) => {
-              console.log('tooltip ctx:', ctx)
               const freq = ctx.parsed?.x
               const per = (1 / freq).toFixed(6)
               return `Power: ${ctx.parsed?.y?.toFixed(6)}  |  Period: ${per} d`
@@ -100,7 +115,7 @@ function createChart() {
 
       onClick: (evt) => {
 
-        const elements = chart.getElementsAtEventForMode(evt, 'nearest', { intersect: true }, true)
+        const elements = chart.getElementsAtEventForMode(evt, 'nearest', { intersect: false }, true)
         if (elements && elements.length > 0) {
           // user clicked on the line/point directly
           const el = elements[0]
@@ -112,38 +127,12 @@ function createChart() {
             return
           }
         }
-
-        // If not clicking exactly on a point, use nearest-x via pixel->value conversion
-        const xScale = chart.scales['x']
-        const rect = chart.canvas.getBoundingClientRect()
-        const xPixel = evt.clientX - rect.left
-        const freqFromPixel = xScale.getValueForPixel(xPixel)
-
-        // find nearest datapoint index by absolute difference in x (frequency)
-        const pts = chart.data.datasets[0].data
-        if (!pts || pts.length === 0) return
-        let nearestIdx = 0
-        let minDelta = Math.abs(pts[0].x - freqFromPixel)
-        for (let i = 1; i < pts.length; i++) {
-          const d = Math.abs(pts[i].x - freqFromPixel)
-          if (d < minDelta) { minDelta = d; nearestIdx = i }
-        }
-        const nearestPoint = pts[nearestIdx]
-        // only treat as click-on-line if reasonably close in frequency space
-        // you can tweak this tolerance (in frequency units)
-        const TOLERANCE = (chart.scales['x'].max - chart.scales['x'].min) * 0.02 // 2% of x-range
-        if (Math.abs(nearestPoint.x - freqFromPixel) <= TOLERANCE) {
-          handlePointClick(nearestPoint.x, nearestPoint.y)
-        }
       }
     }
   })
 }
 
 function updateChart() {
-  console.log('updateChart called, chart:', chart)
-
-  // Build the new points (may be empty array)
   const points = getXYPoints()
 
   // If chart was not created yet, create it
@@ -152,8 +141,7 @@ function updateChart() {
     return
   }
 
-  // Defensive: if datasets are missing or malformed, recreate the chart
-  if (!chart.data || !Array.isArray(chart.data.datasets) || chart.data.datasets.length < 1) {
+  if (!chart.data || !chart.data.datasets || chart.data.datasets.length < 1) {
     try { chart.destroy() } catch (e) { /* ignore */ }
     createChart()
     return
@@ -162,7 +150,6 @@ function updateChart() {
   // Now safely update the primary dataset (dataset[0]) and leave selected marker (dataset[1]) intact
   chart.data.datasets[0].data = points
 
-  // Optional: update y-axis min/max based on points (guard empty)
   const yVals = points.map(p => Number(p.y)).filter(v => Number.isFinite(v))
   if (yVals.length) {
     const minY = Math.min(...yVals)
@@ -172,40 +159,28 @@ function updateChart() {
     chart.options.scales.y.min = minY
     chart.options.scales.y.max = maxY
   }
-
   chart.update()
 }
 
-
 function handlePointClick(freq, pow) {
-  // Set the selected marker dataset to the clicked point (replace previous)
+  // Sets selected point marker or replaces it
   chart.data.datasets[1].data = selectedPointDataset(freq, pow)
   chart.update()
 
-  // Compute period and fold via store
   if (!freq || Number.isNaN(freq) || freq <= 0) return
   const period = 1.0 / freq
-
-  if (typeof analysisStore.applySelectedPeriod === 'function') {
-    analysisStore.applySelectedPeriod(period)
-  } else {
-    // fallback: set period on store and attempt to fold manually
-    analysisStore.variableStarData.period = period
-    // If you haven't added applySelectedPeriod, your phased plot may not update; add applySelectedPeriod to the store.
-  }
-
-  // tell parent to switch to phased light curve (parent will set the dropdown)
   emit('periodSelected', period)
 }
 
-// react to store changes
 watch(
-  () => analysisStore.periodogram,
+  () => props.periodogramData,
   () => updateChart(),
   { deep: true }
 )
 
-onMounted(() => createChart())
+onMounted(() => {
+  createChart()
+})
 onUnmounted(() => { if (chart) { chart.destroy(); chart = null } })
 </script>
 
@@ -215,7 +190,3 @@ onUnmounted(() => { if (chart) { chart.destroy(); chart = null } })
     class="periodogram-plot"
   />
 </template>
-
-<style scoped>
-.periodogram-plot { width: 100%; height: 320px; }
-</style>

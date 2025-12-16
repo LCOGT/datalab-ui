@@ -1,10 +1,15 @@
 <script setup>
 import Chart from 'chart.js/auto'
 import 'chartjs-adapter-luxon'
-import { ref, watch, computed } from 'vue'
-import { useAnalysisStore } from '@/stores/analysis'
+import { ref, watch, computed, defineProps, onMounted } from 'vue'
 
-const analysisStore = useAnalysisStore()
+const props = defineProps({
+  variableStarData: {
+    type: Object,
+    required: true
+  }
+})
+
 const lightCurveCanvas = ref(null)
 let lightCurveChart = null
 const CHART_PADDING = 0.5
@@ -12,17 +17,16 @@ const DECIMAL_PLACES = 4
 
 // Chart data for brightness over linear time
 const chartData = computed(() => {
-  const magTimeSeries = analysisStore.magTimeSeries
-
+  const magTimeSeries = [...props.variableStarData.magnitudeTimeSeries]
+    .sort((a, b) => new Date(a.observation_date) - new Date(b.observation_date))
   const dates = magTimeSeries.map(({ observation_date }) => observation_date)
-  const magnitudes = magTimeSeries.map(({ mag }) => mag.toFixed(DECIMAL_PLACES))
-  // Error bars as [lowerBound, upperBound]
+  const magnitudes = magTimeSeries.map(({ mag }) => Number(mag.toFixed(DECIMAL_PLACES)))
   const errors = magTimeSeries.map(({ mag, magerr }) => {
-    const lowerBound = (mag - magerr).toFixed(DECIMAL_PLACES)
-    const upperBound = (mag + magerr).toFixed(DECIMAL_PLACES)
+    const lowerBound = Number((mag - magerr).toFixed(DECIMAL_PLACES))
+    const upperBound = Number((mag + magerr).toFixed(DECIMAL_PLACES))
     return [lowerBound, upperBound]
   })
-
+  
   // Formatted dict for the chart to use
   return {
     dates: dates,
@@ -33,9 +37,14 @@ const chartData = computed(() => {
   }
 })
 
-watch(() => analysisStore.variableStarData, () => {
-  lightCurveChart && analysisStore.magTimeSeries ? updateChart() : createChart()
-}, { deep: true})
+watch(() => props.variableStarData, () => {
+  if (lightCurveChart && props.variableStarData.magnitudeTimeSeries) {
+    updateChart()
+  } else if (lightCurveCanvas.value) {
+    createChart()
+  }
+}, { deep: true })
+
 
 function updateChart() {
   // Set all the new data
@@ -127,6 +136,10 @@ function createChart() {
     }
   })
 }
+
+onMounted(() => {
+  createChart()
+})
 
 </script>
 <template>
