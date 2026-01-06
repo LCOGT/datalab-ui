@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch, onMounted, onUnmounted, defineProps, defineEmits } from 'vue'
+import { ref, watch, onMounted, defineProps, defineEmits } from 'vue'
 import Chart from 'chart.js/auto'
 
 const emit = defineEmits(['periodSelected'])
@@ -14,6 +14,7 @@ const props = defineProps({
     required: true,
   }
 })
+
 const canvasEl = ref(null)
 let chart = null
 
@@ -134,7 +135,6 @@ function createChart() {
 
 function updateChart() {
   const points = getXYPoints()
-
   // If chart was not created yet, create it
   if (!chart) {
     createChart()
@@ -172,6 +172,53 @@ function handlePointClick(freq, pow) {
   emit('periodSelected', period)
 }
 
+async function downloadPlotAsPNG(chart, filename) {
+  console.log('chart to download:', chart)
+  // Deep clone original options and datasets
+  const originalOptions = JSON.parse(JSON.stringify(chart.options))
+  const originalDatasets = chart.data.datasets.map(ds => ({ ...ds }))
+  chart.data.datasets.forEach(ds => {
+    ds.borderColor = '#000'
+    ds.backgroundColor = '#000'
+  })
+
+  // Set all option colors to black, background to transparent
+  if (chart.options.plugins?.legend?.labels) chart.options.plugins.legend.labels.color = '#000'
+  if (chart.options.plugins) chart.options.plugins.tooltip = { enabled: false }
+  if (chart.options.scales) {
+    Object.values(chart.options.scales).forEach(scale => {
+      if (scale.ticks) scale.ticks.color = '#000'
+      if (scale.title) scale.title.color = '#000'
+      if (scale.grid) scale.grid.color = '#000'
+      if (scale.border) scale.border.color = '#000'
+    })
+  }
+
+  chart.options.plugins.title = {
+    display: true,
+    text: 'Periodogram',
+    color: '#000',
+    font: { size: 20 }
+  }
+
+  chart.update('none')
+
+  // Wait for the chart to finish rendering
+  await new Promise(resolve => setTimeout(resolve, 100))
+
+  // Export as PNG
+  const pngUrl = chart.toBase64Image('image/png', 1)
+  const a = document.createElement('a')
+  a.href = pngUrl
+  a.download = filename
+  a.click()
+
+  // Restore original colors
+  chart.options = originalOptions
+  chart.data.datasets = originalDatasets
+  chart.update('none')
+}
+
 watch(
   () => props.periodogramData,
   () => updateChart(),
@@ -181,28 +228,49 @@ watch(
 onMounted(() => {
   createChart()
 })
-onUnmounted(() => { if (chart) { chart.destroy(); chart = null } })
 </script>
 
 <template>
-  <div class="periodogram-plot-wrapper">
-    <h1>Periodogram</h1>
-    <canvas
-      ref="canvasEl"
-      class="periodogram-plot"
-    />
+  <div class="wrapper">
+    <h1 class="title-pd">
+      Periodogram
+    </h1>
+    <div class="periodogram-plot-wrapper">
+      <canvas
+        ref="canvasEl"
+        class="periodogram-plot"
+      />
+      <v-btn
+        icon="mdi-download"
+        class="download-btn"
+        title="Download as PNG"
+        @click="downloadPlotAsPNG(chart, 'periodogram-plot.png')"
+      />
+    </div>
   </div>
 </template>
 
 <style scoped>
-.periodogram-plot-wrapper {
+.wrapper {
   display: flex;
   flex-direction: column;
+}
+.title-pd {
+  align-self: center;
+}
+.periodogram-plot-wrapper {
+  display: flex;
+  flex-direction: row;
   align-items: center;
   height: 100%;
   width: 100%;
 }
 .periodogram-plot {
   height: 100% !important;
+}
+.download-btn {
+  margin-left: 1rem;
+  margin-bottom: 1rem;
+  align-self: flex-end;
 }
 </style>

@@ -189,9 +189,9 @@ onMounted(() => {
 
 </script>
 <template>
-  <div class="light-curve-plot-wrapper">
-    <h1>Light Curve</h1>
-    <div class="canvas-btn-row">
+  <div class="wrapper">
+    <h1 class="title-lc">Light Curve</h1>
+    <div class="light-curve-plot-wrapper">
       <canvas
         ref="lightCurveCanvas"
         class="light-curve-plot"
@@ -207,17 +207,19 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.light-curve-plot-wrapper {
+.wrapper {
   display: flex;
   flex-direction: column;
+}
+.title-lc {
+  align-self: center;
+}
+.light-curve-plot-wrapper {
+  display: flex;
+  flex-direction: row;
   align-items: center;
   height: 100%;
   width: 100%;
-}
-.canvas-btn-row {
-  display: flex;
-  flex-direction: row;
-  align-items: flex-end;
 }
 .light-curve-plot {
   height: 100% !important;
