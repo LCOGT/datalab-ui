@@ -191,16 +191,18 @@ onMounted(() => {
 <template>
   <div class="light-curve-plot-wrapper">
     <h1>Light Curve</h1>
-    <canvas
-      ref="lightCurveCanvas"
-      class="light-curve-plot"
-    />
-    <v-btn
-      icon="mdi-download"
-      class="download-btn"
-      title="Download as PNG"
-      @click="downloadChartAsPNG(lightCurveChart, 'light-curve.png')"
-    />
+    <div class="canvas-btn-row">
+      <canvas
+        ref="lightCurveCanvas"
+        class="light-curve-plot"
+      />
+      <v-btn
+        icon="mdi-download"
+        class="download-btn"
+        title="Download as PNG"
+        @click="downloadChartAsPNG(lightCurveChart, 'light-curve.png')"
+      />
+    </div>
   </div>
 </template>
 
@@ -212,7 +214,17 @@ onMounted(() => {
   height: 100%;
   width: 100%;
 }
+.canvas-btn-row {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+}
 .light-curve-plot {
   height: 100% !important;
+}
+.download-btn {
+  margin-left: 1rem;
+  margin-bottom: 1rem;
+  align-self: flex-end;
 }
 </style>
