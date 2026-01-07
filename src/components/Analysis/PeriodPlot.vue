@@ -1,6 +1,7 @@
 <script setup>
 import Chart from 'chart.js/auto'
 import { ref, watch, computed, defineProps, onMounted } from 'vue'
+import { downloadChartAsPNG } from '@/utils/downloadChart.js'
 
 const props = defineProps({
   variableStarData: {
@@ -120,6 +121,7 @@ function createChart() {
     }
   })
 }
+
 onMounted(() => {
   if (props.variableStarData.magPhasedLightCurve) {
     createChart()
@@ -128,24 +130,41 @@ onMounted(() => {
 
 </script>
 <template>
-  <div class="period-plot-wrapper">
-    <h1>Phased Light Curve</h1>
-    <canvas
-      ref="periodCanvas"
-      class="period-plot"
-    />
-    <div class="chip-row">
-      <v-chip color="var(--info)">
-        Period: {{ chartData.period }} days
-      </v-chip>
-      <v-chip :color="probabilityChipColor">
-        False Alarm Probability: {{ chartData.falseAlarmPercentage }}%
-      </v-chip>
+  <div class="wrapper">
+    <h1 class="title-plc">
+      Phased Light Curve
+    </h1>
+    <div class="period-plot-wrapper">
+      <canvas
+        ref="periodCanvas"
+        class="period-plot"
+      />
+      <v-btn
+        icon="mdi-download"
+        class="download-btn"
+        title="Download as PNG"
+        @click="downloadChartAsPNG(periodChart, 'period-plot.png', 'Phased Light Curve')"
+      />
+      <div class="chip-row">
+        <v-chip color="var(--info)">
+          Period: {{ chartData.period }} days
+        </v-chip>
+        <v-chip :color="probabilityChipColor">
+          False Alarm Probability: {{ chartData.falseAlarmPercentage }}%
+        </v-chip>
+      </div>
     </div>
   </div>
 </template>
 
 <style scoped>
+.wrapper {
+  display: flex;
+  flex-direction: column;
+}
+.title-plc {
+  align-self: center;
+}
 .period-plot-wrapper {
   display: flex;
   flex-direction: column;
@@ -155,6 +174,11 @@ onMounted(() => {
 }
 .period-plot {
   height: 100% !important;
+}
+.download-btn {
+  margin-left: 1rem;
+  margin-bottom: 1rem;
+  align-self: flex-end;
 }
 .chip-row {
   display: flex;
