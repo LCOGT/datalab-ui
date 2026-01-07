@@ -109,6 +109,7 @@ function createChart() {
           ticks: { color: text, stepSize: 0.2 },
           grid: { color: background, tickColor: text},
           grace: '5%',
+          reverse: true
         }
       },
       plugins: {
