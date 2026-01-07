@@ -248,7 +248,6 @@ function updateScaling(min, max){
             v-show="lineProfile.length || analysisStore.magTimeSeries.length"
             class="side-panel-item"
           >
-            <p>HELLO</p>
             <line-plot
               v-show="lineProfile?.length && sideChart === 'Line Profile'"
               :y-axis-data="lineProfile"
