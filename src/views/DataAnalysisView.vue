@@ -3,7 +3,7 @@ import { computed, watch, ref } from 'vue'
 import FilterBadge from '@/components/Global/FilterBadge.vue'
 import LightCurvePlot from '@/components/Analysis/LightCurvePlot.vue'
 import PeriodogramPlot from '@/components/Analysis/PeriodogramPlot.vue'
-import PeriodPlot from '@/components/Analysis/PeriodPlot.vue'
+import PhasedLightCurvePlot from '@/components/Analysis/PhasedLightCurvePlot.vue'
 
 const props = defineProps({
   data: {
@@ -116,10 +116,6 @@ const title = computed(() => {
   return text
 })
 
-const computedProps = computed(() => {
-  return props.data
-})
-
 </script>
 <template>
   <v-sheet class="analysis-page">
@@ -139,7 +135,7 @@ const computedProps = computed(() => {
         @click="emit('closeAnalysisDialog')"
       />
     </v-toolbar>
-    <template v-if="computedProps">
+    <template v-if="props.data">
       <div
         class="analysis-content"
       >
@@ -158,7 +154,7 @@ const computedProps = computed(() => {
           />
         </v-row>
         <v-row class="analysis-row">
-          <period-plot
+          <phased-light-curve-plot
             :variable-star-data="variableStarData"
             :periodogram-data="periodogramData"
             class="period-plot"
