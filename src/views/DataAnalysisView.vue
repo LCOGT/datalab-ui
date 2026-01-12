@@ -49,9 +49,6 @@ function assignVariableStarData() {
   // Pairing frequency and power data
   if (frequency && power && frequency.length === power.length) {
     const pairs = frequency.map((f, i) => ({ f: Number(f), p: Number(power[i]) }))
-    // Sorting by frequency
-    pairs.sort((a, b) => a.f - b.f)
-
     const freqs = pairs.map(x => x.f)
     const pows = pairs.map(x => x.p)
     const periods = freqs.map(f => 1.0 / f)
