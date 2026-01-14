@@ -62,7 +62,6 @@ function dispatchVariableAnalysis() {
     }),
     target_coords: props.coords, // the target coordinates
   })
-  analysisStore.variableStarData.loading = true
   emit('closeDialog')
 }
 
