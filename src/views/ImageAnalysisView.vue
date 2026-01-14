@@ -11,8 +11,6 @@ import ImageDownloadMenu from '@/components/Global/ImageDownloadMenu.vue'
 import FitsHeaderTable from '@/components/Analysis/FitsHeaderTable.vue'
 import ImageViewer from '@/components/Analysis/ImageViewer.vue'
 import LinePlot from '@/components/Analysis/LinePlot.vue'
-import PeriodPlot from '@/components/Analysis/PeriodPlot.vue'
-import LightCurvePlot from '@/components/Analysis/LightCurvePlot.vue'
 import { getActivePinia } from 'pinia'
 
 const props = defineProps({
@@ -51,14 +49,6 @@ const filteredCatalog = computed(() => {
     source.flux >= fluxSliderRange.value[0] &&
     source.flux <= fluxSliderRange.value[1]
   )
-})
-
-const sideChartItems = computed(() => {
-  const chartItems = []
-  if (analysisStore.variableStarData.magPhasedLightCurve?.length) chartItems.push('Phased Light Curve')
-  if (analysisStore.magTimeSeries?.length) chartItems.push('Light Curve')
-  if (lineProfile.value?.length) chartItems.push('Line Profile')
-  return chartItems
 })
 
 const isFitsImage = computed(() => {
@@ -111,11 +101,6 @@ function handleAnalysisOutput(response, action, action_callback){
     break
   case 'wcs':
     wcsSolution.value = response
-    break
-  case 'variable-star':
-    analysisStore.setVariableStarData(response)
-    // Default to periodogram if available, otherwise light curve
-    analysisStore.variableStarData.period ? sideChart.value = 'Phased Light Curve' : sideChart.value = 'Light Curve'
     break
   case 'get-tif':
     // ImageDownloadMenu.vue downloadFile()
@@ -263,13 +248,6 @@ function updateScaling(min, max){
             v-show="lineProfile.length || analysisStore.magTimeSeries.length"
             class="side-panel-item"
           >
-            <v-select
-              v-model="sideChart"
-              :items="sideChartItems"
-              variant="solo-filled"
-              bg-color="var(--card-background)"
-              density="compact"
-            />
             <line-plot
               v-show="lineProfile?.length && sideChart === 'Line Profile'"
               :y-axis-data="lineProfile"
@@ -278,8 +256,6 @@ function updateScaling(min, max){
               :end-coords="endCoords"
               :position-angle="positionAngle"
             />
-            <period-plot v-show="analysisStore.variableStarData.magPhasedLightCurve?.length && sideChart === 'Phased Light Curve'" />
-            <light-curve-plot v-show="analysisStore.magTimeSeries?.length && sideChart === 'Light Curve'" />
           </v-sheet>
         </v-expand-transition>
       </div>

@@ -65,18 +65,22 @@ const emit = defineEmits(['selectOperationOutput', 'launchAnalysis', 'removeOper
           v-if="props.operationOutput.filter"
           :filter="props.operationOutput.filter"
         />
-        <p class="ml-2 output-title-text">{{ props.operationOutput.operationName }}</p>
+        <p class="ml-2 output-title-text">
+          {{ props.operationOutput.operationName }}
+        </p>
       </v-card-title>
       <v-card-text class="p-1">
         <v-sparkline
           v-if="props.operationOutput.light_curve" 
           v-model="lightCurveSparkline"
-        ></v-sparkline>
+        />
         <v-sparkline
           v-if="props.operationOutput.power" 
           v-model="periodogramSparkline"
-        ></v-sparkline>
-        <p v-if="props.operationOutput.period">{{ props.operationOutput.period.toFixed(4) }} days</p>
+        />
+        <p v-if="props.operationOutput.period">
+          {{ props.operationOutput.period.toFixed(4) }} days
+        </p>
         <span
           v-if="props.enableRemoval"
           class="removal-button-overlay"

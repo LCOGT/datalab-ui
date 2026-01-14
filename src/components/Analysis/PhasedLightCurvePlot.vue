@@ -1,9 +1,19 @@
 <script setup>
 import Chart from 'chart.js/auto'
-import { ref, watch, computed } from 'vue'
-import { useAnalysisStore } from '@/stores/analysis'
+import { ref, watch, computed, defineProps, onMounted } from 'vue'
+import { downloadChartAsPNG } from '@/utils/downloadChart.js'
 
-const analysisStore = useAnalysisStore()
+const props = defineProps({
+  variableStarData: {
+    type: Object,
+    required: true
+  },
+  periodogramData: {
+    type: Object,
+    required: true
+  }
+})
+
 const periodCanvas = ref(null)
 let periodChart = null
 const DECIMAL_PLACES = 4
@@ -13,7 +23,7 @@ const probabilityChipColor = computed(() => {
   const ONE_SIGMA = 0.32
   const TWO_SIGMA = 0.045
 
-  const fap = analysisStore.variableStarData.falseAlarmProbability
+  const fap = props.variableStarData.falseAlarmProbability
   if (fap < TWO_SIGMA) return 'var(--success)'
   if (fap < ONE_SIGMA) return 'var(--warning)'
   return 'var(--red)'
@@ -21,7 +31,7 @@ const probabilityChipColor = computed(() => {
 
 // Periodogram data formatted for chartJs
 const chartData = computed(() => {
-  const periodogram = analysisStore.variableStarData.magPhasedLightCurve
+  const periodogram = props.variableStarData.magPhasedLightCurve
 
   const period1 = periodogram.map(( p ) => ({ x: p.phase, y: p.mag}))
   const period2 = periodogram.map(( p ) => ({ x: p.phase + 1, y: p.mag}))
@@ -29,13 +39,13 @@ const chartData = computed(() => {
   return {
     period1: period1,
     period2: period2,
-    period: (analysisStore.variableStarData.period).toFixed(DECIMAL_PLACES),
-    falseAlarmPercentage: (analysisStore.variableStarData.falseAlarmProbability * 100).toFixed(DECIMAL_PLACES),
+    period: (props.variableStarData.period).toFixed(DECIMAL_PLACES),
+    falseAlarmPercentage: (props.variableStarData.falseAlarmProbability * 100).toFixed(DECIMAL_PLACES),
   }
 })
 
-watch(() => analysisStore.variableStarData, () => {
-  periodChart && analysisStore.variableStarData.magPhasedLightCurve ? updateChart() : createChart()
+watch(() => props.variableStarData, () => {
+  periodChart && props.variableStarData.magPhasedLightCurve ? updateChart() : createChart()
 }, { deep: true})
 
 function updateChart() {
@@ -99,6 +109,7 @@ function createChart() {
           ticks: { color: text, stepSize: 0.2 },
           grid: { color: background, tickColor: text},
           grace: '5%',
+          reverse: true
         }
       },
       plugins: {
@@ -112,20 +123,69 @@ function createChart() {
   })
 }
 
+onMounted(() => {
+  if (props.variableStarData.magPhasedLightCurve) {
+    createChart()
+  }
+})
+
 </script>
 <template>
-  <div>
-    <canvas
-      ref="periodCanvas"
-      class="period-plot"
-    />
-    <div class="d-flex ga-2 pb-2">
-      <v-chip color="var(--info)">
-        Period: {{ chartData.period }} days
-      </v-chip>
-      <v-chip :color="probabilityChipColor">
-        False Alarm Probability: {{ chartData.falseAlarmPercentage }}%
-      </v-chip>
+  <div class="wrapper">
+    <h1 class="title-plc">
+      Phased Light Curve
+    </h1>
+    <div class="period-plot-wrapper">
+      <canvas
+        ref="periodCanvas"
+        class="period-plot"
+      />
+      <v-btn
+        icon="mdi-download"
+        class="download-btn"
+        title="Download as PNG"
+        @click="downloadChartAsPNG(periodChart, 'period-plot.png', 'Phased Light Curve')"
+      />
+      <div class="chip-row">
+        <v-chip color="var(--info)">
+          Period: {{ chartData.period }} days
+        </v-chip>
+        <v-chip :color="probabilityChipColor">
+          False Alarm Probability: {{ chartData.falseAlarmPercentage }}%
+        </v-chip>
+      </div>
     </div>
   </div>
 </template>
+
+<style scoped>
+.wrapper {
+  display: flex;
+  flex-direction: column;
+}
+.title-plc {
+  align-self: center;
+}
+.period-plot-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  width: 100%;
+}
+.period-plot {
+  height: 100% !important;
+}
+.download-btn {
+  margin-left: 1rem;
+  margin-bottom: 1rem;
+  align-self: flex-end;
+}
+.chip-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 2.5vh;
+}
+</style>

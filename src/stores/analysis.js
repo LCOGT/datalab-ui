@@ -34,7 +34,7 @@ export const useAnalysisStore = defineStore('analysis', {
       falseAlarmProbability: 0, // false alarm probability for the variable star
       fluxFallback: false, // flag to indicate if flux fallback is used
       excludedImages: [], // list of excluded images for the variable star
-    },
+    }
   }),
   getters: {
     // General
@@ -130,40 +130,6 @@ export const useAnalysisStore = defineStore('analysis', {
           return false
         }
       })
-    },
-    setVariableStarData(data) {
-      const { light_curve, target_coords, period, fap, flux_fallback, excluded_images } = data
-
-      this.magTimeSeries = light_curve
-
-      function foldPeriod(magTimeSeries, period) {
-        // Perf testing shows precalculating the inverse is faster
-        const invPeriod = 1.0 / period
-  
-        for (let i = 0; i < magTimeSeries.length; i++) {
-          const mts = magTimeSeries[i]
-          mts.phase = (mts.julian_date % period) * invPeriod
-        }
-      }
-
-      if(period && this.magTimeSeries.length > 0){
-        this.variableStarData = {
-          loading: false,
-          targetCoords: target_coords,
-          magPhasedLightCurve: [],
-          period: period,
-          falseAlarmProbability: fap,
-          fluxFallback: flux_fallback,
-          excludedImages: excluded_images,
-        }
-      
-        foldPeriod(this.magTimeSeries, this.variableStarData.period)
-
-        // Sort the light curve data by phase
-        this.variableStarData.magPhasedLightCurve = [...this.magTimeSeries].sort((a, b) => a.phase - b.phase)
-      }
-
-      this.variableStarData.loading = false
     }
   },
 })
