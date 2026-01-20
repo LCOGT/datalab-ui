@@ -3,7 +3,7 @@ import { useThumbnailsStore } from '@/stores/thumbnails'
 import { useConfigurationStore } from '@/stores/configuration'
 import ThumbnailImage from '@/components/Global/ThumbnailImage.vue'
 import {Drag,DropList} from 'vue-easy-dnd'
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 
 const props = defineProps({
   inputDescriptions: {
@@ -28,11 +28,12 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['insertImage', 'removeImage', 'addChannel', 'removeChannel', 'updateChannelColor'])
+const emit = defineEmits(['insertImage', 'removeImage', 'setImages', 'addChannel', 'removeChannel', 'updateChannelColor'])
 
 const thumbnailsStore = useThumbnailsStore()
 const configurationStore = useConfigurationStore()
 var imageDetails = ref({})
+var selectedFilter = ref({})
 
 const colorChannelMode = computed(() => { return props.inputDescriptions.color_channels != null })
 
@@ -54,14 +55,54 @@ const fitsImages = computed(() => {
   })
 })
 
+const filterOptionsMap = computed(() => {
+  let filterMap = new Map()
+  if (fitsImages.value) {
+    fitsImages.value.forEach(image => {
+      const filter = image.filter || image.primary_optical_element
+      filterMap.set(filter, (filterMap.get(filter) || 0) + 1)
+    })
+  }
+  return filterMap
+})
+
 onMounted(() => {
   imageDetails.value = reloadImages(props.images)
 })
 
+// When inputDescriptions is set, update initial selectedFilter if need be
+watch(() => props.inputDescriptions, () => updateSelectedFilter())
+
+function mostFrequentFilterForInputKey(inputKey) {
+  let mostFrequentCount = 0
+  const filterOptions = filterOptionsForInputKey(inputKey)
+  let mostFrequentFilter = undefined
+  for (const [filter, count] of filterOptionsMap.value.entries()) {
+    if (filterOptions.includes(filter) && count > mostFrequentCount) {
+      mostFrequentCount = count
+      mostFrequentFilter = filter
+    }
+  }
+  return mostFrequentFilter
+}
+
+function filterOptionsForInputKey(inputKey) {
+  let filterOptions = Array.from(filterOptionsMap.value.keys())
+  if (props.inputDescriptions[inputKey].filter_options) {
+    return filterOptions.filter(item => props.inputDescriptions[inputKey].filter_options.includes(item))
+  }
+  else{
+    return filterOptions
+  }
+}
+
 // Image dragged into the selected images area
 function insert(inputKey, index, event) {
-  if (inputKey !== 'all' && ! props.inputImages[inputKey].includes(event.data)) {
-    emit('insertImage', inputKey, event.data, index)
+  if (inputKey !== 'all' && !props.inputImages[inputKey].includes(event.data)) {
+    // Also check if the inputKey is single_filter mode and already has another filter set
+    if (!props.inputDescriptions[inputKey].single_filter || event.data.filter == selectedFilter.value[inputKey] || event.data.primary_optical_element == selectedFilter.value[inputKey]) {
+      emit('insertImage', inputKey, event.data, index)
+    }
   }
 }
 
@@ -86,6 +127,24 @@ function reloadImages(newImages) {
   return newImageDetails
 }
 
+function updateSelectedFilter() {
+  if (props.inputDescriptions) {
+    for (const [inputKey, inputDescription] of Object.entries(props.inputDescriptions)) {
+      if (inputDescription.single_filter) {
+        selectedFilter.value[inputKey] = mostFrequentFilterForInputKey(inputKey)
+        updateSelectedImagesForFilter(inputKey, selectedFilter.value[inputKey])
+      }
+    }
+  }
+}
+
+function updateSelectedImagesForFilter(inputKey, filter) {
+  let filteredImages = fitsImages.value.filter(image => {
+    return image.filter == filter || image.primary_optical_element == filter
+  })
+  emit('setImages', inputKey, filteredImages)
+}
+
 </script>
 
 <template>
@@ -94,10 +153,28 @@ function reloadImages(newImages) {
       <v-card
         v-for="(inputKey, index) in inputList"
         :key="inputKey+index"
-        :title="props.inputDescriptions[inputKey].name"
         color="var(--card-background)"
         density="compact"
       >
+        <v-card-title>
+          <div v-if="!props.inputDescriptions[inputKey].single_filter">
+            {{ props.inputDescriptions[inputKey].name }}
+          </div>
+          <div v-if="props.inputDescriptions[inputKey].single_filter">
+            <v-select
+              v-model="selectedFilter[inputKey]"
+              :items="filterOptionsForInputKey(inputKey)"
+              label="Filter"
+              density="compact"
+              variant="outlined"
+              @update:model-value="updateSelectedImagesForFilter(inputKey, $event)"
+            >
+              <template #prepend>
+                {{ props.inputDescriptions[inputKey].name }} Filter:
+              </template>
+            </v-select>
+          </div>
+        </v-card-title>
         <v-card-text>
           <drop-list
             :items="colorChannelMode? [props.inputImages[inputKey][index]] : props.inputImages[inputKey]"
@@ -133,6 +210,13 @@ function reloadImages(newImages) {
               />
             </template>
           </drop-list>
+          <v-alert
+            v-if="props.inputDescriptions[inputKey].minimum && props.inputImages[inputKey].length < props.inputDescriptions[inputKey].minimum"
+            density="compact"
+            :text="'Requires at least ' + props.inputDescriptions[inputKey].minimum + ' images'"
+            type="warning"
+          >
+          </v-alert>
           <v-color-picker
             v-if="colorChannelMode"
             :model-value="props.inputImages[inputKey][index].color"
@@ -234,6 +318,7 @@ function reloadImages(newImages) {
   min-width: 200px;
   min-height: 200px;
   display: flex;
+  overflow-x: scroll;
 }
 
 </style>

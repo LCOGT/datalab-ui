@@ -22,6 +22,7 @@ onMounted(async () => {
       configurationStore.observationPortalUrl = config.observationPortalUrl
       configurationStore.datalabArchiveApiUrl = config.datalabArchiveApiUrl
       configurationStore.thumbnailServiceUrl = config.thumbnailServiceUrl || ''
+      configurationStore.simbad2kUrl = config.simbad2kUrl || ''
       configurationStore.archiveType = config.archiveType || 'ptr'
       configurationStore.isConfigLoaded = true
     }

@@ -4,7 +4,7 @@ import { useThumbnailsStore } from '@/stores/thumbnails'
 import { useConfigurationStore } from '@/stores/configuration'
 import { useAlertsStore } from '@/stores/alerts'
 import ThumbnailImage from '@/components/Global/ThumbnailImage.vue'
-import AnalysisView from '../../views/AnalysisView.vue'
+import ImageAnalysisView from '../../views/ImageAnalysisView.vue'
 
 const props = defineProps({
   images: {
@@ -97,7 +97,7 @@ watch(() => props.images, () => {
     v-model="showAnalysisDialog"
     fullscreen
   >
-    <analysis-view
+    <image-analysis-view
       :image="analysisImage"
       @close-analysis-dialog="showAnalysisDialog = false"
     />

@@ -31,13 +31,12 @@ const matchingImages = ref({ count: 0, results: [] })
 // When date range changes, queries the archive and updates tooltip with how many images are available
 watch([startDate, endDate], () => {
   const { datalabArchiveApiUrl } = configStore
-  const { imageFilter, imageProposalId } = analysisStore
+  const { imageFilter } = analysisStore
   const { ra, dec } = props.coords
 
-  const queryUrl = datalabArchiveApiUrl + 'frames/?' + 
+  const queryUrl = datalabArchiveApiUrl + 'frames/?force_count=true&reduction_level=91&' +
     `start=${ISOStartDate.value}&end=${ISOEndDate.value}&` +
     `primary_optical_element=${imageFilter}&` +
-    `proposal_id=${imageProposalId}&` +
     `covers=POINT(${ra} ${dec})`
 
   fetchApiCall({url: queryUrl, method: 'GET', 
@@ -63,7 +62,6 @@ function dispatchVariableAnalysis() {
     }),
     target_coords: props.coords, // the target coordinates
   })
-  analysisStore.variableStarData.loading = true
   emit('closeDialog')
 }
 
