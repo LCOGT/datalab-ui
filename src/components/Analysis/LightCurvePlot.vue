@@ -145,7 +145,7 @@ onMounted(() => {
 </script>
 <template>
   <div class="wrapper">
-    <h1 class="title-lc">Light Curve</h1>
+    <h3 class="title-lc">Light Curve</h3>
     <div class="light-curve-plot-wrapper">
       <canvas
         ref="lightCurveCanvas"
