@@ -186,9 +186,9 @@ onMounted(() => {
 
 <template>
   <div class="wrapper">
-    <h1 class="title-pd">
+    <h3 class="title-pd">
       Periodogram
-    </h1>
+    </h3>
     <div class="periodogram-plot-wrapper">
       <canvas
         ref="canvasEl"
