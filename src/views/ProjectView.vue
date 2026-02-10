@@ -153,6 +153,7 @@ async function loadProposals(singleProposalID=null){
       reduction_level: '91',
     })
 
+    // If this is the special 'public' proposal, then don't filter on proposal ID and instead include all public images
     if (proposalID === 'public') {
       params.set('public', 'true')
       params.set('exclude_calibrations', 'true')
@@ -415,7 +416,7 @@ onMounted(() => {
     />
     <v-btn
       :disabled="selectedImages.length == 0"
-      class="proposal-button deselect_button"
+      class="proposal-button deselect_button mt-2"
       prepend-icon="mdi-trash-can-outline"
       text="Clear"
       base-color="var(--cancel)"
@@ -423,7 +424,7 @@ onMounted(() => {
     />
     <v-btn
       :disabled="selectedImages.length == 0"
-      class="proposal-button add_button"
+      class="proposal-button add_button mt-2"
       :text=" selectedImages.length == 0 ? 'No Images' : `Add ${selectedImages.length} image${selectedImages.length > 1 ? 's' : ''}` "
       base-color="var(--primary-interactive)"
       @click="showCreateSessionDialog=true"
@@ -450,12 +451,12 @@ onMounted(() => {
 }
 .bottom-controls {
   position: fixed;
-  bottom: 0;
+  bottom: 4;
   left: 0;
   right: 0;
 }
 .proposal-button {
-  height: 3rem;
+  height: 2.5rem;
   font-weight: 700;
   font-size: 1.3rem;
   color: var(--text);
