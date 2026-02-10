@@ -37,13 +37,13 @@ const filters = ref({
   ra: {
     value: route.query.ra || '',
     label: 'RA',
-    class: 'coords-search order-2',
+    class: 'filter-field order-2',
     type: computed(() => userDataStore.coordsToggle ? 'hidden' : 'text'),
   },
   dec: {
     value: route.query.dec || '',
     label: 'Dec',
-    class: 'coords-search order-2',
+    class: 'filter-field order-2',
     type: computed(() => userDataStore.coordsToggle ? 'hidden' : 'text'),
   },
   search: {
@@ -60,6 +60,11 @@ const filters = ref({
   target_name: {
     value: route.query.target_name || '',
     label: 'Target Name',
+  },
+  primary_optical_element: {
+    value: route.query.primary_optical_element || null,
+    label: 'Filter',
+    options: ['Astrodon-Exo', 'B', 'gp', 'H-Alpha', 'ip', 'opaque', 'OIII', 'rp','SII', 'up','V', 'w', 'zs']
   },
   submitter: {
     value: route.query.submitter || '',
@@ -89,6 +94,23 @@ function selectImage(proposalIndex, basename) {
   }
 }
 
+function toggleSelectedProposalImages(proposalIndex) {
+  const proposalImages = imagesByProposal.value[proposalIndex]
+  const proposalSelectedImages = selectedImagesByProposal.value[proposalIndex]
+  if (proposalImages.length > proposalSelectedImages.length) {
+    // If not all images are selected, then toggle should select all
+    for (const image of proposalImages) {
+      if (!proposalSelectedImages.includes(image)) {
+        proposalSelectedImages.push(image.basename)
+      }
+    }
+  }
+  else {
+    // otherwise it should deselect all
+    selectedImagesByProposal.value[proposalIndex] = []
+  }
+}
+
 function deselectAllImages() {
   // clear the arrays per proposal in selectedImagesByProposal
   for (const projectId in selectedImagesByProposal.value) {
@@ -96,27 +118,20 @@ function deselectAllImages() {
   }
 }
 
-async function loadProposals(){
+const routerQuery = computed(() => {
+  return Object.entries(filters.value).reduce((query, [key, filter]) => {
+  // Only add the filter to the query if it has a value
+    if (filter.value) {
+    // Use the toParam function for special formatting (like dates) if it exists
+      query[key] = filter.toParam ? filter.toParam(filter.value) : filter.value
+    }
+    return query
+  }, {})
+})
 
+async function loadProposals(singleProposalID=null){
   // Update the URL with the current filters
-  const buildRouterQuery = () => {
-    return Object.entries(filters.value).reduce((query, [key, filter]) => {
-    // Only add the filter to the query if it has a value
-      if (filter.value) {
-      // Use the toParam function for special formatting (like dates) if it exists
-        query[key] = filter.toParam ? filter.toParam(filter.value) : filter.value
-      }
-      return query
-    }, {})
-  }
-  router.push({ query: buildRouterQuery() })
-
-  loadingProposals.value = true
-
-  if(userDataStore.openProposals.length === 0){
-    loadingProposals.value = false
-    return
-  }
+  router.push({ query: routerQuery.value })
 
   // Only loads images for open proposal panels to reduce downloads
   userDataStore.openProposals.forEach(async proposal => {
@@ -125,13 +140,27 @@ async function loadProposals(){
 
     // Inside the forEach loop of the loadProposals function
     const proposalID = userDataStore.proposals[proposal].id
+
+    // If we call this with a single proposalID, only update that proposal
+    if (singleProposalID && singleProposalID != proposalID) return
+
+    loadingProposals.value = true
+
     const baseUrl = configurationStore.datalabArchiveApiUrl + 'frames/'
 
     const params = new URLSearchParams({
-      proposal_id: proposalID,
       include_thumbnails: 'true',
       reduction_level: '91',
     })
+
+    // If this is the special 'public' proposal, then don't filter on proposal ID and instead include all public images
+    if (proposalID === 'public') {
+      params.set('public', 'true')
+      params.set('exclude_calibrations', 'true')
+    }
+    else {
+      params.set('proposal_id', proposalID)
+    }
 
     // Handle special 'covers' parameter from ra/dec
     if (filters.value.ra.value && filters.value.dec.value && !isNaN(filters.value.ra.value) && !isNaN(filters.value.dec.value)) {
@@ -141,7 +170,9 @@ async function loadProposals(){
     for (const [key, filter] of Object.entries(filters.value)) {
       if (key !== 'ra' && key !== 'dec') {
         const paramValue = filter.toParam ? filter.toParam(filter.value) : filter.value
-        params.set(key, paramValue)
+        if (paramValue != null && paramValue != '') {
+          params.set(key, paramValue)
+        }
       }
     }
 
@@ -289,17 +320,30 @@ onMounted(() => {
       bg-color="var(--card-background)"
       variant="solo-filled"
     />
-    <v-text-field
-      v-for="filter in Object.values(filters).filter(f => f.label && f.type !='hidden')"
-      :key="filter.label"
-      v-model="filter.value"
-      :class="filter.class || ''"
-      :label="filter.label"
-      hide-details
-      color="var(--primary-interactive)"
-      bg-color="var(--card-background)"
-      variant="solo-filled"
-    />
+    <span v-for="filter in Object.values(filters).filter(f => f.label && f.type !='hidden')" :key="filter.label" :class="filter.class || 'filter-field'">
+      <v-select
+        v-if="filter.options"
+        v-model="filter.value"
+        :items="filter.options"
+        :class="filter.class || ''"
+        :label="filter.label"
+        hide-details
+        clearable
+        color="var(--primary-interactive)"
+        bg-color="var(--card-background)"
+        variant="solo-filled"
+      />
+      <v-text-field
+        v-else
+        v-model="filter.value"
+        :class="filter.class || ''"
+        :label="filter.label"
+        hide-details
+        color="var(--primary-interactive)"
+        bg-color="var(--card-background)"
+        variant="solo-filled"
+      />
+    </span>
     <inset-icon-switch
       v-model="userDataStore.coordsToggle"
       class="order-1"
@@ -319,7 +363,7 @@ onMounted(() => {
         :key="proposal.id"
         color="var(--secondary-background)"
       >
-        <v-expansion-panel-title @click="loadProposals()">
+        <v-expansion-panel-title @click="loadProposals(proposal.id)">
           <p>{{ proposal.title }}</p>
         </v-expansion-panel-title>
         <v-expansion-panel-text>
@@ -341,6 +385,7 @@ onMounted(() => {
             :allow-selection="true"
             :column-span="5"
             @select-image="selectImage(proposal.id, $event)"
+            @toggle-selection="toggleSelectedProposalImages(proposal.id)"
           />
           <image-list
             v-else
@@ -371,7 +416,7 @@ onMounted(() => {
     />
     <v-btn
       :disabled="selectedImages.length == 0"
-      class="proposal-button deselect_button"
+      class="proposal-button deselect_button mt-2"
       prepend-icon="mdi-trash-can-outline"
       text="Clear"
       base-color="var(--cancel)"
@@ -379,7 +424,7 @@ onMounted(() => {
     />
     <v-btn
       :disabled="selectedImages.length == 0"
-      class="proposal-button add_button"
+      class="proposal-button add_button mt-2"
       :text=" selectedImages.length == 0 ? 'No Images' : `Add ${selectedImages.length} image${selectedImages.length > 1 ? 's' : ''}` "
       base-color="var(--primary-interactive)"
       @click="showCreateSessionDialog=true"
@@ -406,18 +451,21 @@ onMounted(() => {
 }
 .bottom-controls {
   position: fixed;
-  bottom: 0;
+  bottom: 4;
   left: 0;
   right: 0;
 }
 .proposal-button {
-  height: 3rem;
+  height: 2.5rem;
   font-weight: 700;
   font-size: 1.3rem;
   color: var(--text);
 }
 .add_button {
   width: 14rem;
+}
+.filter-field {
+  flex-grow: 1;
 }
 .simbad-search {
   flex-grow: 2;

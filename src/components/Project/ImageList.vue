@@ -80,7 +80,6 @@ function launchAnalysis(image){
     class="data_table"
     @update:model-value="select"
   >
-    <template #[`header.data-table-select`] /> <!--Hides select all checkbox-->
     <template #[`item.observation_date`]="{ item }">
       <p>{{ new Date(item.observation_date).toLocaleString() }}</p>
     </template>

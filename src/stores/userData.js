@@ -38,6 +38,12 @@ export const useUserDataStore = defineStore('userData', {
           return a.current? -1: 1
         }
       })
+      // Add a "Public Images" fake proposal to the end of everyones list
+      this.proposals.push({
+        current: true,
+        id: 'public',
+        title: 'Public Images'
+      })
     },
   }
 })
