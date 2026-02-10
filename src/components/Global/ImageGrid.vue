@@ -32,7 +32,7 @@ const props = defineProps({
 const configurationStore = useConfigurationStore()
 const alertsStore = useAlertsStore()
 const thumbnailsStore = useThumbnailsStore()
-const emit = defineEmits(['selectImage'])
+const emit = defineEmits(['selectImage', 'toggleSelection'])
 const showAnalysisDialog = ref(false)
 const imageDetails = ref({})
 const analysisImage = ref({})
@@ -75,7 +75,7 @@ watch(() => props.images, () => {
 </script>
 
 <template>
-  <v-row>
+  <v-row @dblclick="emit('toggleSelection')">
     <v-col
       v-for="(image, index) in props.images"
       :key="index"
