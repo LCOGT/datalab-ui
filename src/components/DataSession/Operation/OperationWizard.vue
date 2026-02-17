@@ -46,24 +46,6 @@ const images = computed(() => {
 
 const inputDescriptions = computed(() => { return selectedOperation.value.inputs })
 
-// Groups of 2 elements to set for inputDescriptions that are not image based
-// const groupedInputDescriptions = computed(() => {
-//   const typesToGroup = ['string', 'float', 'int', 'select']
-//   let groups = []
-//   let currentGroup = {}
-//   if (inputDescriptions.value) {
-//     for( const [inputKey, inputDescription] of Object.entries(inputDescriptions.value)) {
-//       if (typesToGroup.includes(inputDescription.type)) {
-//         currentGroup[inputKey] = inputDescription
-//         if (Object.keys(currentGroup).length == 2) {
-//           groups.push({...currentGroup})
-//           currentGroup = {}
-//         }
-//       }
-//     }
-//   }
-//   return groups
-// })
 const groupedInputDescriptions = computed(() => {
   const typesToGroup = ['string', 'float', 'int', 'select']
   let groups = []
