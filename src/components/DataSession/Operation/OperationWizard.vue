@@ -224,13 +224,19 @@ function selectOperation(name) {
       operationInputs.value[key] = value.default
     }
     else if (value.color_picker) {
+      console.log('value', value)
       /**
        * Custom handling for color image operation
        * Since we can add and remove channels all inputs fall under the same key in an array of objects
        * Default: start with 3 channels (RGB) and try to preselect images for those
        */
       operationInputs.value[key] = Object.entries(rgbFilterMap).map(([color, filters]) => {
-        const preselectedImage = images.value.find(image => filters.includes(image.filter.toLowerCase()))
+        console.log('images value', images.value)
+        console.log('filters', filters)
+        const preselectedImage = images.value.find(image => {
+          if (!image.filter) return false
+          return filters.includes(image.filter.toLowerCase())
+        })
         let output = {}
         if (preselectedImage) {
           output = {...preselectedImage}
@@ -385,6 +391,7 @@ function updateScaling(channelIndex, zmin, zmax) {
           <v-col
             v-for="(inputDescription, inputKey) in group"
             :key="'input-col-' + inputKey"
+            cols="6"
             class="pb-0"
           >
             <source-input-widget
