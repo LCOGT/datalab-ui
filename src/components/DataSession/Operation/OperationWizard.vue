@@ -231,8 +231,6 @@ function selectOperation(name) {
        * Default: start with 3 channels (RGB) and try to preselect images for those
        */
       operationInputs.value[key] = Object.entries(rgbFilterMap).map(([color, filters]) => {
-        console.log('images value', images.value)
-        console.log('filters', filters)
         const preselectedImage = images.value.find(image => {
           if (!image.filter) return false
           return filters.includes(image.filter.toLowerCase())
