@@ -46,13 +46,12 @@ const images = computed(() => {
 
 const inputDescriptions = computed(() => { return selectedOperation.value.inputs })
 
-// Groups of 2 elements to set for inputDescriptions that are not image based
 const groupedInputDescriptions = computed(() => {
-  const typesToGroup = ['string', 'float', 'int']
+  const typesToGroup = ['string', 'float', 'int', 'select']
   let groups = []
   let currentGroup = {}
   if (inputDescriptions.value) {
-    for( const [inputKey, inputDescription] of Object.entries(inputDescriptions.value)) {
+    for ( const [inputKey, inputDescription] of Object.entries(inputDescriptions.value)) {
       if (typesToGroup.includes(inputDescription.type)) {
         currentGroup[inputKey] = inputDescription
         if (Object.keys(currentGroup).length == 2) {
@@ -61,9 +60,14 @@ const groupedInputDescriptions = computed(() => {
         }
       }
     }
+    // push any leftover single (or non-complete) group so single selects are shown
+    if (Object.keys(currentGroup).length > 0) {
+      groups.push({...currentGroup})
+    }
   }
   return groups
 })
+
 
 const sourceInputDescriptions = computed(() => {
   let sourceDescriptions = {}
@@ -220,13 +224,17 @@ function selectOperation(name) {
       operationInputs.value[key] = value.default
     }
     else if (value.color_picker) {
+      console.log('value', value)
       /**
        * Custom handling for color image operation
        * Since we can add and remove channels all inputs fall under the same key in an array of objects
        * Default: start with 3 channels (RGB) and try to preselect images for those
        */
       operationInputs.value[key] = Object.entries(rgbFilterMap).map(([color, filters]) => {
-        const preselectedImage = images.value.find(image => filters.includes(image.filter.toLowerCase()))
+        const preselectedImage = images.value.find(image => {
+          if (!image.filter) return false
+          return filters.includes(image.filter.toLowerCase())
+        })
         let output = {}
         if (preselectedImage) {
           output = {...preselectedImage}
@@ -240,6 +248,15 @@ function selectOperation(name) {
     }
     else if (value.type == 'source') {
       operationInputs.value[key] = {}
+    }
+    else if (value.type == 'select') {
+      if ('default' in value) {
+        operationInputs.value[key] = value.default
+      } else if (value.options && value.options.length > 0) {
+        operationInputs.value[key] = value.options[0]
+      } else {
+        operationInputs.value[key] = null
+      }
     }
     else {
       operationInputs.value[key] = null
@@ -371,13 +388,14 @@ function updateScaling(channelIndex, zmin, zmax) {
         >
           <v-col
             v-for="(inputDescription, inputKey) in group"
-            class="pb-0"
             :key="'input-col-' + inputKey"
+            cols="6"
+            class="pb-0"
           >
             <source-input-widget
               v-if="inputDescription.type == 'source'"
-              v-model="operationInputs[inputKey]">
-            </source-input-widget>
+              v-model="operationInputs[inputKey]"
+            />
             <v-text-field
               v-else-if="inputDescription.type == 'string' && !inputDescription.options"
               v-model="operationInputs[inputKey]"
@@ -405,13 +423,19 @@ function updateScaling(channelIndex, zmin, zmax) {
               :precision="null"
               control-variant="hidden"
             />
+            <v-select
+              v-else-if="inputDescription.type == 'select'"
+              v-model="operationInputs[inputKey]"
+              :label="inputDescription.name"
+              :items="inputDescription.options"
+            />
           </v-col>
         </v-row>
         <source-input-widget
           v-for="(inputDescription, inputKey) in sourceInputDescriptions"
+          :key="'source-input-widget-' + inputKey"
           v-model="operationInputs[inputKey]"
-          :key="'source-input-widget-' + inputKey" >
-        </source-input-widget>
+        />
         <multi-image-input-selector
           :input-descriptions="imageInputDescriptions"
           :input-images="operationInputs"
