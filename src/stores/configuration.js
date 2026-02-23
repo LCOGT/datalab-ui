@@ -6,6 +6,7 @@ export const useConfigurationStore = defineStore('configuration', {
       isConfigLoaded: false,
       datalabApiBaseUrl: '',
       datalabArchiveApiUrl: '',
+      simbad2kUrl: '',
       observationPortalUrl: '',
       thumbnailServiceUrl: '',
       archiveType: 'ptr',
