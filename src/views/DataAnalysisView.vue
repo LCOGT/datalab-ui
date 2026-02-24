@@ -166,8 +166,7 @@ const title = computed(() => {
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 0.5rem;
-  gap: 1.5vh;
+  gap: 4.5vh;
   overflow: hidden;
 }
 .analysis-page{
@@ -185,7 +184,7 @@ const title = computed(() => {
   background-color: var(--header);
 }
 .analysis-row {
-  flex: 0 0 26vh;
+  flex: 0 0 22vh;
   min-height: 0;
   border-radius: 8px;
   display: flex;
