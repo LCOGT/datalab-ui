@@ -210,16 +210,7 @@ function createCatalogLayer(){
       <b>Flux:</b> ${source.flux ?? 'N/A'}<br>
       <b>RA:</b> ${source.ra ?? 'N/A'}<br>
       <b>Dec:</b> ${source.dec ?? 'N/A'}<br>
-      <button class="variableAnalysisButton">Light Curve</button>
     `
-
-    div.querySelector('button').addEventListener('click',() => {
-      showVariableStarDialog.value = true
-      variableTargetCoords.value = {
-        ra: source.ra,
-        dec: source.dec
-      }
-    })
 
     // Create a circle marker for the source
     return new L.Circle([source.y_win, source.x_win], {
@@ -322,14 +313,6 @@ function createCatalogLayer(){
   border-radius: 0.25rem;
 }
 
-.variableAnalysisButton {
-  background-color: var(--primary-interactive);
-  color: var(--text);
-  border: none;
-  padding: 0.5rem;
-  border-radius: 0.25rem;
-  cursor: pointer;
-}
 </style>
 <style scoped>
 </style>
