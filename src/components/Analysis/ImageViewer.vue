@@ -8,7 +8,6 @@ import { useAlertsStore } from '@/stores/alerts'
 import { useAnalysisStore } from '@/stores/analysis'
 import { loadImage, scalePoint } from '@/utils/common'
 import WCS from '@/utils/wcs'
-import VariableStarDialog from './VariableStarDialog.vue'
 
 const props = defineProps({
   catalog: {
@@ -38,8 +37,6 @@ const isHoveringLeaflet = ref(false)
 const raDec = ref({ ra: 0, dec: 0 })
 const alerts = useAlertsStore()
 const analysisStore = useAnalysisStore()
-const showVariableStarDialog = ref(false)
-const variableTargetCoords = ref({ ra: null, dec: null })
 
 onMounted(() => {
   // Initialize the map and its event listeners before adding the image overlay
@@ -211,7 +208,6 @@ function createCatalogLayer(){
       <b>RA:</b> ${source.ra ?? 'N/A'}<br>
       <b>Dec:</b> ${source.dec ?? 'N/A'}<br>
     `
-
     // Create a circle marker for the source
     return new L.Circle([source.y_win, source.x_win], {
       color: 'var(--info)',
@@ -256,16 +252,6 @@ function createCatalogLayer(){
       </v-chip>
     </v-fade-transition>
   </div>
-  <v-dialog
-    v-model="showVariableStarDialog"
-    width="600px"
-  >
-    <variable-star-dialog
-      :coords="variableTargetCoords"
-      @analysis-action="(action, input) => emit('analysisAction', action, input)"
-      @close-dialog="showVariableStarDialog = false"
-    />
-  </v-dialog>
 </template>
 <style>
 /* Custom icons for leaflet-geoman */
