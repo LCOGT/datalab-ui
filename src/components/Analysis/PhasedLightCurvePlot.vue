@@ -132,19 +132,19 @@ onMounted(() => {
 </script>
 <template>
   <div class="wrapper">
-    <h4 class="title-plc">
+    <p class="title-plc">
       Phased Light Curve
-    </h4>
-    <div class="period-plot-wrapper">
-      <canvas
-        ref="periodCanvas"
-        class="period-plot"
-      />
       <v-btn
         icon="mdi-download"
         class="download-btn"
         title="Download as PNG"
         @click="downloadChartAsPNG(periodChart, 'period-plot.png', 'Phased Light Curve')"
+      />
+    </p>
+    <div class="period-plot-wrapper">
+      <canvas
+        ref="periodCanvas"
+        class="period-plot"
       />
       <div class="chip-row">
         <v-chip color="var(--info)">
@@ -177,8 +177,6 @@ onMounted(() => {
   height: 100% !important;
 }
 .download-btn {
-  margin-left: 1rem;
-  margin-bottom: 1rem;
   align-self: flex-end;
 }
 .chip-row {

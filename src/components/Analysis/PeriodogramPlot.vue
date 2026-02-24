@@ -186,19 +186,19 @@ onMounted(() => {
 
 <template>
   <div class="wrapper">
-    <h4 class="title-pd">
+    <p class="title-pd">
       Periodogram
-    </h4>
-    <div class="periodogram-plot-wrapper">
-      <canvas
-        ref="canvasEl"
-        class="periodogram-plot"
-      />
       <v-btn
         icon="mdi-download"
         class="download-btn"
         title="Download as PNG"
         @click="downloadChartAsPNG(chart, 'periodogram-plot.png', 'Periodogram')"
+      />
+    </p>
+    <div class="periodogram-plot-wrapper">
+      <canvas
+        ref="canvasEl"
+        class="periodogram-plot"
       />
     </div>
   </div>
@@ -223,8 +223,6 @@ onMounted(() => {
   height: 100% !important;
 }
 .download-btn {
-  margin-left: 1rem;
-  margin-bottom: 1rem;
   align-self: flex-end;
 }
 </style>
