@@ -85,8 +85,8 @@ function validateSessionName(){
   if (dataSessionsList.value.some(session => session.name === newSessionName.value)) {
     alertsStore.setAlert('error', `${newSessionName.value} already exists`)
     return false
-  } else if (newSessionName.value.length < 5) {
-    alertsStore.setAlert('warning', 'Data Session Name should be at least 5 characters long')
+  } else if (newSessionName.value.length < 1) {
+    alertsStore.setAlert('warning', 'Data Session Name should be at least 1 character long')
     return false
   } else if (newSessionName.value.length > 25) {
     alertsStore.setAlert('warning', `Data Session Name ${newSessionName.value} exceeds 25 characters`)
