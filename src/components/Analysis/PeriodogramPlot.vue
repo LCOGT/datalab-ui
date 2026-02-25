@@ -49,7 +49,6 @@ function createChart() {
     points[props.periodogramData.peakIndex]
   ) {
     bestPeriod.value = points[props.periodogramData.peakIndex]
-    console.log('Best period point:', bestPeriod.value)
   }
   if (!points.length) {
     chart = new Chart(canvasEl.value, {
