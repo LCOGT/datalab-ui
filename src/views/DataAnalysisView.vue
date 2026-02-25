@@ -17,6 +17,8 @@ const emit = defineEmits(['closeAnalysisDialog'])
 
 const periodogramData = ref({})
 const variableStarData = ref({})
+const bestPeriod = ref(null)
+const selectedPoints = ref([])
 
 function foldPeriod(magTimeSeries, period) {
   const frequency = 1.0 / period
@@ -95,8 +97,10 @@ function applySelectedPeriod(period) {
   variableStarData.value.magPhasedLightCurve = [...props.data.light_curve].sort((a, b) => a.phase - b.phase)
 }
 
-const handlePeriodSelected = (period) => {
+const handlePeriodSelected = (period, freq, pow, bestPeriodFromPlot) => {
   applySelectedPeriod(period)
+  bestPeriod.value = bestPeriodFromPlot
+  selectedPoints.value = [{ x: freq, y: pow }]
 }
 
 watch(() => props.data, () => {
@@ -154,6 +158,8 @@ const title = computed(() => {
           <phased-light-curve-plot
             :variable-star-data="variableStarData"
             :periodogram-data="periodogramData"
+            :best-period="bestPeriod"
+            :selected-points="selectedPoints"
             class="period-plot"
           />
         </v-row>
@@ -184,7 +190,7 @@ const title = computed(() => {
   background-color: var(--header);
 }
 .analysis-row {
-  flex: 0 0 22vh;
+  flex: 0 0 24vh;
   min-height: 0;
   border-radius: 8px;
   display: flex;

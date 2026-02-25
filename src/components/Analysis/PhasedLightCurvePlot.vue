@@ -1,3 +1,4 @@
+<!-- eslint-disable vue/require-default-prop -->
 <script setup>
 import Chart from 'chart.js/auto'
 import { ref, watch, computed, defineProps, onMounted } from 'vue'
@@ -11,8 +12,22 @@ const props = defineProps({
   periodogramData: {
     type: Object,
     required: true
+  },
+  bestPeriod: {
+    type: Object,
+    required: false
+  },
+  selectedPoints: {
+    type: Array,
+    required: false
   }
 })
+
+const bestPeriod = computed(() => props.bestPeriod)
+const selectedPoints = computed(() => props.selectedPoints)
+
+const sameValue = computed(() => (bestPeriod.value && selectedPoints.value.length > 0) ? 
+  (bestPeriod.value.x === selectedPoints.value[0].x && bestPeriod.value.y === selectedPoints.value[0].y) : false)
 
 const periodCanvas = ref(null)
 let periodChart = null
@@ -150,7 +165,10 @@ onMounted(() => {
         <v-chip color="var(--info)">
           Period: {{ chartData.period }} days
         </v-chip>
-        <v-chip :color="probabilityChipColor">
+        <v-chip
+          v-if="sameValue || !selectedPoints.length"
+          :color="probabilityChipColor"
+        >
           False Alarm Probability: {{ chartData.falseAlarmPercentage }}%
         </v-chip>
       </div>

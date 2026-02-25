@@ -18,6 +18,7 @@ const props = defineProps({
 
 const canvasEl = ref(null)
 let chart = null
+const bestPeriod = ref(null)
 
 // Build an array of {x,y} points from store (x = frequency, y = power)
 function getXYPoints() {
@@ -43,12 +44,12 @@ function createChart() {
   const background = style.getPropertyValue('--secondary-background')
 
   const points = getXYPoints()
-  let selected = []
   if (
     props.periodogramData.peakIndex != null &&
     points[props.periodogramData.peakIndex]
   ) {
-    selected = [points[props.periodogramData.peakIndex]]
+    bestPeriod.value = points[props.periodogramData.peakIndex]
+    console.log('Best period point:', bestPeriod.value)
   }
   if (!points.length) {
     chart = new Chart(canvasEl.value, {
@@ -79,7 +80,7 @@ function createChart() {
         },
         {
           label: 'Selected',
-          data: selected,
+          data: bestPeriod.value ? [bestPeriod.value] : [],
           type: 'scatter',
           pointBackgroundColor: secondary,
           pointBorderColor: secondary,
@@ -170,7 +171,7 @@ function handlePointClick(freq, pow) {
 
   if (!freq || Number.isNaN(freq) || freq <= 0) return
   const period = 1.0 / freq
-  emit('periodSelected', period)
+  emit('periodSelected', period, freq, pow, bestPeriod.value)
 }
 
 watch(
