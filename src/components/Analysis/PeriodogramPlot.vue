@@ -18,6 +18,7 @@ const props = defineProps({
 
 const canvasEl = ref(null)
 let chart = null
+const bestPeriod = ref(null)
 
 // Build an array of {x,y} points from store (x = frequency, y = power)
 function getXYPoints() {
@@ -43,12 +44,11 @@ function createChart() {
   const background = style.getPropertyValue('--secondary-background')
 
   const points = getXYPoints()
-  let selected = []
   if (
     props.periodogramData.peakIndex != null &&
     points[props.periodogramData.peakIndex]
   ) {
-    selected = [points[props.periodogramData.peakIndex]]
+    bestPeriod.value = points[props.periodogramData.peakIndex]
   }
   if (!points.length) {
     chart = new Chart(canvasEl.value, {
@@ -79,7 +79,7 @@ function createChart() {
         },
         {
           label: 'Selected',
-          data: selected,
+          data: bestPeriod.value ? [bestPeriod.value] : [],
           type: 'scatter',
           pointBackgroundColor: secondary,
           pointBorderColor: secondary,
@@ -170,7 +170,7 @@ function handlePointClick(freq, pow) {
 
   if (!freq || Number.isNaN(freq) || freq <= 0) return
   const period = 1.0 / freq
-  emit('periodSelected', period)
+  emit('periodSelected', period, freq, pow, bestPeriod.value)
 }
 
 watch(
@@ -186,19 +186,19 @@ onMounted(() => {
 
 <template>
   <div class="wrapper">
-    <h4 class="title-pd">
+    <p class="title-pd">
       Periodogram
-    </h4>
-    <div class="periodogram-plot-wrapper">
-      <canvas
-        ref="canvasEl"
-        class="periodogram-plot"
-      />
       <v-btn
         icon="mdi-download"
         class="download-btn"
         title="Download as PNG"
         @click="downloadChartAsPNG(chart, 'periodogram-plot.png', 'Periodogram')"
+      />
+    </p>
+    <div class="periodogram-plot-wrapper">
+      <canvas
+        ref="canvasEl"
+        class="periodogram-plot"
       />
     </div>
   </div>
@@ -223,8 +223,6 @@ onMounted(() => {
   height: 100% !important;
 }
 .download-btn {
-  margin-left: 1rem;
-  margin-bottom: 1rem;
   align-self: flex-end;
 }
 </style>

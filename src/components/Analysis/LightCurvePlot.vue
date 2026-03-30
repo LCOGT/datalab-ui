@@ -124,6 +124,7 @@ function createChart() {
           border: { color: text, width: 2 },
           ticks: { color: text },
           grid: { color: background, tickColor: text},
+          reverse: true
         }
       },
       plugins: {
@@ -145,17 +146,19 @@ onMounted(() => {
 </script>
 <template>
   <div class="wrapper">
-    <h4 class="title-lc">Light Curve</h4>
-    <div class="light-curve-plot-wrapper">
-      <canvas
-        ref="lightCurveCanvas"
-        class="light-curve-plot"
-      />
+    <p class="title-lc">
+      Light Curve 
       <v-btn
         icon="mdi-download"
         class="download-btn"
         title="Download as PNG"
         @click="downloadChartAsPNG(lightCurveChart, 'light-curve.png', 'Light Curve')"
+      />
+    </p>
+    <div class="light-curve-plot-wrapper">
+      <canvas
+        ref="lightCurveCanvas"
+        class="light-curve-plot"
       />
     </div>
   </div>
@@ -180,8 +183,6 @@ onMounted(() => {
   height: 100% !important;
 }
 .download-btn {
-  margin-left: 1rem;
-  margin-bottom: 1rem;
   align-self: flex-end;
 }
 </style>

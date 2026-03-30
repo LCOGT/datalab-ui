@@ -224,7 +224,6 @@ function selectOperation(name) {
       operationInputs.value[key] = value.default
     }
     else if (value.color_picker) {
-      console.log('value', value)
       /**
        * Custom handling for color image operation
        * Since we can add and remove channels all inputs fall under the same key in an array of objects

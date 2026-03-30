@@ -1,3 +1,4 @@
+<!-- eslint-disable vue/require-default-prop -->
 <script setup>
 import Chart from 'chart.js/auto'
 import { ref, watch, computed, defineProps, onMounted } from 'vue'
@@ -11,8 +12,22 @@ const props = defineProps({
   periodogramData: {
     type: Object,
     required: true
+  },
+  bestPeriod: {
+    type: Object,
+    required: false
+  },
+  selectedPoints: {
+    type: Array,
+    required: false
   }
 })
+
+const bestPeriod = computed(() => props.bestPeriod)
+const selectedPoints = computed(() => props.selectedPoints)
+
+const sameValue = computed(() => (bestPeriod.value && selectedPoints.value.length > 0) ? 
+  (bestPeriod.value.x === selectedPoints.value[0].x && bestPeriod.value.y === selectedPoints.value[0].y) : false)
 
 const periodCanvas = ref(null)
 let periodChart = null
@@ -132,25 +147,28 @@ onMounted(() => {
 </script>
 <template>
   <div class="wrapper">
-    <h4 class="title-plc">
+    <p class="title-plc">
       Phased Light Curve
-    </h4>
-    <div class="period-plot-wrapper">
-      <canvas
-        ref="periodCanvas"
-        class="period-plot"
-      />
       <v-btn
         icon="mdi-download"
         class="download-btn"
         title="Download as PNG"
         @click="downloadChartAsPNG(periodChart, 'period-plot.png', 'Phased Light Curve')"
       />
+    </p>
+    <div class="period-plot-wrapper">
+      <canvas
+        ref="periodCanvas"
+        class="period-plot"
+      />
       <div class="chip-row">
         <v-chip color="var(--info)">
           Period: {{ chartData.period }} days
         </v-chip>
-        <v-chip :color="probabilityChipColor">
+        <v-chip
+          v-if="sameValue || !selectedPoints.length"
+          :color="probabilityChipColor"
+        >
           False Alarm Probability: {{ chartData.falseAlarmPercentage }}%
         </v-chip>
       </div>
@@ -177,8 +195,6 @@ onMounted(() => {
   height: 100% !important;
 }
 .download-btn {
-  margin-left: 1rem;
-  margin-bottom: 1rem;
   align-self: flex-end;
 }
 .chip-row {
