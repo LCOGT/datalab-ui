@@ -13,12 +13,20 @@ const tableHeaders = [
   { title: 'Value', sortable: false, key:'1' },
 ]
 
+const basenameSequence = computed(() => {
+  const basename = analysisStore.image?.basename || ''
+  const match = basename.match(/^[^-]+-[^-]+-[^-]+-([^-]+)-e91$/)
+
+  return match?.[1] || 'Unknown'
+})
+
 // Loopable chip dict for v-chips
 const headerChips = computed(() => [
   { icon: 'mdi-earth', text: siteIDToName(analysisStore.headerData.SITEID) },
   { icon: 'mdi-telescope', text: analysisStore.headerData.TELID },
   { icon: 'mdi-camera', text: analysisStore.headerData.INSTRUME },
-  { icon: 'mdi-clock', text: new Date(analysisStore.headerData.DATE).toLocaleString() }
+  { icon: 'mdi-clock', text: new Date(analysisStore.headerData.DATE).toLocaleString() },
+  { icon: 'mdi-numeric', text: basenameSequence.value }
 ])
 
 </script>
