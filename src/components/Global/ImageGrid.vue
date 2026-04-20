@@ -99,6 +99,7 @@ watch(() => props.images, () => {
   >
     <image-analysis-view
       :image="analysisImage"
+      :images="props.images"
       @close-analysis-dialog="showAnalysisDialog = false"
     />
   </v-dialog>
