@@ -473,7 +473,6 @@ async function onModeChange(val) {
   </v-dialog>
 </template>
 <style scoped>
-/* Center the mode dropdown at the top */
 .mode-dropdown-center {
   display: flex;
   justify-content: center;
