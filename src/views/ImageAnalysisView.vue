@@ -176,8 +176,9 @@ async function loadActiveImage(image) {
     analysisStore.headerData = null
   }
 
+  cleanupWorker()
+
   if (selectedMode.value === 'Analysis Mode') {
-    cleanupWorker()
     resetAnalysisState()
   }
 
@@ -185,14 +186,18 @@ async function loadActiveImage(image) {
   activeImage.value = image
   analysisStore.image = image
 
+  const largeCachedUrl = await ensureLargeCachedUrl(image)
+  analysisStore.imageUrl = largeCachedUrl
+
   if (isFitsImage.value) {
-    const largeCachedUrl = await ensureLargeCachedUrl(image)
-    analysisStore.imageUrl = largeCachedUrl
     analysisStore.loadHeaderData()
+
+    if (selectedMode.value !== 'Analysis Mode') {
+      return
+    }
+
     imgWorker = new Worker('drawImageWorker.js')
     instantiateScalerWorker()
-  } else {
-    analysisStore.imageUrl = await ensureLargeCachedUrl(image)
   }
 }
 
@@ -245,6 +250,10 @@ async function instantiateScalerWorker(){
   try { await analysisStore.loadScaleData() } 
   catch (error) { return console.error('Failed to load scale data:', error) }
 
+  if (!imgWorker || !analysisStore.imageWidth || !analysisStore.imageHeight || !analysisStore.rawData?.data) {
+    return
+  }
+
   // Create a new offscreen canvas for the worker
   const imgScalingCanvas = document.createElement('canvas')
   imgScalingCanvas.width = analysisStore.imageWidth
@@ -269,14 +278,16 @@ async function instantiateScalerWorker(){
 }
 
 function updateScaling(min, max){
-  if (isFitsImage.value) {
-    imgWorkerNextScale = [min, max]
+  if (!isFitsImage.value || selectedMode.value !== 'Analysis Mode' || !imgWorker) {
+    return
+  }
 
-    if (imgWorkerNextScale && !imgWorkerProcessing){
-      imgWorkerProcessing = true
-      imgWorker.postMessage({scalePoints: [...imgWorkerNextScale]})
-      imgWorkerNextScale = null
-    }
+  imgWorkerNextScale = [min, max]
+
+  if (imgWorkerNextScale && !imgWorkerProcessing){
+    imgWorkerProcessing = true
+    imgWorker.postMessage({scalePoints: [...imgWorkerNextScale]})
+    imgWorkerNextScale = null
   }
 }
 
