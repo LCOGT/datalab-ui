@@ -1,9 +1,11 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { fetchApiCall } from '../utils/api'
+import { siteIDToName } from '@/utils/common'
 import { useConfigurationStore } from '@/stores/configuration'
 import { useAnalysisStore } from '@/stores/analysis'
 import { useUserDataStore } from '@/stores/userData'
+import { useThumbnailsStore } from '@/stores/thumbnails'
 import FilterBadge from '@/components/Global/FilterBadge.vue'
 import NonLinearSlider from '@/components/Global/NonLinearSlider.vue'
 import HistogramSlider from '@/components/Global/Scaling/HistogramSlider.vue'
@@ -11,6 +13,7 @@ import ImageDownloadMenu from '@/components/Global/ImageDownloadMenu.vue'
 import FitsHeaderTable from '@/components/Analysis/FitsHeaderTable.vue'
 import ImageViewer from '@/components/Analysis/ImageViewer.vue'
 import LinePlot from '@/components/Analysis/LinePlot.vue'
+import ViewMode from '@/components/Analysis/ViewMode.vue'
 import { getActivePinia } from 'pinia'
 
 const props = defineProps({
@@ -18,6 +21,10 @@ const props = defineProps({
     type: Object,
     required: true,
     default: null,
+  },
+  images: {
+    type: Array,
+    default: () => []
   }
 })
 
@@ -26,6 +33,7 @@ const emit = defineEmits(['closeAnalysisDialog'])
 const configStore = useConfigurationStore()
 const analysisStore = useAnalysisStore()
 const userDataStore = useUserDataStore()
+const thumbnailsStore = useThumbnailsStore()
 
 const lineProfile = ref([])
 const lineProfileLength = ref()
@@ -37,9 +45,19 @@ const fluxSliderRange = ref([0, 10000])
 const positionAngle = ref()
 const wcsSolution = ref()
 const showHeaderDialog = ref(false)
-const imgWorker = new Worker('drawImageWorker.js')
+const selectedBasename = ref(props.image?.basename || '')
+const activeImage = ref(props.image)
+let imgWorker = new Worker('drawImageWorker.js')
 let imgWorkerProcessing = false
 let imgWorkerNextScale = null
+
+const selectedMode = ref('Analysis Mode')
+
+const currentImageIndex = computed(() => {
+  if (!selectedBasename.value) return -1
+  return props.images.findIndex(image => image.basename === selectedBasename.value)
+})
+
 
 const filteredCatalog = computed(() => {
   if (!userDataStore.catalogToggle) {
@@ -52,33 +70,139 @@ const filteredCatalog = computed(() => {
 })
 
 const isFitsImage = computed(() => {
-  return props.image && (!('type' in props.image) || props.image?.type === 'fits')
+  return activeImage.value && (!('type' in activeImage.value) || activeImage.value?.type === 'fits')
 })
 
-onMounted(() => {
-  analysisStore.image = props.image
-  analysisStore.imageUrl = props.image.largeCachedUrl
-  if (isFitsImage.value) {
-    analysisStore.loadHeaderData()
-    instantiateScalerWorker()
+const basenameSequence = computed(() => {
+  const basename = activeImage.value?.basename || ''
+  const match = basename.match(/^[^-]+-[^-]+-[^-]+-([^-]+)-e91$/)
+
+  return match?.[1] || 'Unknown'
+})
+
+const headerChips = computed(() => {
+  const headerData = analysisStore.headerData
+
+  if (!headerData) {
+    return [
+      { icon: 'mdi-numeric', text: basenameSequence.value }
+    ]
   }
+
+  return [
+    { icon: 'mdi-earth', text: siteIDToName(headerData.SITEID) },
+    { icon: 'mdi-telescope', text: headerData.TELID },
+    { icon: 'mdi-camera', text: headerData.INSTRUME },
+    { icon: 'mdi-clock', text: new Date(headerData.DATE).toLocaleString() },
+    { icon: 'mdi-numeric', text: basenameSequence.value }
+  ]
+})
+
+const viewModeDetails = computed(() => {
+  const headerData = analysisStore.headerData || {}
+
+  return [
+    { label: 'RA', value: headerData.RA || 'Unknown' },
+    { label: 'Dec', value: headerData.DEC || 'Unknown' },
+    { label: 'Object', value: headerData.OBJECT || 'Unknown' }
+  ]
+})
+
+onMounted(async() => {
+  await loadActiveImage(resolveImageByBasename(selectedBasename.value) || props.image)
+})
+
+watch(() => props.image, async (image) => {
+  if (!image?.basename) return
+
+  selectedBasename.value = image.basename
+  await loadActiveImage(resolveImageByBasename(image.basename) || image)
 })
 
 onUnmounted(() => {
-  if (isFitsImage.value) {
-    imgWorker.terminate()
-  }
+  cleanupWorker()
   analysisStore.$dispose()
   delete getActivePinia().state.value[analysisStore.$id]
 })
+
+function cleanupWorker() {
+  if (imgWorker) {
+    imgWorker.terminate()
+    imgWorker = null
+  }
+}
+
+function resetAnalysisState() {
+  lineProfile.value = []
+  lineProfileLength.value = null
+  startCoords.value = null
+  endCoords.value = null
+  catalog.value = []
+  sideChart.value = ''
+  fluxSliderRange.value = [0, 10000]
+  positionAngle.value = null
+  wcsSolution.value = null
+  showHeaderDialog.value = false
+  imgWorkerProcessing = false
+  imgWorkerNextScale = null
+  analysisStore.headerData = null
+  analysisStore.rawData = null
+  analysisStore.zmin = null
+  analysisStore.zmax = null
+  analysisStore.imageWidth = null
+  analysisStore.imageHeight = null
+  analysisStore.imageScaleLoading = false
+  analysisStore.magTimeSeries = []
+}
+
+async function ensureLargeCachedUrl(image) {
+  if (!image.largeCachedUrl) {
+    const url = image.url || ''
+    image.largeCachedUrl = await thumbnailsStore.cacheImage('large', configStore.archiveType, url, image.basename)
+  }
+  return image.largeCachedUrl
+}
+
+function resolveImageByBasename(basename) {
+  if (!basename) return null
+
+  return props.images.find((image) => image.basename === basename) || null
+}
+
+async function loadActiveImage(image) {
+  if (!image) return
+
+  if (analysisStore.image?.basename !== image.basename) {
+    analysisStore.headerData = null
+  }
+
+  if (selectedMode.value === 'Analysis Mode') {
+    cleanupWorker()
+    resetAnalysisState()
+  }
+
+  selectedBasename.value = image.basename
+  activeImage.value = image
+  analysisStore.image = image
+
+  if (isFitsImage.value) {
+    const largeCachedUrl = await ensureLargeCachedUrl(image)
+    analysisStore.imageUrl = largeCachedUrl
+    analysisStore.loadHeaderData()
+    imgWorker = new Worker('drawImageWorker.js')
+    instantiateScalerWorker()
+  } else {
+    analysisStore.imageUrl = await ensureLargeCachedUrl(image)
+  }
+}
 
 // This function runs when imageViewer emits an analysis-action event and should be extended to handle other analysis types
 function requestAnalysis(action, input={}, action_callback=null){
   if(isFitsImage.value || action === 'get-tif' || action === 'get-jpg'){
     const url = configStore.datalabApiBaseUrl + 'analysis/' + action + '/'
     const body = {
-      'basename': props.image.basename,
-      'source': props.image.source,
+      'basename': activeImage.value.basename,
+      'source': activeImage.value.source,
       ...input
     }
     fetchApiCall({url: url, method: 'POST', body: body, successCallback: (response) => {handleAnalysisOutput(response, action, action_callback)}})
@@ -104,11 +228,11 @@ function handleAnalysisOutput(response, action, action_callback){
     break
   case 'get-tif':
     // ImageDownloadMenu.vue downloadFile()
-    action_callback(response.tif_url, props.image.basename, 'TIF')
+    action_callback(response.tif_url, activeImage.value.basename, 'TIF')
     break
   case 'get-jpg':
     // ImageDownloadMenu.vue downloadFile()
-    action_callback(response.jpg_base64, props.image.basename, 'base64')
+    action_callback(response.jpg_base64, activeImage.value.basename, 'base64')
     break
   default:
     console.error('Invalid action:', action)
@@ -156,28 +280,67 @@ function updateScaling(min, max){
   }
 }
 
+async function updateCurrentImageIndex(newIndex) {
+  const image = props.images[newIndex]
+  if (image) {
+    await loadActiveImage(image)
+  }
+}
+
+async function onModeChange(val) {
+  selectedMode.value = val
+
+  if (val === 'Analysis Mode') {
+    const image = resolveImageByBasename(selectedBasename.value) || props.image
+    await loadActiveImage(image)
+  }
+}
+
 </script>
 <template>
+  <div class="mode-dropdown-center">
+    <select
+      v-model="selectedMode"
+      class="mode-dropdown native-dropdown"
+      @change="onModeChange($event.target.value)"
+    >
+      <option value="View Mode">
+        View Mode
+      </option>
+      <option value="Analysis Mode">
+        Analysis Mode
+      </option>
+    </select>
+  </div>
   <v-sheet class="analysis-page">
     <v-toolbar
       class="analysis-toolbar"
       density="comfortable"
     >
       <filter-badge
-        v-if="image.FILTER || image.filter"
-        :filter="image.FILTER || image.filter"
+        v-if="activeImage?.FILTER || activeImage?.filter"
+        :filter="activeImage?.FILTER || activeImage?.filter"
         class="ml-2"
       />
-      <v-toolbar-title :text="image.basename || 'Unknown'" />
+      <div class="analysis-toolbar-chips">
+        <v-chip
+          v-for="chip in headerChips"
+          :key="chip.icon"
+          :prepend-icon="chip.icon"
+          color="var(--info)"
+          :text="chip.text"
+          size="small"
+        />
+      </div>
       <image-download-menu
-        :image-name="image.basename"
-        :fits-url="image.url || image.fits_url"
-        :jpg-url="image.largeCachedUrl"
+        :image-name="activeImage?.basename"
+        :fits-url="activeImage?.url || activeImage?.fits_url"
+        :jpg-url="activeImage?.largeCachedUrl"
         :enable-scaled-download="isFitsImage"
         @analysis-action="requestAnalysis"
       />
       <v-btn
-        v-if="image.id"
+        v-if="activeImage?.id"
         icon="mdi-information"
         @click="showHeaderDialog = analysisStore.loadHeaderData()"
       />
@@ -188,15 +351,55 @@ function updateScaling(min, max){
       />
     </v-toolbar>
     <v-progress-linear
-      v-hide="!analysisStore.loading"
+      v-hide="!analysisStore.loading || selectedMode !== 'View Mode'"
       rounded
       indeterminate
       stream
       color="var(--success)"
     />
-    <div class="analysis-content">
+    <div
+      v-if="selectedMode === 'View Mode' || selectedMode === ''"
+      class="analysis-content"
+    >
+      <view-mode
+        :current-index="currentImageIndex"
+        :images="props.images"
+        @update-current-index="updateCurrentImageIndex"
+      />
+      <div class="side-panel-container">
+        <v-sheet
+          class="side-panel-item"
+          rounded
+        >
+          <div class="d-flex flex-wrap ga-2 mb-4">
+            <v-chip
+              v-for="chip in headerChips"
+              :key="chip.icon"
+              :prepend-icon="chip.icon"
+              color="var(--info)"
+              :text="chip.text"
+            />
+          </div>
+          <div class="view-mode-meta">
+            <div
+              v-for="item in viewModeDetails"
+              :key="item.label"
+              class="view-mode-meta-row"
+            >
+              <span class="view-mode-meta-label">{{ item.label }}</span>
+              <span class="view-mode-meta-value">{{ item.value }}</span>
+            </div>
+          </div>
+        </v-sheet>
+      </div>
+    </div>
+    <div
+      v-else-if="selectedMode === 'Analysis Mode'"
+      class="analysis-content"
+    >
       <image-viewer
         :catalog="filteredCatalog"
+        :images="props.images"
         :wcs-solution="wcsSolution"
         @analysis-action="requestAnalysis"
       />
@@ -270,6 +473,36 @@ function updateScaling(min, max){
   </v-dialog>
 </template>
 <style scoped>
+/* Center the mode dropdown at the top */
+.mode-dropdown-center {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  width: 100%;
+  position: absolute;
+  top: 16px;
+  left: 0;
+  z-index: 2100;
+  pointer-events: none;
+}
+.mode-dropdown {
+  min-width: 120px;
+  max-width: 180px;
+  pointer-events: auto;
+}
+.native-dropdown {
+  padding: 6px 16px;
+  border-radius: 6px;
+  border: 1px solid var(--primary-interactive, #1976d2);
+  background: var(--card-background, #fff);
+  color: var(--text, #222);
+  font-size: 15px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+  outline: none;
+  appearance: none;
+  margin: 0 auto;
+  display: block;
+}
 /* Main Sections */
 .analysis-page{
   background-color: var(--primary-background);
@@ -284,11 +517,41 @@ function updateScaling(min, max){
   color: var(--text);
   background-color: var(--header);
 }
+.analysis-toolbar-chips {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  min-width: 0;
+}
 .analysis-content{
   flex: 1;
   display: flex;
   flex-direction: row;
   padding: 0.5rem;
+}
+.view-mode-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.view-mode-meta-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.view-mode-meta-label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--disabled-text);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.view-mode-meta-value {
+  font-size: 0.98rem;
+  color: var(--text);
+  word-break: break-word;
 }
 /* Side Panel */
 .side-panel-container {
