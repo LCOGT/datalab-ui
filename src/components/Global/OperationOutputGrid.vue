@@ -13,6 +13,10 @@ const props = defineProps({
     type: Array,
     default: () => []
   },
+  images: {
+    type: Array,
+    default: () => []
+  },
   columnSpan: {
     type: Number,
     required: true
@@ -35,7 +39,7 @@ const analysisData = ref({})
 
 async function ensureLargeCachedUrl(image) {
   if (!image.largeCachedUrl) {
-    const url = image.large_url || image.largeThumbUrl || ''
+    const url = image.url || image.large_url || image.largeThumbUrl || ''
     image.largeCachedUrl = await thumbnailsStore.cacheImage('large', configurationStore.archiveType, url, image.basename)
   }
   return image.largeCachedUrl
@@ -111,6 +115,7 @@ watch(() => props.operationOutputs, () => {
   >
     <image-analysis-view
       :image="analysisImage"
+      :images="props.images"
       @close-analysis-dialog="showImageAnalysisDialog = false"
     />
   </v-dialog>
