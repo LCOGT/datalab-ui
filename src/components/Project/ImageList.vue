@@ -122,6 +122,7 @@ function launchAnalysis(image){
   >
     <image-analyzer
       :image="analysisImage"
+      :images="props.images"
       @close-analysis-dialog="showAnalysisDialog = false"
     />
   </v-dialog>
