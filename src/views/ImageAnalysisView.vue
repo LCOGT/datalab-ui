@@ -5,7 +5,6 @@ import { basenameToSequence, siteIDToName } from '@/utils/common'
 import { useConfigurationStore } from '@/stores/configuration'
 import { useAnalysisStore } from '@/stores/analysis'
 import { useUserDataStore } from '@/stores/userData'
-import { useThumbnailsStore } from '@/stores/thumbnails'
 import FilterBadge from '@/components/Global/FilterBadge.vue'
 import NonLinearSlider from '@/components/Global/NonLinearSlider.vue'
 import HistogramSlider from '@/components/Global/Scaling/HistogramSlider.vue'
@@ -29,7 +28,6 @@ const emit = defineEmits(['closeAnalysisDialog', 'requestPreviousImage', 'reques
 const configStore = useConfigurationStore()
 const analysisStore = useAnalysisStore()
 const userDataStore = useUserDataStore()
-const thumbnailsStore = useThumbnailsStore()
 
 const lineProfile = ref([])
 const lineProfileLength = ref()
@@ -145,20 +143,6 @@ function resetAnalysisState() {
   analysisStore.magTimeSeries = []
 }
 
-async function ensureLargeCachedUrl(image) {
-  const archiveSource = image?.source && image.source !== 'archive'
-    ? image.source
-    : configStore.archiveType
-  const url = image.large_url || image.largeThumbUrl || ''
-  image.largeCachedUrl = await thumbnailsStore.cacheImage(
-    'large',
-    archiveSource,
-    url,
-    image.basename,
-  )
-  return image.largeCachedUrl
-}
-
 async function loadActiveImage(image) {
   if (!image) return
 
@@ -176,8 +160,7 @@ async function loadActiveImage(image) {
   activeImage.value = image
   analysisStore.image = image
 
-  const largeCachedUrl = await ensureLargeCachedUrl(image)
-  analysisStore.imageUrl = largeCachedUrl
+  analysisStore.imageUrl = image.largeCachedUrl || image.large_url || image.largeThumbUrl || ''
 
   if (isFitsImage.value) {
     analysisStore.loadHeaderData()
