@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useThumbnailsStore } from '@/stores/thumbnails'
 import { useConfigurationStore } from '@/stores/configuration'
 import { useAlertsStore } from '@/stores/alerts'
@@ -10,10 +10,6 @@ import DataAnalysisView from '@/views/DataAnalysisView.vue'
 
 const props = defineProps({
   operationOutputs: {
-    type: Array,
-    default: () => []
-  },
-  images: {
     type: Array,
     default: () => []
   },
@@ -37,12 +33,16 @@ const imageDetails = ref({})
 const analysisImage = ref({})
 const analysisData = ref({})
 
+const imageOperationOutputs = computed(() => {
+  return props.operationOutputs.filter((operationOutput) => isImage(operationOutput))
+})
+
 function getAnalysisImage(image) {
-  const currentIndex = props.images.findIndex((candidate) => candidate.basename === image?.basename)
+  const currentIndex = imageOperationOutputs.value.findIndex((candidate) => candidate.basename === image?.basename)
   return {
     ...image,
     hasPrevious: currentIndex > 0,
-    hasNext: currentIndex > -1 && currentIndex < props.images.length - 1,
+    hasNext: currentIndex > -1 && currentIndex < imageOperationOutputs.value.length - 1,
   }
 }
 
@@ -88,10 +88,10 @@ function isImage(operationOutput) {
 }
 
 async function showAdjacentImage(direction) {
-  const currentIndex = props.images.findIndex((image) => image.basename === analysisImage.value?.basename)
+  const currentIndex = imageOperationOutputs.value.findIndex((image) => image.basename === analysisImage.value?.basename)
   if (currentIndex < 0) return
 
-  const nextImage = props.images[currentIndex + direction]
+  const nextImage = imageOperationOutputs.value[currentIndex + direction]
   if (!nextImage) return
 
   await ensureLargeCachedUrl(nextImage)

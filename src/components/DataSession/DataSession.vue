@@ -287,7 +287,6 @@ watch(
         </v-col>
         <operation-output-grid
           :operation-outputs="filteredImages"
-          :images="sortByObservationDate(props.data.input_data)"
           :column-span="calculateColumnSpan(filteredImages.length, IMAGES_PER_ROW)"
         />
       </v-container>
