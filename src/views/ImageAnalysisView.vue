@@ -46,7 +46,7 @@ let imgWorkerProcessing = false
 let imgWorkerNextScale = null
 const touchStartX = ref(null)
 
-const selectedMode = ref('Analysis Mode')
+const selectedMode = ref(userDataStore.imageDisplayMode || 'Analysis Mode')
 const hasPrevious = computed(() => props.image?.hasPrevious === true)
 const hasNext = computed(() => props.image?.hasNext === true)
 
@@ -104,6 +104,10 @@ watch(() => props.image, async (image) => {
 
   selectedBasename.value = image.basename
   await loadActiveImage(image)
+})
+
+watch(selectedMode, (mode) => {
+  userDataStore.imageDisplayMode = mode
 })
 
 onUnmounted(() => {
@@ -318,19 +322,22 @@ async function onModeChange(val) {
 
 </script>
 <template>
-  <div class="mode-dropdown-center">
-    <select
-      v-model="selectedMode"
-      class="mode-dropdown native-dropdown"
-      @change="onModeChange($event.target.value)"
+  <div class="mode-toggle-center">
+    <v-btn-toggle
+      :model-value="selectedMode"
+      class="mode-toggle"
+      density="comfortable"
+      mandatory
+      rounded="lg"
+      @update:model-value="onModeChange"
     >
-      <option value="View Mode">
+      <v-btn value="View Mode">
         View Mode
-      </option>
-      <option value="Analysis Mode">
+      </v-btn>
+      <v-btn value="Analysis Mode">
         Analysis Mode
-      </option>
-    </select>
+      </v-btn>
+    </v-btn-toggle>
   </div>
   <v-sheet class="analysis-page">
     <v-toolbar
@@ -496,7 +503,7 @@ async function onModeChange(val) {
   </v-dialog>
 </template>
 <style scoped>
-.mode-dropdown-center {
+.mode-toggle-center {
   display: flex;
   justify-content: center;
   align-items: flex-start;
@@ -507,23 +514,17 @@ async function onModeChange(val) {
   z-index: 2100;
   pointer-events: none;
 }
-.mode-dropdown {
-  min-width: 120px;
-  max-width: 180px;
+.mode-toggle {
   pointer-events: auto;
-}
-.native-dropdown {
-  padding: 6px 16px;
-  border-radius: 6px;
-  border: 1px solid var(--primary-interactive, #1976d2);
-  background: var(--card-background, #fff);
-  color: var(--text, #222);
-  font-size: 15px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.07);
-  outline: none;
-  appearance: none;
-  margin: 0 auto;
-  display: block;
+}
+.mode-toggle :deep(.v-btn) {
+  background-color: var(--secondary-background);
+  color: var(--text);
+}
+.mode-toggle :deep(.v-btn--active) {
+  background-color: var(--primary-interactive);
+  color: var(--text);
 }
 /* Main Sections */
 .analysis-page{
