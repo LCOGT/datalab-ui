@@ -37,6 +37,11 @@ function scalePoint(width1, height1, width2, height2, x, y){
   }
 }
 
+function basenameToSequence(basename = '') {
+  const match = basename.match(/^[^-]+-[^-]+-[^-]+-([^-]+)-e91$/)
+  return match?.[1] || 'Unknown'
+}
+
 // Utility function to load an image
 function loadImage(src) {
   return new Promise((resolve, reject) => {
@@ -47,4 +52,4 @@ function loadImage(src) {
   })
 }
 
-export { calculateColumnSpan, siteIDToName, initializeDate, loadImage, scalePoint }
+export { calculateColumnSpan, siteIDToName, initializeDate, loadImage, scalePoint, basenameToSequence }
