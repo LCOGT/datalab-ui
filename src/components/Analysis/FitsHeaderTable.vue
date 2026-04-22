@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue'
-import { siteIDToName } from '@/utils/common'
+import { basenameToSequence, siteIDToName } from '@/utils/common'
 import { useAnalysisStore } from '@/stores/analysis'
 
 const analysisStore = useAnalysisStore()
@@ -13,12 +13,7 @@ const tableHeaders = [
   { title: 'Value', sortable: false, key:'1' },
 ]
 
-const basenameSequence = computed(() => {
-  const basename = analysisStore.image?.basename || ''
-  const match = basename.match(/^[^-]+-[^-]+-[^-]+-([^-]+)-e91$/)
-
-  return match?.[1] || 'Unknown'
-})
+const basenameSequence = computed(() => basenameToSequence(analysisStore.image?.basename || ''))
 
 // Loopable chip dict for v-chips
 const headerChips = computed(() => [
