@@ -19,10 +19,27 @@ const props = defineProps({
     type: Object,
     required: false,
     default: null,
+  },
+  centroidRegion: {
+    type: Object,
+    required: false,
+    default: null,
+  },
+  centroidToolActive: {
+    type: Boolean,
+    required: false,
+    default: false,
   }
 })
 
-const emit = defineEmits(['analysisAction'])
+const emit = defineEmits(['analysisAction', 'centroidRegionChange', 'centroidToolChange'])
+
+const CENTROID_DEFAULTS = {
+  radius: 6,
+  r_back1: 10,
+  r_back2: 15,
+}
+const MIN_CENTROID_RADIUS = 3
 
 // Leaflet map
 let imageMap = null
@@ -31,10 +48,13 @@ let imageOverlay = null
 let lineLayer = null
 let wcs = null
 let catalogLayerGroup = null
+let centroidLayerGroup = null
+let centroidDrawStart = null
 let imageDimensions = ref({ width: 0, height: 0 })
 const leafletDiv = ref(null)
 const isHoveringLeaflet = ref(false)
 const raDec = ref({ ra: 0, dec: 0 })
+const isCentroidToolActive = ref(false)
 const alerts = useAlertsStore()
 const analysisStore = useAnalysisStore()
 let viewerInstanceId = 0
@@ -67,10 +87,23 @@ onUnmounted(() => {
   lineLayer = null
   wcs = null
   catalogLayerGroup = null
+  centroidLayerGroup = null
+  centroidDrawStart = null
 })
 
 // When the catalog is updated we want to recreate the catalog layer
 watch(() => props.catalog, () => createCatalogLayer())
+
+watch(() => props.centroidRegion, (newRegion) => {
+  syncCentroidOverlay(newRegion)
+}, { deep: true })
+
+watch(() => props.centroidToolActive, (newValue) => {
+  isCentroidToolActive.value = newValue
+  if (!newValue) {
+    centroidDrawStart = null
+  }
+}, { immediate: true })
 
 // update url property of the ImageOverlay Layer or create it
 watch(() => analysisStore.imageUrl, (newImageUrl) => {
@@ -91,7 +124,7 @@ async function initImageOverlay(imgSrc) {
   imageDimensions.value = { width: img.width, height: img.height }
 
   // Fetch catalog only if empty
-  if (!props.catalog.length){
+  if (!Array.isArray(props.catalog) || !props.catalog.length){
     const catalogInput = {
       width: imageDimensions.value.width,
       height: imageDimensions.value.height,
@@ -188,6 +221,8 @@ function addMapHandlers() {
 
   // Handler for displaying ra, dec coordinates when hovering over the image
   imageMap.on('mousemove', (e) => {
+    handleCentroidDrag(e)
+
     // If we don't have a WCS solution, we can't display coordinates
     if(!props.wcsSolution) return
 
@@ -211,6 +246,10 @@ function addMapHandlers() {
     const dec = wcs.pixelToDec(x, y)
     raDec.value = { ra, dec }
   })
+
+  imageMap.on('mousedown', handleCentroidStart)
+  imageMap.on('mouseup', handleCentroidEnd)
+  imageMap.on('mouseout', handleCentroidEnd)
 }
 
 // Event handler for drawn lines, emits an action that will trigger an api call in the parent
@@ -269,6 +308,131 @@ function createCatalogLayer(){
   }
 }
 
+function toggleCentroidTool() {
+  isCentroidToolActive.value = !isCentroidToolActive.value
+  centroidDrawStart = null
+  imageMap?.pm?.disableDraw?.()
+  emit('centroidToolChange', isCentroidToolActive.value)
+}
+
+function emitCentroidRegionChange(region) {
+  emit('centroidRegionChange', region ? { ...region } : null)
+}
+
+function centroidDistance(center, point) {
+  const dx = point.lng - center.lng
+  const dy = point.lat - center.lat
+  return Math.sqrt(dx * dx + dy * dy)
+}
+
+function buildCentroidRegion(center, rawRadius) {
+  const radius = Math.max(rawRadius, MIN_CENTROID_RADIUS)
+
+  return {
+    x: center.lng,
+    y: center.lat,
+    ra: null,
+    dec: null,
+    radius,
+    r_back1: radius * (CENTROID_DEFAULTS.r_back1 / CENTROID_DEFAULTS.radius),
+    r_back2: radius * (CENTROID_DEFAULTS.r_back2 / CENTROID_DEFAULTS.radius),
+    width: imageDimensions.value.width,
+    height: imageDimensions.value.height,
+    ready: true,
+  }
+}
+
+function handleCentroidStart(event) {
+  if (!isCentroidToolActive.value || !imageMap || !imageBounds) {
+    return
+  }
+
+  centroidDrawStart = event.latlng
+  const region = buildCentroidRegion(event.latlng, MIN_CENTROID_RADIUS)
+  syncCentroidOverlay(region)
+  emitCentroidRegionChange(region)
+}
+
+function handleCentroidDrag(event) {
+  if (!isCentroidToolActive.value || !centroidDrawStart) {
+    return
+  }
+
+  const region = buildCentroidRegion(
+    centroidDrawStart,
+    centroidDistance(centroidDrawStart, event.latlng),
+  )
+
+  syncCentroidOverlay(region)
+  emitCentroidRegionChange(region)
+}
+
+function handleCentroidEnd() {
+  if (!centroidDrawStart) {
+    return
+  }
+
+  centroidDrawStart = null
+}
+
+function syncCentroidOverlay(region) {
+  if (!imageMap) {
+    return
+  }
+
+  if (!region) {
+    if (centroidLayerGroup && imageMap.hasLayer(centroidLayerGroup)) {
+      imageMap.removeLayer(centroidLayerGroup)
+    }
+    centroidLayerGroup = null
+    return
+  }
+
+  const center = [region.y, region.x]
+  const layers = [
+    L.circleMarker(center, {
+      radius: 4,
+      color: 'var(--text)',
+      fillColor: 'var(--text)',
+      fillOpacity: 1,
+      weight: 1,
+      pmIgnore: true,
+    }),
+    L.circle(center, {
+      radius: region.radius,
+      color: 'var(--cancel)',
+      fill: false,
+      weight: 2,
+      pmIgnore: true,
+    }),
+    L.circle(center, {
+      radius: region.r_back1,
+      color: 'var(--warning)',
+      fill: false,
+      dashArray: '6 4',
+      weight: 2,
+      pmIgnore: true,
+    }),
+    L.circle(center, {
+      radius: region.r_back2,
+      color: 'var(--warning)',
+      fill: false,
+      dashArray: '3 4',
+      weight: 2,
+      pmIgnore: true,
+    }),
+  ]
+
+  if (centroidLayerGroup) {
+    centroidLayerGroup.clearLayers()
+    layers.forEach((layer) => centroidLayerGroup.addLayer(layer))
+    return
+  }
+
+  centroidLayerGroup = new L.LayerGroup(layers)
+  centroidLayerGroup.addTo(imageMap)
+}
+
 </script>
 <template>
   <div
@@ -278,6 +442,16 @@ function createCatalogLayer(){
     @mouseenter="isHoveringLeaflet = true"
     @mouseleave="isHoveringLeaflet = false"
   >
+    <div class="map-tool-buttons position-absolute">
+      <v-btn
+        :color="isCentroidToolActive ? 'var(--success)' : 'var(--primary-interactive)'"
+        :variant="isCentroidToolActive ? 'flat' : 'elevated'"
+        density="comfortable"
+        icon="mdi-vector-circle"
+        title="Centroid Tool"
+        @click="toggleCentroidTool"
+      />
+    </div>
     <v-fade-transition>
       <v-chip
         v-show="isHoveringLeaflet && props.wcsSolution"
@@ -361,6 +535,14 @@ function createCatalogLayer(){
 .leaflet-container {
   background-color: var(--primary-background);
   border-radius: 0.25rem;
+}
+
+.map-tool-buttons {
+  top: 4.25rem;
+  left: 0.75rem;
+  z-index: 2000;
+  display: flex;
+  gap: 0.5rem;
 }
 
 </style>
