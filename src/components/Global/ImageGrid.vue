@@ -37,11 +37,30 @@ const showAnalysisDialog = ref(false)
 const imageDetails = ref({})
 const analysisImage = ref({})
 
-async function ensureLargeCachedUrl(image) {
-  if (!image.largeCachedUrl) {
-    const url = image.large_url || image.largeThumbUrl || ''
-    image.largeCachedUrl = await thumbnailsStore.cacheImage('large', configurationStore.archiveType, url, image.basename)
+function getAnalysisImage(image) {
+  const currentIndex = props.images.findIndex((candidate) => candidate.basename === image?.basename)
+  return {
+    ...image,
+    hasPrevious: currentIndex > 0,
+    hasNext: currentIndex > -1 && currentIndex < props.images.length - 1,
   }
+}
+
+function imageArchiveSource(image) {
+  if (image?.source && image.source !== 'archive') {
+    return image.source
+  }
+  return configurationStore.archiveType
+}
+
+async function ensureLargeCachedUrl(image) {
+  const url = image.large_url || image.largeThumbUrl || ''
+  image.largeCachedUrl = await thumbnailsStore.cacheImage(
+    'large',
+    imageArchiveSource(image),
+    url,
+    image.basename,
+  )
   return image.largeCachedUrl
 }
 
@@ -49,11 +68,23 @@ const launchAnalysis = async (image) => {
   alertsStore.setAlert('info', `Opening ${image?.basename} for analysis`)
   try {
     await ensureLargeCachedUrl(image)
-    analysisImage.value = image
+    analysisImage.value = getAnalysisImage(image)
     showAnalysisDialog.value = true
   } catch {
     alertsStore.setAlert('error', `Failed to open ${image?.basename}`)
   }
+}
+
+async function showAdjacentImage(direction) {
+  const currentIndex = props.images.findIndex((image) => image.basename === analysisImage.value?.basename)
+  if (currentIndex < 0) return
+
+  const nextIndex = currentIndex + direction
+  const nextImage = props.images[nextIndex]
+  if (!nextImage) return
+
+  await ensureLargeCachedUrl(nextImage)
+  analysisImage.value = getAnalysisImage(nextImage)
 }
 
 const isSelected = (basename) => {
@@ -99,8 +130,9 @@ watch(() => props.images, () => {
   >
     <image-analysis-view
       :image="analysisImage"
-      :images="props.images"
       @close-analysis-dialog="showAnalysisDialog = false"
+      @request-previous-image="showAdjacentImage(-1)"
+      @request-next-image="showAdjacentImage(1)"
     />
   </v-dialog>
 </template>

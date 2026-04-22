@@ -34,6 +34,22 @@ const alertsStore = useAlertsStore()
 const thumbnailsStore = useThumbnailsStore()
 const configurationStore = useConfigurationStore()
 
+function getAnalysisImage(image) {
+  const currentIndex = props.images.findIndex((candidate) => candidate.basename === image?.basename)
+  return {
+    ...image,
+    hasPrevious: currentIndex > 0,
+    hasNext: currentIndex > -1 && currentIndex < props.images.length - 1,
+  }
+}
+
+function imageArchiveSource(image) {
+  if (image?.source && image.source !== 'archive') {
+    return image.source
+  }
+  return configurationStore.archiveType
+}
+
 // checks difference between table and parent selected images and emits the difference
 function select(tableModel){
   const symDiffSelected = tableModel.filter(image => !props.selectedImages.includes(image)).concat(props.selectedImages.filter(image => !tableModel.includes(image)))
@@ -42,26 +58,37 @@ function select(tableModel){
   }
 }
 
-function launchAnalysis(image){
+async function ensureLargeCachedUrl(image) {
+  const url = image.large_url || image.largeThumbUrl || ''
+  image.largeCachedUrl = await thumbnailsStore.cacheImage(
+    'large',
+    imageArchiveSource(image),
+    url,
+    image.basename,
+  )
+  return image.largeCachedUrl
+}
+
+async function launchAnalysis(image){
   try {
     alertsStore.setAlert('info', `Opening ${image?.basename} for analysis`)
-    if (!image.largeCachedUrl) {
-      image.largeCachedUrl = ref('')
-      const url = image.large_url || image.largeThumbUrl || ''
-      thumbnailsStore.cacheImage('large', configurationStore.archiveType, url, image.basename).then((cachedUrl) => {
-        image.largeCachedUrl = cachedUrl
-        analysisImage.value = image
-        showAnalysisDialog.value = true
-      })
-    }
-    else {
-      analysisImage.value = image
-      showAnalysisDialog.value = true
-    }
+    await ensureLargeCachedUrl(image)
+    analysisImage.value = getAnalysisImage(image)
+    showAnalysisDialog.value = true
   } catch (error) {
     console.error(error)
     alertsStore.setAlert('error', `Failed to open ${image?.basename}`)
   }
+}
+
+function showAdjacentImage(direction){
+  const currentIndex = props.images.findIndex((image) => image.basename === analysisImage.value?.basename)
+  if (currentIndex < 0) return
+
+  const nextImage = props.images[currentIndex + direction]
+  if (!nextImage) return
+
+  launchAnalysis(nextImage)
 }
 
 </script>
@@ -122,8 +149,9 @@ function launchAnalysis(image){
   >
     <image-analyzer
       :image="analysisImage"
-      :images="props.images"
       @close-analysis-dialog="showAnalysisDialog = false"
+      @request-previous-image="showAdjacentImage(-1)"
+      @request-next-image="showAdjacentImage(1)"
     />
   </v-dialog>
 </template>

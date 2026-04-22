@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { fetchApiCall } from '../utils/api'
-import { siteIDToName } from '@/utils/common'
+import { basenameToSequence, siteIDToName } from '@/utils/common'
 import { useConfigurationStore } from '@/stores/configuration'
 import { useAnalysisStore } from '@/stores/analysis'
 import { useUserDataStore } from '@/stores/userData'
@@ -21,14 +21,10 @@ const props = defineProps({
     type: Object,
     required: true,
     default: null,
-  },
-  images: {
-    type: Array,
-    default: () => []
   }
 })
 
-const emit = defineEmits(['closeAnalysisDialog'])
+const emit = defineEmits(['closeAnalysisDialog', 'requestPreviousImage', 'requestNextImage'])
 
 const configStore = useConfigurationStore()
 const analysisStore = useAnalysisStore()
@@ -50,14 +46,11 @@ const activeImage = ref(props.image)
 let imgWorker = new Worker('drawImageWorker.js')
 let imgWorkerProcessing = false
 let imgWorkerNextScale = null
+const touchStartX = ref(null)
 
 const selectedMode = ref('Analysis Mode')
-
-const currentImageIndex = computed(() => {
-  if (!selectedBasename.value) return -1
-  return props.images.findIndex(image => image.basename === selectedBasename.value)
-})
-
+const hasPrevious = computed(() => props.image?.hasPrevious === true)
+const hasNext = computed(() => props.image?.hasNext === true)
 
 const filteredCatalog = computed(() => {
   if (!userDataStore.catalogToggle) {
@@ -73,12 +66,7 @@ const isFitsImage = computed(() => {
   return activeImage.value && (!('type' in activeImage.value) || activeImage.value?.type === 'fits')
 })
 
-const basenameSequence = computed(() => {
-  const basename = activeImage.value?.basename || ''
-  const match = basename.match(/^[^-]+-[^-]+-[^-]+-([^-]+)-e91$/)
-
-  return match?.[1] || 'Unknown'
-})
+const basenameSequence = computed(() => basenameToSequence(activeImage.value?.basename || ''))
 
 const headerChips = computed(() => {
   const headerData = analysisStore.headerData
@@ -109,17 +97,19 @@ const viewModeDetails = computed(() => {
 })
 
 onMounted(async() => {
-  await loadActiveImage(resolveImageByBasename(selectedBasename.value) || props.image)
+  window.addEventListener('keydown', handleKeydown)
+  await loadActiveImage(props.image)
 })
 
 watch(() => props.image, async (image) => {
   if (!image?.basename) return
 
   selectedBasename.value = image.basename
-  await loadActiveImage(resolveImageByBasename(image.basename) || image)
+  await loadActiveImage(image)
 })
 
 onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeydown)
   cleanupWorker()
   analysisStore.$dispose()
   delete getActivePinia().state.value[analysisStore.$id]
@@ -156,17 +146,17 @@ function resetAnalysisState() {
 }
 
 async function ensureLargeCachedUrl(image) {
-  if (!image.largeCachedUrl) {
-    const url = image.url || ''
-    image.largeCachedUrl = await thumbnailsStore.cacheImage('large', configStore.archiveType, url, image.basename)
-  }
+  const archiveSource = image?.source && image.source !== 'archive'
+    ? image.source
+    : configStore.archiveType
+  const url = image.large_url || image.largeThumbUrl || ''
+  image.largeCachedUrl = await thumbnailsStore.cacheImage(
+    'large',
+    archiveSource,
+    url,
+    image.basename,
+  )
   return image.largeCachedUrl
-}
-
-function resolveImageByBasename(basename) {
-  if (!basename) return null
-
-  return props.images.find((image) => image.basename === basename) || null
 }
 
 async function loadActiveImage(image) {
@@ -198,6 +188,50 @@ async function loadActiveImage(image) {
 
     imgWorker = new Worker('drawImageWorker.js')
     instantiateScalerWorker()
+  }
+}
+
+function requestPreviousImage() {
+  if (hasPrevious.value) {
+    emit('requestPreviousImage')
+  }
+}
+
+function requestNextImage() {
+  if (hasNext.value) {
+    emit('requestNextImage')
+  }
+}
+
+function handleKeydown(event) {
+  if (selectedMode.value !== 'View Mode') return
+
+  if (event.key === 'ArrowLeft') {
+    requestPreviousImage()
+  } else if (event.key === 'ArrowRight') {
+    requestNextImage()
+  }
+}
+
+function handleViewTouchStart(event) {
+  touchStartX.value = event.changedTouches[0]?.clientX ?? null
+}
+
+function handleViewTouchEnd(event) {
+  if (touchStartX.value == null || selectedMode.value !== 'View Mode') {
+    return
+  }
+
+  const touchEndX = event.changedTouches[0]?.clientX ?? touchStartX.value
+  const deltaX = touchEndX - touchStartX.value
+  touchStartX.value = null
+
+  if (Math.abs(deltaX) < 40) return
+
+  if (deltaX < 0) {
+    requestNextImage()
+  } else {
+    requestPreviousImage()
   }
 }
 
@@ -291,19 +325,11 @@ function updateScaling(min, max){
   }
 }
 
-async function updateCurrentImageIndex(newIndex) {
-  const image = props.images[newIndex]
-  if (image) {
-    await loadActiveImage(image)
-  }
-}
-
 async function onModeChange(val) {
   selectedMode.value = val
 
   if (val === 'Analysis Mode') {
-    const image = resolveImageByBasename(selectedBasename.value) || props.image
-    await loadActiveImage(image)
+    await loadActiveImage(props.image)
   }
 }
 
@@ -371,11 +397,15 @@ async function onModeChange(val) {
     <div
       v-if="selectedMode === 'View Mode' || selectedMode === ''"
       class="analysis-content"
+      @touchstart.passive="handleViewTouchStart"
+      @touchend.passive="handleViewTouchEnd"
     >
       <view-mode
-        :current-index="currentImageIndex"
-        :images="props.images"
-        @update-current-index="updateCurrentImageIndex"
+        :image="activeImage"
+        :has-previous="hasPrevious"
+        :has-next="hasNext"
+        @previous="requestPreviousImage"
+        @next="requestNextImage"
       />
       <div class="side-panel-container">
         <v-sheet
@@ -410,7 +440,6 @@ async function onModeChange(val) {
     >
       <image-viewer
         :catalog="filteredCatalog"
-        :images="props.images"
         :wcs-solution="wcsSolution"
         @analysis-action="requestAnalysis"
       />
