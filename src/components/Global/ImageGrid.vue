@@ -3,6 +3,7 @@ import { ref, watch } from 'vue'
 import { useThumbnailsStore } from '@/stores/thumbnails'
 import { useConfigurationStore } from '@/stores/configuration'
 import { useAlertsStore } from '@/stores/alerts'
+import { ensureLargeCachedUrl } from '@/utils/common'
 import ThumbnailImage from '@/components/Global/ThumbnailImage.vue'
 import ImageAnalysisView from '../../views/ImageAnalysisView.vue'
 
@@ -37,28 +38,10 @@ const showAnalysisDialog = ref(false)
 const imageDetails = ref({})
 const analysisImage = ref({})
 
-function imageArchiveSource(image) {
-  if (image?.source && image.source !== 'archive') {
-    return image.source
-  }
-  return configurationStore.archiveType
-}
-
-async function ensureLargeCachedUrl(image) {
-  const url = image.large_url || image.largeThumbUrl || ''
-  image.largeCachedUrl = await thumbnailsStore.cacheImage(
-    'large',
-    imageArchiveSource(image),
-    url,
-    image.basename,
-  )
-  return image.largeCachedUrl
-}
-
 const launchAnalysis = async (image) => {
   alertsStore.setAlert('info', `Opening ${image?.basename} for analysis`)
   try {
-    await ensureLargeCachedUrl(image)
+    await ensureLargeCachedUrl(image, thumbnailsStore.cacheImage, configurationStore.archiveType)
     analysisImage.value = image
     showAnalysisDialog.value = true
   } catch {
@@ -75,7 +58,7 @@ async function showAdjacentImage(direction) {
   const nextIndex = (currentIndex + direction + props.images.length) % props.images.length
   const nextImage = props.images[nextIndex]
 
-  await ensureLargeCachedUrl(nextImage)
+  await ensureLargeCachedUrl(nextImage, thumbnailsStore.cacheImage, configurationStore.archiveType)
   analysisImage.value = nextImage
 }
 

@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import { useThumbnailsStore } from '@/stores/thumbnails'
 import { useAlertsStore } from '@/stores/alerts'
 import { useConfigurationStore } from '@/stores/configuration'
-import { siteIDToName } from '@/utils/common'
+import { ensureLargeCachedUrl, siteIDToName } from '@/utils/common'
 import FilterBadge from '@/components/Global/FilterBadge.vue'
 import ImageAnalyzer from '../../views/ImageAnalysisView.vue'
 
@@ -34,13 +34,6 @@ const alertsStore = useAlertsStore()
 const thumbnailsStore = useThumbnailsStore()
 const configurationStore = useConfigurationStore()
 
-function imageArchiveSource(image) {
-  if (image?.source && image.source !== 'archive') {
-    return image.source
-  }
-  return configurationStore.archiveType
-}
-
 // checks difference between table and parent selected images and emits the difference
 function select(tableModel){
   const symDiffSelected = tableModel.filter(image => !props.selectedImages.includes(image)).concat(props.selectedImages.filter(image => !tableModel.includes(image)))
@@ -49,21 +42,10 @@ function select(tableModel){
   }
 }
 
-async function ensureLargeCachedUrl(image) {
-  const url = image.large_url || image.largeThumbUrl || ''
-  image.largeCachedUrl = await thumbnailsStore.cacheImage(
-    'large',
-    imageArchiveSource(image),
-    url,
-    image.basename,
-  )
-  return image.largeCachedUrl
-}
-
 async function launchAnalysis(image){
   try {
     alertsStore.setAlert('info', `Opening ${image?.basename} for analysis`)
-    await ensureLargeCachedUrl(image)
+    await ensureLargeCachedUrl(image, thumbnailsStore.cacheImage, configurationStore.archiveType)
     analysisImage.value = image
     showAnalysisDialog.value = true
   } catch (error) {
