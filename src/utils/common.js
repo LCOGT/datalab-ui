@@ -37,6 +37,26 @@ function scalePoint(width1, height1, width2, height2, x, y){
   }
 }
 
+function basenameToSequence(basename = '') {
+  const match = basename.match(/^[^-]+-[^-]+-[^-]+-([^-]+)-e91$/)
+  return match?.[1] || 'Unknown'
+}
+
+async function ensureLargeCachedUrl(image, cacheImage, archiveType) {
+  const imageArchiveSource = image?.source && image.source !== 'archive'
+    ? image.source
+    : archiveType
+  const url = image.large_url || image.largeThumbUrl || ''
+
+  image.largeCachedUrl = await cacheImage(
+    'large',
+    imageArchiveSource,
+    url,
+    image.basename,
+  )
+  return image.largeCachedUrl
+}
+
 // Utility function to load an image
 function loadImage(src) {
   return new Promise((resolve, reject) => {
@@ -47,4 +67,4 @@ function loadImage(src) {
   })
 }
 
-export { calculateColumnSpan, siteIDToName, initializeDate, loadImage, scalePoint }
+export { calculateColumnSpan, siteIDToName, initializeDate, loadImage, scalePoint, basenameToSequence, ensureLargeCachedUrl }

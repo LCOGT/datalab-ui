@@ -17,6 +17,7 @@ export const useUserDataStore = defineStore('userData', {
       gridToggle: true,
       coordsToggle: true,
       catalogToggle: true,
+      imageDisplayMode: 'Analysis Mode',
       activeSessionId: ''
     }
   },

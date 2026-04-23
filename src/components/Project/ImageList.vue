@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import { useThumbnailsStore } from '@/stores/thumbnails'
 import { useAlertsStore } from '@/stores/alerts'
 import { useConfigurationStore } from '@/stores/configuration'
-import { siteIDToName } from '@/utils/common'
+import { ensureLargeCachedUrl, siteIDToName } from '@/utils/common'
 import FilterBadge from '@/components/Global/FilterBadge.vue'
 import ImageAnalyzer from '../../views/ImageAnalysisView.vue'
 
@@ -42,26 +42,28 @@ function select(tableModel){
   }
 }
 
-function launchAnalysis(image){
+async function launchAnalysis(image){
   try {
     alertsStore.setAlert('info', `Opening ${image?.basename} for analysis`)
-    if (!image.largeCachedUrl) {
-      image.largeCachedUrl = ref('')
-      const url = image.large_url || image.largeThumbUrl || ''
-      thumbnailsStore.cacheImage('large', configurationStore.archiveType, url, image.basename).then((cachedUrl) => {
-        image.largeCachedUrl = cachedUrl
-        analysisImage.value = image
-        showAnalysisDialog.value = true
-      })
-    }
-    else {
-      analysisImage.value = image
-      showAnalysisDialog.value = true
-    }
+    await ensureLargeCachedUrl(image, thumbnailsStore.cacheImage, configurationStore.archiveType)
+    analysisImage.value = image
+    showAnalysisDialog.value = true
   } catch (error) {
     console.error(error)
     alertsStore.setAlert('error', `Failed to open ${image?.basename}`)
   }
+}
+
+function showAdjacentImage(direction){
+  if (!props.images.length) return
+
+  const currentIndex = props.images.findIndex((image) => image.basename === analysisImage.value?.basename)
+  if (currentIndex < 0) return
+
+  const nextIndex = (currentIndex + direction + props.images.length) % props.images.length
+  const nextImage = props.images[nextIndex]
+
+  launchAnalysis(nextImage)
 }
 
 </script>
@@ -123,6 +125,8 @@ function launchAnalysis(image){
     <image-analyzer
       :image="analysisImage"
       @close-analysis-dialog="showAnalysisDialog = false"
+      @request-previous-image="showAdjacentImage(-1)"
+      @request-next-image="showAdjacentImage(1)"
     />
   </v-dialog>
 </template>

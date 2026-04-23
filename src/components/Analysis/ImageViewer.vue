@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref, nextTick, watch } from 'vue'
+import { onMounted, onUnmounted, ref, nextTick, watch } from 'vue'
 import L from 'leaflet'
 import '@geoman-io/leaflet-geoman-free'
 import '@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css'
@@ -37,11 +37,36 @@ const isHoveringLeaflet = ref(false)
 const raDec = ref({ ra: 0, dec: 0 })
 const alerts = useAlertsStore()
 const analysisStore = useAnalysisStore()
+let viewerInstanceId = 0
 
 onMounted(() => {
   // Initialize the map and its event listeners before adding the image overlay
   createMap()
   addMapHandlers()
+
+  if (analysisStore.imageUrl) {
+    initImageOverlay(analysisStore.imageUrl)
+  }
+
+  if (props.catalog?.length) {
+    createCatalogLayer()
+  }
+})
+
+onUnmounted(() => {
+  viewerInstanceId += 1
+
+  if (imageMap) {
+    imageMap.off()
+    imageMap.remove()
+  }
+
+  imageMap = null
+  imageBounds = null
+  imageOverlay = null
+  lineLayer = null
+  wcs = null
+  catalogLayerGroup = null
 })
 
 // When the catalog is updated we want to recreate the catalog layer
@@ -49,12 +74,20 @@ watch(() => props.catalog, () => createCatalogLayer())
 
 // update url property of the ImageOverlay Layer or create it
 watch(() => analysisStore.imageUrl, (newImageUrl) => {
+  if (!newImageUrl || !imageMap) return
+
   imageOverlay ? imageOverlay.setUrl(newImageUrl) : initImageOverlay(newImageUrl)
 })
 
 // Creates image overlay and sets bounds
 async function initImageOverlay(imgSrc) {
+  if (!imgSrc || !imageMap) return
+
+  const instanceId = viewerInstanceId
   const img = await loadImage(imgSrc)
+
+  if (instanceId !== viewerInstanceId || !imageMap) return
+
   imageDimensions.value = { width: img.width, height: img.height }
 
   // Fetch catalog only if empty
@@ -77,6 +110,8 @@ async function initImageOverlay(imgSrc) {
    * Next tick is used here otherwise the bounds will update before the ImageOverlay is added to the map
    */
   nextTick(() => {
+    if (!imageMap) return
+
     imageMap.invalidateSize()
     imageMap.fitBounds(imageBounds)
     imageMap.setMaxBounds(imageBounds)
@@ -199,6 +234,10 @@ function requestLineProfile(latLngs) {
 
 // When we get the catalog data this creates a layer of circles on the map
 function createCatalogLayer(){
+  if (!imageMap || !Array.isArray(props.catalog) || !props.catalog.length) {
+    return
+  }
+
   // Function to create a marker for a source
   function createSourceMarker(source){
     // Marker popup text
@@ -254,7 +293,23 @@ function createCatalogLayer(){
   </div>
 </template>
 <style>
+
 /* Custom icons for leaflet-geoman */
+.leaflet-top.leaflet-left{
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: wrap;
+  width: max-content;
+  max-width: calc(100% - 1rem);
+  margin: 0.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+}
+
+.leaflet-control-zoom {
+  display: flex;
+  flex-direction: row-reverse
+}
+
 .custom-reset-zoom-icon {
   background-image: url('../../assets/images/resize.svg');
   filter: invert(1);
@@ -285,6 +340,15 @@ function createCatalogLayer(){
   color: var(--disabled-text);
 }
 
+.leaflet-top.leaflet-left .leaflet-pm-toolbar.leaflet-bar a {
+  border-bottom: none;
+  border-right: 1px solid var(--secondary-background);
+}
+
+.leaflet-top.leaflet-left .leaflet-pm-toolbar.leaflet-bar a:last-child {
+  border-right: none;
+}
+
 .button-container .leaflet-pm-actions-container .leaflet-pm-action:hover{
   background-color: var(--secondary-interactive);
 }
@@ -299,6 +363,4 @@ function createCatalogLayer(){
   border-radius: 0.25rem;
 }
 
-</style>
-<style scoped>
 </style>

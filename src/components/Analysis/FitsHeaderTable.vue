@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue'
-import { siteIDToName } from '@/utils/common'
+import { basenameToSequence, siteIDToName } from '@/utils/common'
 import { useAnalysisStore } from '@/stores/analysis'
 
 const analysisStore = useAnalysisStore()
@@ -13,12 +13,15 @@ const tableHeaders = [
   { title: 'Value', sortable: false, key:'1' },
 ]
 
+const basenameSequence = computed(() => basenameToSequence(analysisStore.image?.basename || ''))
+
 // Loopable chip dict for v-chips
 const headerChips = computed(() => [
   { icon: 'mdi-earth', text: siteIDToName(analysisStore.headerData.SITEID) },
   { icon: 'mdi-telescope', text: analysisStore.headerData.TELID },
   { icon: 'mdi-camera', text: analysisStore.headerData.INSTRUME },
-  { icon: 'mdi-clock', text: new Date(analysisStore.headerData.DATE).toLocaleString() }
+  { icon: 'mdi-clock', text: new Date(analysisStore.headerData.DATE).toLocaleString() },
+  { icon: 'mdi-numeric', text: basenameSequence.value }
 ])
 
 </script>

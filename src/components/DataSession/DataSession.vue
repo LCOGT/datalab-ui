@@ -24,8 +24,14 @@ const props = defineProps({
 const store = useConfigurationStore()
 const alertStore = useAlertsStore()
 
+function sortByObservationDate(items) {
+  return [...items].sort((a, b) => {
+    return new Date(a.observation_date) - new Date(b.observation_date)
+  })
+}
+
 const operations = ref([...props.data.operations])
-const items = ref([...props.data.input_data])
+const items = ref(sortByObservationDate(props.data.input_data))
 const showWizardDialog = ref(false)
 const tab = ref('main')
 const operationPollingTimers = {}
@@ -39,9 +45,9 @@ var operationMap = {}
 // When a user clicks on an operation, we filter to only show the outputs of that operation
 const filteredImages = computed(() => {
   if (selectedOperation.value === -1) {
-    return items.value
+    return sortByObservationDate(items.value)
   } else {
-    return items.value.filter(item => item.operation === selectedOperation.value)
+    return sortByObservationDate(items.value.filter(item => item.operation === selectedOperation.value))
   }
 })
 
