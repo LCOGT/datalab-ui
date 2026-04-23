@@ -283,7 +283,7 @@ function handleAnalysisOutput(response, action, action_callback){
   }
 }
 
-function onCentroidRegionChange(region) {
+function handleCentroidRegionUpdated(region) {
   centroidRegion.value = region
   centroidResult.value = null
 }
@@ -477,7 +477,7 @@ async function onModeChange(val) {
         :centroid-tool-active="centroidToolActive"
         :wcs-solution="wcsSolution"
         @analysis-action="requestAnalysis"
-        @centroid-region-change="onCentroidRegionChange"
+        @centroid-region-updated="handleCentroidRegionUpdated"
         @centroid-tool-change="centroidToolActive = $event"
       />
       <div class="side-panel-container">
@@ -552,11 +552,18 @@ async function onModeChange(val) {
             >
               <div class="view-mode-meta-row">
                 <span class="view-mode-meta-label">Result</span>
-                <span class="view-mode-meta-value">Success: {{ centroidResult.success ? 'Yes' : 'No' }}</span>
-                <span class="view-mode-meta-value">RA: {{ Number(centroidResult.ra) }}</span>
-                <span class="view-mode-meta-value">Dec: {{ Number(centroidResult.dec) }}</span>
-                <span class="view-mode-meta-value">background: {{ Number(centroidResult.background).toFixed(2) }}</span>
-                <span class="view-mode-meta-value">peak: {{ Number(centroidResult.peak).toFixed(2) }}</span>
+                <template v-if="centroidResult.success">
+                  <span class="view-mode-meta-value">RA: {{ Number(centroidResult.ra) }}</span>
+                  <span class="view-mode-meta-value">Dec: {{ Number(centroidResult.dec) }}</span>
+                  <span class="view-mode-meta-value">background: {{ Number(centroidResult.background).toFixed(2) }}</span>
+                  <span class="view-mode-meta-value">peak: {{ Number(centroidResult.peak).toFixed(2) }}</span>
+                </template>
+                <span
+                  v-else
+                  class="view-mode-meta-value"
+                >
+                  {{ centroidResult.error || centroidResult.message || 'Centroiding failed.' }}
+                </span>
               </div>
             </div>
           </v-sheet>

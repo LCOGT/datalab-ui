@@ -32,7 +32,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['analysisAction', 'centroidRegionChange', 'centroidToolChange'])
+const emit = defineEmits(['analysisAction', 'centroidRegionUpdated', 'centroidToolChange'])
 
 const CENTROID_DEFAULTS = {
   radius: 6,
@@ -48,7 +48,7 @@ let imageOverlay = null
 let lineLayer = null
 let wcs = null
 let catalogLayerGroup = null
-let centroidLayerGroup = null
+let centroidOverlay = null
 let centroidDrawStart = null
 let imageDimensions = ref({ width: 0, height: 0 })
 const leafletDiv = ref(null)
@@ -87,7 +87,7 @@ onUnmounted(() => {
   lineLayer = null
   wcs = null
   catalogLayerGroup = null
-  centroidLayerGroup = null
+  centroidOverlay = null
   centroidDrawStart = null
 })
 
@@ -124,7 +124,7 @@ async function initImageOverlay(imgSrc) {
   imageDimensions.value = { width: img.width, height: img.height }
 
   // Fetch catalog only if empty
-  if (!Array.isArray(props.catalog) || !props.catalog.length){
+  if (!props.catalog?.length){
     const catalogInput = {
       width: imageDimensions.value.width,
       height: imageDimensions.value.height,
@@ -315,8 +315,8 @@ function toggleCentroidTool() {
   emit('centroidToolChange', isCentroidToolActive.value)
 }
 
-function emitCentroidRegionChange(region) {
-  emit('centroidRegionChange', region ? { ...region } : null)
+function emitCentroidRegionUpdated(region) {
+  emit('centroidRegionUpdated', region ? { ...region } : null)
 }
 
 function centroidDistance(center, point) {
@@ -350,7 +350,7 @@ function handleCentroidStart(event) {
   centroidDrawStart = event.latlng
   const region = buildCentroidRegion(event.latlng, MIN_CENTROID_RADIUS)
   syncCentroidOverlay(region)
-  emitCentroidRegionChange(region)
+  emitCentroidRegionUpdated(region)
 }
 
 function handleCentroidDrag(event) {
@@ -364,7 +364,7 @@ function handleCentroidDrag(event) {
   )
 
   syncCentroidOverlay(region)
-  emitCentroidRegionChange(region)
+  emitCentroidRegionUpdated(region)
 }
 
 function handleCentroidEnd() {
@@ -381,10 +381,10 @@ function syncCentroidOverlay(region) {
   }
 
   if (!region) {
-    if (centroidLayerGroup && imageMap.hasLayer(centroidLayerGroup)) {
-      imageMap.removeLayer(centroidLayerGroup)
+    if (centroidOverlay && imageMap.hasLayer(centroidOverlay)) {
+      imageMap.removeLayer(centroidOverlay)
     }
-    centroidLayerGroup = null
+    centroidOverlay = null
     return
   }
 
@@ -423,14 +423,14 @@ function syncCentroidOverlay(region) {
     }),
   ]
 
-  if (centroidLayerGroup) {
-    centroidLayerGroup.clearLayers()
-    layers.forEach((layer) => centroidLayerGroup.addLayer(layer))
+  if (centroidOverlay) {
+    centroidOverlay.clearLayers()
+    layers.forEach((layer) => centroidOverlay.addLayer(layer))
     return
   }
 
-  centroidLayerGroup = new L.LayerGroup(layers)
-  centroidLayerGroup.addTo(imageMap)
+  centroidOverlay = new L.LayerGroup(layers)
+  centroidOverlay.addTo(imageMap)
 }
 
 </script>
