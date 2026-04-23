@@ -1,50 +1,108 @@
 <script setup>
 import { ref, watch } from 'vue'
+import { useThumbnailsStore } from '@/stores/thumbnails'
+import { useConfigurationStore } from '@/stores/configuration'
 
-const emit = defineEmits(['updateCurrentIndex'])
+const emit = defineEmits(['previous', 'next'])
 
 const props = defineProps({
-  currentIndex: {
-    type: Number,
-    required: true
-  },
-  images: {
-    type: Array,
+  image: {
+    type: Object,
     required: true
   }
 })
 
 const imageUrl = ref(null)
 const loading = ref(false)
+const touchStartX = ref(null)
+const retryingBasename = ref('')
+const thumbnailsStore = useThumbnailsStore()
+const configurationStore = useConfigurationStore()
 
-async function fetchThumbnail(basename) {
+function imageArchiveSource(image) {
+  if (image?.source && image.source !== 'archive') {
+    return image.source
+  }
+  return configurationStore.archiveType
+}
+
+async function fetchThumbnail(image) {
   loading.value = true
   try {
-    const response = await fetch(`https://archive-api.lco.global/thumbnails/?frame_basename=${basename}&size=large`)
-    const json = await response.json()
-    imageUrl.value = json.results?.[0]?.url || null
+    if (image?.largeCachedUrl) {
+      imageUrl.value = image.largeCachedUrl
+      return
+    }
+
+    const url = image?.large_url || image?.largeThumbUrl || ''
+    imageUrl.value = await thumbnailsStore.cacheImage(
+      'large',
+      imageArchiveSource(image),
+      url,
+      image?.basename || '',
+    )
   } catch (e) {
     imageUrl.value = null
   } finally {
-    loading.value = false
+    if (!imageUrl.value) {
+      loading.value = false
+    }
   }
 }
 
-watch(() => props.currentIndex, (newIndex) => {
-  const basename = props.images[newIndex]?.basename
-  if (basename) fetchThumbnail(basename)
+watch(() => props.image, (image) => {
+  retryingBasename.value = ''
+  if (image?.basename) fetchThumbnail(image)
   else imageUrl.value = null
-}, { immediate: true })
+}, { deep: true, immediate: true })
 
 function showPrev() {
-  if (props.currentIndex > 0) {
-    emit('updateCurrentIndex', props.currentIndex - 1)
-  }
+  emit('previous')
 }
 function showNext() {
-  if (props.currentIndex < props.images.length - 1) {
-    emit('updateCurrentIndex', props.currentIndex + 1)
+  emit('next')
+}
+
+function handleTouchStart(event) {
+  touchStartX.value = event.changedTouches[0]?.clientX ?? null
+}
+
+function handleTouchEnd(event) {
+  if (touchStartX.value == null) return
+
+  const touchEndX = event.changedTouches[0]?.clientX ?? touchStartX.value
+  const deltaX = touchEndX - touchStartX.value
+  touchStartX.value = null
+
+  if (Math.abs(deltaX) < 40) return
+
+  if (deltaX < 0) {
+    showNext()
+  } else {
+    showPrev()
   }
+}
+
+async function handleImageError() {
+  if (!props.image?.basename || retryingBasename.value === props.image.basename) {
+    imageUrl.value = null
+    return
+  }
+
+  retryingBasename.value = props.image.basename
+  thumbnailsStore.invalidateCachedImage('large', props.image.basename)
+
+  const url = props.image?.large_url || props.image?.largeThumbUrl || ''
+  imageUrl.value = await thumbnailsStore.cacheImage(
+    'large',
+    imageArchiveSource(props.image),
+    url,
+    props.image.basename,
+  )
+}
+
+function doneLoadingImage() {
+  loading.value = false
 }
 </script>
 
@@ -52,21 +110,28 @@ function showNext() {
   <div class="viewmode-container">
     <v-btn
       icon="mdi-chevron-left"
-      :disabled="props.currentIndex === 0"
       @click="showPrev"
     />
-    <div class="image-wrapper">
+    <div
+      class="image-wrapper"
+      @touchstart.passive="handleTouchStart"
+      @touchend.passive="handleTouchEnd"
+    >
       <v-progress-circular
         v-if="loading"
         indeterminate
         color="primary"
+        class="image-loading-spinner"
       />
       <img
-        v-else-if="imageUrl"
+        v-if="imageUrl"
         crossorigin="anonymous"
         :src="imageUrl"
         alt="Thumbnail"
         class="thumbnail-img"
+        :class="{ 'thumbnail-img--loading': loading }"
+        @load="doneLoadingImage"
+        @error="handleImageError"
       >
       <div
         v-else
@@ -77,7 +142,6 @@ function showNext() {
     </div>
     <v-btn
       icon="mdi-chevron-right"
-      :disabled="props.currentIndex === props.images.length - 1"
       @click="showNext"
     />
   </div>
@@ -98,12 +162,19 @@ function showNext() {
   align-items: center;
   justify-content: center;
   min-height: 400px;
+  position: relative;
 }
 .thumbnail-img {
   max-width: 100%;
   max-height: 80vh;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+.thumbnail-img--loading {
+  visibility: hidden;
+}
+.image-loading-spinner {
+  position: absolute;
 }
 .no-image {
   color: var(--text);

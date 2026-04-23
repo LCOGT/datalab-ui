@@ -1,8 +1,9 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useThumbnailsStore } from '@/stores/thumbnails'
 import { useConfigurationStore } from '@/stores/configuration'
 import { useAlertsStore } from '@/stores/alerts'
+import { ensureLargeCachedUrl } from '@/utils/common'
 import ThumbnailImage from '@/components/Global/ThumbnailImage.vue'
 import DataOutput from '@/components/Global/DataOutput.vue'
 import ImageAnalysisView from '@/views/ImageAnalysisView.vue'
@@ -10,10 +11,6 @@ import DataAnalysisView from '@/views/DataAnalysisView.vue'
 
 const props = defineProps({
   operationOutputs: {
-    type: Array,
-    default: () => []
-  },
-  images: {
     type: Array,
     default: () => []
   },
@@ -37,18 +34,14 @@ const imageDetails = ref({})
 const analysisImage = ref({})
 const analysisData = ref({})
 
-async function ensureLargeCachedUrl(image) {
-  if (!image.largeCachedUrl) {
-    const url = image.url || image.large_url || image.largeThumbUrl || ''
-    image.largeCachedUrl = await thumbnailsStore.cacheImage('large', configurationStore.archiveType, url, image.basename)
-  }
-  return image.largeCachedUrl
-}
+const imageOperationOutputs = computed(() => {
+  return props.operationOutputs.filter((operationOutput) => isImage(operationOutput))
+})
 
 const launchAnalysis = async (image) => {
   alertsStore.setAlert('info', `Opening ${image?.basename} for analysis`)
   try {
-    await ensureLargeCachedUrl(image)
+    await ensureLargeCachedUrl(image, thumbnailsStore.cacheImage, configurationStore.archiveType)
     analysisImage.value = image
     showImageAnalysisDialog.value = true
   } catch {
@@ -66,6 +59,20 @@ function isImage(operationOutput) {
     return true
   }
   return false
+}
+
+async function showAdjacentImage(direction) {
+  const images = imageOperationOutputs.value
+  if (!images.length) return
+
+  const currentIndex = images.findIndex((image) => image.basename === analysisImage.value?.basename)
+  if (currentIndex < 0) return
+
+  const nextIndex = (currentIndex + direction + images.length) % images.length
+  const nextImage = images[nextIndex]
+
+  await ensureLargeCachedUrl(nextImage, thumbnailsStore.cacheImage, configurationStore.archiveType)
+  analysisImage.value = nextImage
 }
 
 watch(() => props.operationOutputs, () => {
@@ -115,8 +122,9 @@ watch(() => props.operationOutputs, () => {
   >
     <image-analysis-view
       :image="analysisImage"
-      :images="props.images"
       @close-analysis-dialog="showImageAnalysisDialog = false"
+      @request-previous-image="showAdjacentImage(-1)"
+      @request-next-image="showAdjacentImage(1)"
     />
   </v-dialog>
   <v-dialog

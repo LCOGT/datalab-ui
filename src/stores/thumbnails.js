@@ -108,6 +108,12 @@ export const useThumbnailsStore = defineStore('thumbnails', {
     setArchives(archives) {
       this.archives = archives
     },
+    invalidateCachedImage(size, basename, persist=true) {
+      basename = basename.replace(/-(small|large)/, '')
+      const cache = size === 'large' ? this.largeThumbnailsCache : this.smallThumbnailsCache
+      cache.delete(basename)
+      if (persist) this.$persist()
+    },
     async cacheImage(size, archive, url, basename, persist=true) {
       basename = basename.replace(/-(small|large)/, '')
     

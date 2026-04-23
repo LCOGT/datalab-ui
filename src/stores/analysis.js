@@ -66,9 +66,9 @@ export const useAnalysisStore = defineStore('analysis', {
     },
     loadImageDimensions(url) {
       const img = new Image()
-      img.src = url
 
       return new Promise((resolve) => {
+        img.src = url
         img.onload = () => {
           this.imageWidth = Math.min(img.width, MAX_IMAGE_DIMENSION)
           this.imageHeight = Math.min(img.height, MAX_IMAGE_DIMENSION)

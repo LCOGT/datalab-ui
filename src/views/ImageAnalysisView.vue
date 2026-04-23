@@ -1,11 +1,10 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { fetchApiCall } from '../utils/api'
-import { siteIDToName } from '@/utils/common'
+import { basenameToSequence, siteIDToName } from '@/utils/common'
 import { useConfigurationStore } from '@/stores/configuration'
 import { useAnalysisStore } from '@/stores/analysis'
 import { useUserDataStore } from '@/stores/userData'
-import { useThumbnailsStore } from '@/stores/thumbnails'
 import FilterBadge from '@/components/Global/FilterBadge.vue'
 import NonLinearSlider from '@/components/Global/NonLinearSlider.vue'
 import HistogramSlider from '@/components/Global/Scaling/HistogramSlider.vue'
@@ -21,19 +20,14 @@ const props = defineProps({
     type: Object,
     required: true,
     default: null,
-  },
-  images: {
-    type: Array,
-    default: () => []
   }
 })
 
-const emit = defineEmits(['closeAnalysisDialog'])
+const emit = defineEmits(['closeAnalysisDialog', 'requestPreviousImage', 'requestNextImage'])
 
 const configStore = useConfigurationStore()
 const analysisStore = useAnalysisStore()
 const userDataStore = useUserDataStore()
-const thumbnailsStore = useThumbnailsStore()
 
 const lineProfile = ref([])
 const lineProfileLength = ref()
@@ -55,14 +49,9 @@ let imgWorker = new Worker('drawImageWorker.js')
 let imgWorkerProcessing = false
 let imgWorkerNextScale = null
 const scalerReady = ref(false)
+const touchStartX = ref(null)
 
-const selectedMode = ref('Analysis Mode')
-
-const currentImageIndex = computed(() => {
-  if (!selectedBasename.value) return -1
-  return props.images.findIndex(image => image.basename === selectedBasename.value)
-})
-
+const selectedMode = ref(userDataStore.imageDisplayMode || 'Analysis Mode')
 
 const filteredCatalog = computed(() => {
   if (!userDataStore.catalogToggle) {
@@ -78,12 +67,7 @@ const isFitsImage = computed(() => {
   return activeImage.value && (!('type' in activeImage.value) || activeImage.value?.type === 'fits')
 })
 
-const basenameSequence = computed(() => {
-  const basename = activeImage.value?.basename || ''
-  const match = basename.match(/^[^-]+-[^-]+-[^-]+-([^-]+)-e91$/)
-
-  return match?.[1] || 'Unknown'
-})
+const basenameSequence = computed(() => basenameToSequence(activeImage.value?.basename || ''))
 
 const headerChips = computed(() => {
   const headerData = analysisStore.headerData
@@ -114,17 +98,23 @@ const viewModeDetails = computed(() => {
 })
 
 onMounted(async() => {
-  await loadActiveImage(resolveImageByBasename(selectedBasename.value) || props.image)
+  window.addEventListener('keydown', handleKeydown)
+  await loadActiveImage(props.image)
 })
 
 watch(() => props.image, async (image) => {
   if (!image?.basename) return
 
   selectedBasename.value = image.basename
-  await loadActiveImage(resolveImageByBasename(image.basename) || image)
+  await loadActiveImage(image)
+})
+
+watch(selectedMode, (mode) => {
+  userDataStore.imageDisplayMode = mode
 })
 
 onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeydown)
   cleanupWorker()
   analysisStore.$dispose()
   delete getActivePinia().state.value[analysisStore.$id]
@@ -166,20 +156,6 @@ function resetAnalysisState() {
   analysisStore.magTimeSeries = []
 }
 
-async function ensureLargeCachedUrl(image) {
-  if (!image.largeCachedUrl) {
-    const url = image.url || ''
-    image.largeCachedUrl = await thumbnailsStore.cacheImage('large', configStore.archiveType, url, image.basename)
-  }
-  return image.largeCachedUrl
-}
-
-function resolveImageByBasename(basename) {
-  if (!basename) return null
-
-  return props.images.find((image) => image.basename === basename) || null
-}
-
 async function loadActiveImage(image) {
   if (!image) return
 
@@ -197,8 +173,7 @@ async function loadActiveImage(image) {
   activeImage.value = image
   analysisStore.image = image
 
-  const largeCachedUrl = await ensureLargeCachedUrl(image)
-  analysisStore.imageUrl = largeCachedUrl
+  analysisStore.imageUrl = image.largeCachedUrl || image.large_url || image.largeThumbUrl || ''
 
   if (isFitsImage.value) {
     analysisStore.loadHeaderData()
@@ -209,6 +184,46 @@ async function loadActiveImage(image) {
 
     imgWorker = new Worker('drawImageWorker.js')
     instantiateScalerWorker()
+  }
+}
+
+function requestPreviousImage() {
+  emit('requestPreviousImage')
+}
+
+function requestNextImage() {
+  emit('requestNextImage')
+}
+
+function handleKeydown(event) {
+  if (selectedMode.value !== 'View Mode') return
+
+  if (event.key === 'ArrowLeft') {
+    requestPreviousImage()
+  } else if (event.key === 'ArrowRight') {
+    requestNextImage()
+  }
+}
+
+function handleViewTouchStart(event) {
+  touchStartX.value = event.changedTouches[0]?.clientX ?? null
+}
+
+function handleViewTouchEnd(event) {
+  if (touchStartX.value == null || selectedMode.value !== 'View Mode') {
+    return
+  }
+
+  const touchEndX = event.changedTouches[0]?.clientX ?? touchStartX.value
+  const deltaX = touchEndX - touchStartX.value
+  touchStartX.value = null
+
+  if (Math.abs(deltaX) < 40) return
+
+  if (deltaX < 0) {
+    requestNextImage()
+  } else {
+    requestPreviousImage()
   }
 }
 
@@ -342,37 +357,32 @@ function updateScaling(min, max){
   }
 }
 
-async function updateCurrentImageIndex(newIndex) {
-  const image = props.images[newIndex]
-  if (image) {
-    await loadActiveImage(image)
-  }
-}
-
 async function onModeChange(val) {
   selectedMode.value = val
 
   if (val === 'Analysis Mode') {
-    const image = resolveImageByBasename(selectedBasename.value) || props.image
-    await loadActiveImage(image)
+    await loadActiveImage(props.image)
   }
 }
 
 </script>
 <template>
-  <div class="mode-dropdown-center">
-    <select
-      v-model="selectedMode"
-      class="mode-dropdown native-dropdown"
-      @change="onModeChange($event.target.value)"
+  <div class="mode-toggle-center">
+    <v-btn-toggle
+      :model-value="selectedMode"
+      class="mode-toggle"
+      density="comfortable"
+      mandatory
+      rounded="lg"
+      @update:model-value="onModeChange"
     >
-      <option value="View Mode">
+      <v-btn value="View Mode">
         View Mode
-      </option>
-      <option value="Analysis Mode">
+      </v-btn>
+      <v-btn value="Analysis Mode">
         Analysis Mode
-      </option>
-    </select>
+      </v-btn>
+    </v-btn-toggle>
   </div>
   <v-sheet class="analysis-page">
     <v-toolbar
@@ -422,11 +432,13 @@ async function onModeChange(val) {
     <div
       v-if="selectedMode === 'View Mode' || selectedMode === ''"
       class="analysis-content"
+      @touchstart.passive="handleViewTouchStart"
+      @touchend.passive="handleViewTouchEnd"
     >
       <view-mode
-        :current-index="currentImageIndex"
-        :images="props.images"
-        @update-current-index="updateCurrentImageIndex"
+        :image="activeImage"
+        @previous="requestPreviousImage"
+        @next="requestNextImage"
       />
       <div class="side-panel-container">
         <v-sheet
@@ -463,7 +475,6 @@ async function onModeChange(val) {
         :catalog="filteredCatalog"
         :centroid-region="centroidRegion"
         :centroid-tool-active="centroidToolActive"
-        :images="props.images"
         :wcs-solution="wcsSolution"
         @analysis-action="requestAnalysis"
         @centroid-region-change="onCentroidRegionChange"
@@ -619,7 +630,7 @@ async function onModeChange(val) {
   </v-dialog>
 </template>
 <style scoped>
-.mode-dropdown-center {
+.mode-toggle-center {
   display: flex;
   justify-content: center;
   align-items: flex-start;
@@ -630,23 +641,17 @@ async function onModeChange(val) {
   z-index: 2100;
   pointer-events: none;
 }
-.mode-dropdown {
-  min-width: 120px;
-  max-width: 180px;
+.mode-toggle {
   pointer-events: auto;
-}
-.native-dropdown {
-  padding: 6px 16px;
-  border-radius: 6px;
-  border: 1px solid var(--primary-interactive, #1976d2);
-  background: var(--card-background, #fff);
-  color: var(--text, #222);
-  font-size: 15px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.07);
-  outline: none;
-  appearance: none;
-  margin: 0 auto;
-  display: block;
+}
+.mode-toggle :deep(.v-btn) {
+  background-color: var(--secondary-background);
+  color: var(--text);
+}
+.mode-toggle :deep(.v-btn--active) {
+  background-color: var(--primary-interactive);
+  color: var(--text);
 }
 /* Main Sections */
 .analysis-page{
