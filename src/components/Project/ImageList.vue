@@ -34,15 +34,6 @@ const alertsStore = useAlertsStore()
 const thumbnailsStore = useThumbnailsStore()
 const configurationStore = useConfigurationStore()
 
-function getAnalysisImage(image) {
-  const currentIndex = props.images.findIndex((candidate) => candidate.basename === image?.basename)
-  return {
-    ...image,
-    hasPrevious: currentIndex > 0,
-    hasNext: currentIndex > -1 && currentIndex < props.images.length - 1,
-  }
-}
-
 function imageArchiveSource(image) {
   if (image?.source && image.source !== 'archive') {
     return image.source
@@ -73,7 +64,7 @@ async function launchAnalysis(image){
   try {
     alertsStore.setAlert('info', `Opening ${image?.basename} for analysis`)
     await ensureLargeCachedUrl(image)
-    analysisImage.value = getAnalysisImage(image)
+    analysisImage.value = image
     showAnalysisDialog.value = true
   } catch (error) {
     console.error(error)
@@ -82,11 +73,13 @@ async function launchAnalysis(image){
 }
 
 function showAdjacentImage(direction){
+  if (!props.images.length) return
+
   const currentIndex = props.images.findIndex((image) => image.basename === analysisImage.value?.basename)
   if (currentIndex < 0) return
 
-  const nextImage = props.images[currentIndex + direction]
-  if (!nextImage) return
+  const nextIndex = (currentIndex + direction + props.images.length) % props.images.length
+  const nextImage = props.images[nextIndex]
 
   launchAnalysis(nextImage)
 }

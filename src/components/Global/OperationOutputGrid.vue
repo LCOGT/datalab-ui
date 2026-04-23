@@ -37,15 +37,6 @@ const imageOperationOutputs = computed(() => {
   return props.operationOutputs.filter((operationOutput) => isImage(operationOutput))
 })
 
-function getAnalysisImage(image) {
-  const currentIndex = imageOperationOutputs.value.findIndex((candidate) => candidate.basename === image?.basename)
-  return {
-    ...image,
-    hasPrevious: currentIndex > 0,
-    hasNext: currentIndex > -1 && currentIndex < imageOperationOutputs.value.length - 1,
-  }
-}
-
 function imageArchiveSource(image) {
   if (image?.source && image.source !== 'archive') {
     return image.source
@@ -68,7 +59,7 @@ const launchAnalysis = async (image) => {
   alertsStore.setAlert('info', `Opening ${image?.basename} for analysis`)
   try {
     await ensureLargeCachedUrl(image)
-    analysisImage.value = getAnalysisImage(image)
+    analysisImage.value = image
     showImageAnalysisDialog.value = true
   } catch {
     alertsStore.setAlert('error', `Failed to open ${image?.basename}`)
@@ -88,14 +79,17 @@ function isImage(operationOutput) {
 }
 
 async function showAdjacentImage(direction) {
-  const currentIndex = imageOperationOutputs.value.findIndex((image) => image.basename === analysisImage.value?.basename)
+  const images = imageOperationOutputs.value
+  if (!images.length) return
+
+  const currentIndex = images.findIndex((image) => image.basename === analysisImage.value?.basename)
   if (currentIndex < 0) return
 
-  const nextImage = imageOperationOutputs.value[currentIndex + direction]
-  if (!nextImage) return
+  const nextIndex = (currentIndex + direction + images.length) % images.length
+  const nextImage = images[nextIndex]
 
   await ensureLargeCachedUrl(nextImage)
-  analysisImage.value = getAnalysisImage(nextImage)
+  analysisImage.value = nextImage
 }
 
 watch(() => props.operationOutputs, () => {

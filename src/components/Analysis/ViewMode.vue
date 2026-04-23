@@ -9,14 +9,6 @@ const props = defineProps({
   image: {
     type: Object,
     required: true
-  },
-  hasPrevious: {
-    type: Boolean,
-    default: false
-  },
-  hasNext: {
-    type: Boolean,
-    default: false
   }
 })
 
@@ -65,14 +57,10 @@ watch(() => props.image, (image) => {
 }, { deep: true, immediate: true })
 
 function showPrev() {
-  if (props.hasPrevious) {
-    emit('previous')
-  }
+  emit('previous')
 }
 function showNext() {
-  if (props.hasNext) {
-    emit('next')
-  }
+  emit('next')
 }
 
 function handleTouchStart(event) {
@@ -113,7 +101,7 @@ async function handleImageError() {
   )
 }
 
-function handleImageLoad() {
+function doneLoadingImage() {
   loading.value = false
 }
 </script>
@@ -122,7 +110,6 @@ function handleImageLoad() {
   <div class="viewmode-container">
     <v-btn
       icon="mdi-chevron-left"
-      :disabled="!props.hasPrevious"
       @click="showPrev"
     />
     <div
@@ -143,7 +130,7 @@ function handleImageLoad() {
         alt="Thumbnail"
         class="thumbnail-img"
         :class="{ 'thumbnail-img--loading': loading }"
-        @load="handleImageLoad"
+        @load="doneLoadingImage"
         @error="handleImageError"
       >
       <div
@@ -155,7 +142,6 @@ function handleImageLoad() {
     </div>
     <v-btn
       icon="mdi-chevron-right"
-      :disabled="!props.hasNext"
       @click="showNext"
     />
   </div>

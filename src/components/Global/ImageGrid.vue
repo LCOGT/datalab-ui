@@ -37,15 +37,6 @@ const showAnalysisDialog = ref(false)
 const imageDetails = ref({})
 const analysisImage = ref({})
 
-function getAnalysisImage(image) {
-  const currentIndex = props.images.findIndex((candidate) => candidate.basename === image?.basename)
-  return {
-    ...image,
-    hasPrevious: currentIndex > 0,
-    hasNext: currentIndex > -1 && currentIndex < props.images.length - 1,
-  }
-}
-
 function imageArchiveSource(image) {
   if (image?.source && image.source !== 'archive') {
     return image.source
@@ -68,7 +59,7 @@ const launchAnalysis = async (image) => {
   alertsStore.setAlert('info', `Opening ${image?.basename} for analysis`)
   try {
     await ensureLargeCachedUrl(image)
-    analysisImage.value = getAnalysisImage(image)
+    analysisImage.value = image
     showAnalysisDialog.value = true
   } catch {
     alertsStore.setAlert('error', `Failed to open ${image?.basename}`)
@@ -76,15 +67,16 @@ const launchAnalysis = async (image) => {
 }
 
 async function showAdjacentImage(direction) {
+  if (!props.images.length) return
+
   const currentIndex = props.images.findIndex((image) => image.basename === analysisImage.value?.basename)
   if (currentIndex < 0) return
 
-  const nextIndex = currentIndex + direction
+  const nextIndex = (currentIndex + direction + props.images.length) % props.images.length
   const nextImage = props.images[nextIndex]
-  if (!nextImage) return
 
   await ensureLargeCachedUrl(nextImage)
-  analysisImage.value = getAnalysisImage(nextImage)
+  analysisImage.value = nextImage
 }
 
 const isSelected = (basename) => {

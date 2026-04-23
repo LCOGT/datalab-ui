@@ -47,8 +47,6 @@ let imgWorkerNextScale = null
 const touchStartX = ref(null)
 
 const selectedMode = ref(userDataStore.imageDisplayMode || 'Analysis Mode')
-const hasPrevious = computed(() => props.image?.hasPrevious === true)
-const hasNext = computed(() => props.image?.hasNext === true)
 
 const filteredCatalog = computed(() => {
   if (!userDataStore.catalogToggle) {
@@ -179,15 +177,11 @@ async function loadActiveImage(image) {
 }
 
 function requestPreviousImage() {
-  if (hasPrevious.value) {
-    emit('requestPreviousImage')
-  }
+  emit('requestPreviousImage')
 }
 
 function requestNextImage() {
-  if (hasNext.value) {
-    emit('requestNextImage')
-  }
+  emit('requestNextImage')
 }
 
 function handleKeydown(event) {
@@ -392,8 +386,6 @@ async function onModeChange(val) {
     >
       <view-mode
         :image="activeImage"
-        :has-previous="hasPrevious"
-        :has-next="hasNext"
         @previous="requestPreviousImage"
         @next="requestNextImage"
       />
