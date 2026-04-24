@@ -24,15 +24,15 @@ const props = defineProps({
     type: Object,
     required: false,
     default: null,
-  },
-  centroidToolActive: {
-    type: Boolean,
-    required: false,
-    default: false,
   }
 })
 
-const emit = defineEmits(['analysisAction', 'centroidRegionUpdated', 'centroidToolChange'])
+const centroidToolActive = defineModel('centroidToolActive', {
+  type: Boolean,
+  default: false,
+})
+
+const emit = defineEmits(['analysisAction', 'centroidRegionUpdated'])
 
 const CENTROID_DEFAULTS = {
   radius: 6,
@@ -54,7 +54,7 @@ let imageDimensions = ref({ width: 0, height: 0 })
 const leafletDiv = ref(null)
 const isHoveringLeaflet = ref(false)
 const raDec = ref({ ra: 0, dec: 0 })
-const isCentroidToolActive = ref(false)
+const isLeafletDrawToolActive = ref(false)
 const alerts = useAlertsStore()
 const analysisStore = useAnalysisStore()
 let viewerInstanceId = 0
@@ -98,11 +98,11 @@ watch(() => props.centroidRegion, (newRegion) => {
   syncCentroidOverlay(newRegion)
 }, { deep: true })
 
-watch(() => props.centroidToolActive, (newValue) => {
-  isCentroidToolActive.value = newValue
+watch(centroidToolActive, (newValue) => {
   if (!newValue) {
     centroidDrawStart = null
   }
+  syncCentroidToolControl()
 }, { immediate: true })
 
 // update url property of the ImageOverlay Layer or create it
@@ -177,6 +177,20 @@ function createMap(){
     toggle: false,
   })
 
+  imageMap.pm.Toolbar.createCustomControl({
+    name: 'centroidTool',
+    block: 'custom',
+    title: 'Centroid Tool',
+    className: 'custom-centroid-tool-icon',
+    onClick: toggleCentroidTool,
+    actions: [],
+    toggle: false,
+  })
+
+  nextTick(() => {
+    syncCentroidToolControl()
+  })
+
   // Geoman settings
   imageMap.pm.setGlobalOptions({
     hideMiddleMarkers: true,
@@ -202,6 +216,8 @@ function createMap(){
 function addMapHandlers() {
   // Remove last drawn line when starting new one
   imageMap.on('pm:drawstart', ({ workingLayer }) => {
+    isLeafletDrawToolActive.value = true
+    centroidDrawStart = null
     if (lineLayer && imageMap.hasLayer(lineLayer)) {
       imageMap.removeLayer(lineLayer)
     }
@@ -215,8 +231,13 @@ function addMapHandlers() {
 
   // Requests a Line Profile when a line is drawn/edited
   imageMap.on('pm:create', (e) => {
+    isLeafletDrawToolActive.value = false
     lineLayer = e.layer
     requestLineProfile(lineLayer.getLatLngs())
+  })
+
+  imageMap.on('pm:drawend', () => {
+    isLeafletDrawToolActive.value = false
   })
 
   // Handler for displaying ra, dec coordinates when hovering over the image
@@ -309,10 +330,28 @@ function createCatalogLayer(){
 }
 
 function toggleCentroidTool() {
-  isCentroidToolActive.value = !isCentroidToolActive.value
+  centroidToolActive.value = !centroidToolActive.value
   centroidDrawStart = null
   imageMap?.pm?.disableDraw?.()
-  emit('centroidToolChange', isCentroidToolActive.value)
+}
+
+function syncCentroidToolControl() {
+  const centroidToolButton = leafletDiv.value?.querySelector('.custom-centroid-tool-icon')
+
+  if (!centroidToolButton) {
+    return
+  }
+
+  const resetToolContainer = leafletDiv.value?.querySelector('.custom-reset-zoom-icon')?.closest('.button-container')
+  const centroidToolContainer = centroidToolButton.closest('.button-container')
+
+  resetToolContainer?.classList.add('custom-tool-container')
+  centroidToolButton.classList.toggle('centroid-tool-active', centroidToolActive.value)
+  centroidToolButton.classList.toggle('active', centroidToolActive.value)
+  centroidToolButton.classList.remove('leaflet-disabled')
+  centroidToolContainer?.classList.add('custom-tool-container')
+  centroidToolContainer?.classList.toggle('centroid-tool-active', centroidToolActive.value)
+  centroidToolContainer?.classList.toggle('active', centroidToolActive.value)
 }
 
 function emitCentroidRegionUpdated(region) {
@@ -343,7 +382,7 @@ function buildCentroidRegion(center, rawRadius) {
 }
 
 function handleCentroidStart(event) {
-  if (!isCentroidToolActive.value || !imageMap || !imageBounds) {
+  if (!centroidToolActive.value || isLeafletDrawToolActive.value || !imageMap || !imageBounds) {
     return
   }
 
@@ -354,7 +393,7 @@ function handleCentroidStart(event) {
 }
 
 function handleCentroidDrag(event) {
-  if (!isCentroidToolActive.value || !centroidDrawStart) {
+  if (!centroidToolActive.value || isLeafletDrawToolActive.value || !centroidDrawStart) {
     return
   }
 
@@ -442,16 +481,6 @@ function syncCentroidOverlay(region) {
     @mouseenter="isHoveringLeaflet = true"
     @mouseleave="isHoveringLeaflet = false"
   >
-    <div class="map-tool-buttons position-absolute">
-      <v-btn
-        :color="isCentroidToolActive ? 'var(--success)' : 'var(--primary-interactive)'"
-        :variant="isCentroidToolActive ? 'flat' : 'elevated'"
-        density="comfortable"
-        icon="mdi-vector-circle"
-        title="Centroid Tool"
-        @click="toggleCentroidTool"
-      />
-    </div>
     <v-fade-transition>
       <v-chip
         v-show="isHoveringLeaflet && props.wcsSolution"
@@ -489,6 +518,11 @@ function syncCentroidOverlay(region) {
   filter: invert(1);
 }
 
+.custom-centroid-tool-icon {
+  background-image: url('../../assets/images/vector-circle.svg');
+  filter: invert(1);
+}
+
 .leaflet-pm-toolbar .leaflet-pm-icon-polyline {
   background-image: url('../../assets/images/vector-line.svg');
   filter: invert(1);
@@ -514,6 +548,21 @@ function syncCentroidOverlay(region) {
   color: var(--disabled-text);
 }
 
+.button-container.custom-tool-container {
+  width: auto !important;
+  display: inline-flex;
+}
+
+.leaflet-bar a.custom-centroid-tool-icon {
+  background-color: var(--primary-interactive);
+}
+
+.leaflet-bar a.custom-centroid-tool-icon.centroid-tool-active,
+.leaflet-bar a.custom-centroid-tool-icon.active,
+.button-container.centroid-tool-active a.custom-centroid-tool-icon {
+  background-color: var(--warning);
+}
+
 .leaflet-top.leaflet-left .leaflet-pm-toolbar.leaflet-bar a {
   border-bottom: none;
   border-right: 1px solid var(--secondary-background);
@@ -535,14 +584,6 @@ function syncCentroidOverlay(region) {
 .leaflet-container {
   background-color: var(--primary-background);
   border-radius: 0.25rem;
-}
-
-.map-tool-buttons {
-  top: 4.25rem;
-  left: 0.75rem;
-  z-index: 2000;
-  display: flex;
-  gap: 0.5rem;
 }
 
 </style>

@@ -472,27 +472,29 @@ async function onModeChange(val) {
       class="analysis-content"
     >
       <image-viewer
+        v-model:centroid-tool-active="centroidToolActive"
         :catalog="filteredCatalog"
         :centroid-region="centroidRegion"
-        :centroid-tool-active="centroidToolActive"
         :wcs-solution="wcsSolution"
         @analysis-action="requestAnalysis"
         @centroid-region-updated="handleCentroidRegionUpdated"
-        @centroid-tool-change="centroidToolActive = $event"
       />
       <div class="side-panel-container">
         <v-expand-transition>
-          <v-sheet class="side-panel-item">
+          <v-sheet
+            v-if="centroidToolActive"
+            class="side-panel-item"
+          >
             <div class="d-flex align-center justify-space-between mb-3 flex-wrap ga-2">
               <div class="d-flex align-center ga-2">
                 <v-icon icon="mdi-vector-circle" />
                 <b>Centroiding</b>
               </div>
               <v-chip
-                :color="centroidToolActive ? 'var(--success)' : 'var(--disabled-text)'"
+                :color="'var(--success)'"
                 size="small"
               >
-                {{ centroidToolActive ? 'Tool Active' : 'Tool Inactive' }}
+                Tool Active
               </v-chip>
             </div>
             <div class="view-mode-meta mb-3">
