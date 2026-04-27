@@ -50,6 +50,7 @@ let wcs = null
 let catalogLayerGroup = null
 let centroidOverlay = null
 let centroidDrawStart = null
+let wasMapDraggingEnabled = false
 let imageDimensions = ref({ width: 0, height: 0 })
 const leafletDiv = ref(null)
 const isHoveringLeaflet = ref(false)
@@ -214,6 +215,8 @@ function createMap(){
 }
 
 function addMapHandlers() {
+  const mapContainer = imageMap.getContainer()
+
   // Remove last drawn line when starting new one
   imageMap.on('pm:drawstart', ({ workingLayer }) => {
     isLeafletDrawToolActive.value = true
@@ -271,6 +274,10 @@ function addMapHandlers() {
   imageMap.on('mousedown', handleCentroidStart)
   imageMap.on('mouseup', handleCentroidEnd)
   imageMap.on('mouseout', handleCentroidEnd)
+  mapContainer.addEventListener('touchstart', handleCentroidTouchStart, { passive: false })
+  mapContainer.addEventListener('touchmove', handleCentroidTouchMove, { passive: false })
+  mapContainer.addEventListener('touchend', handleCentroidTouchEnd, { passive: false })
+  mapContainer.addEventListener('touchcancel', handleCentroidTouchEnd, { passive: false })
 }
 
 // Event handler for drawn lines, emits an action that will trigger an api call in the parent
@@ -364,6 +371,17 @@ function centroidDistance(center, point) {
   return Math.sqrt(dx * dx + dy * dy)
 }
 
+function latLngFromTouchEvent(event) {
+  const touch = event.touches[0] || event.changedTouches[0]
+  if (!touch || !imageMap) {
+    return null
+  }
+
+  const rect = imageMap.getContainer().getBoundingClientRect()
+  const containerPoint = L.point(touch.clientX - rect.left, touch.clientY - rect.top)
+  return imageMap.containerPointToLatLng(containerPoint)
+}
+
 function buildCentroidRegion(center, rawRadius) {
   const radius = Math.max(rawRadius, MIN_CENTROID_RADIUS)
 
@@ -384,6 +402,11 @@ function buildCentroidRegion(center, rawRadius) {
 function handleCentroidStart(event) {
   if (!centroidToolActive.value || isLeafletDrawToolActive.value || !imageMap || !imageBounds) {
     return
+  }
+
+  wasMapDraggingEnabled = imageMap.dragging.enabled()
+  if (wasMapDraggingEnabled) {
+    imageMap.dragging.disable()
   }
 
   centroidDrawStart = event.latlng
@@ -412,6 +435,43 @@ function handleCentroidEnd() {
   }
 
   centroidDrawStart = null
+  if (wasMapDraggingEnabled) {
+    imageMap.dragging.enable()
+  }
+  wasMapDraggingEnabled = false
+}
+
+function handleCentroidTouchStart(event) {
+  const latlng = latLngFromTouchEvent(event)
+  if (!latlng) {
+    return
+  }
+
+  event.preventDefault()
+  handleCentroidStart({ latlng })
+}
+
+function handleCentroidTouchMove(event) {
+  if (!centroidDrawStart) {
+    return
+  }
+
+  const latlng = latLngFromTouchEvent(event)
+  if (!latlng) {
+    return
+  }
+
+  event.preventDefault()
+  handleCentroidDrag({ latlng })
+}
+
+function handleCentroidTouchEnd(event) {
+  if (!centroidDrawStart) {
+    return
+  }
+
+  event.preventDefault()
+  handleCentroidEnd()
 }
 
 function syncCentroidOverlay(region) {
@@ -584,6 +644,8 @@ function syncCentroidOverlay(region) {
 .leaflet-container {
   background-color: var(--primary-background);
   border-radius: 0.25rem;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 </style>
