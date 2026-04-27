@@ -19,10 +19,27 @@ const props = defineProps({
     type: Object,
     required: false,
     default: null,
+  },
+  centroidRegion: {
+    type: Object,
+    required: false,
+    default: null,
   }
 })
 
-const emit = defineEmits(['analysisAction'])
+const centroidToolActive = defineModel('centroidToolActive', {
+  type: Boolean,
+  default: false,
+})
+
+const emit = defineEmits(['analysisAction', 'centroidRegionUpdated'])
+
+const CENTROID_DEFAULTS = {
+  radius: 6,
+  r_back1: 10,
+  r_back2: 15,
+}
+const MIN_CENTROID_RADIUS = 3
 
 // Leaflet map
 let imageMap = null
@@ -31,10 +48,13 @@ let imageOverlay = null
 let lineLayer = null
 let wcs = null
 let catalogLayerGroup = null
+let centroidOverlay = null
+let centroidDrawStart = null
 let imageDimensions = ref({ width: 0, height: 0 })
 const leafletDiv = ref(null)
 const isHoveringLeaflet = ref(false)
 const raDec = ref({ ra: 0, dec: 0 })
+const isLeafletDrawToolActive = ref(false)
 const alerts = useAlertsStore()
 const analysisStore = useAnalysisStore()
 let viewerInstanceId = 0
@@ -67,10 +87,23 @@ onUnmounted(() => {
   lineLayer = null
   wcs = null
   catalogLayerGroup = null
+  centroidOverlay = null
+  centroidDrawStart = null
 })
 
 // When the catalog is updated we want to recreate the catalog layer
 watch(() => props.catalog, () => createCatalogLayer())
+
+watch(() => props.centroidRegion, (newRegion) => {
+  syncCentroidOverlay(newRegion)
+}, { deep: true })
+
+watch(centroidToolActive, (newValue) => {
+  if (!newValue) {
+    centroidDrawStart = null
+  }
+  syncCentroidToolControl()
+}, { immediate: true })
 
 // update url property of the ImageOverlay Layer or create it
 watch(() => analysisStore.imageUrl, (newImageUrl) => {
@@ -91,7 +124,7 @@ async function initImageOverlay(imgSrc) {
   imageDimensions.value = { width: img.width, height: img.height }
 
   // Fetch catalog only if empty
-  if (!props.catalog.length){
+  if (!props.catalog?.length){
     const catalogInput = {
       width: imageDimensions.value.width,
       height: imageDimensions.value.height,
@@ -144,6 +177,20 @@ function createMap(){
     toggle: false,
   })
 
+  imageMap.pm.Toolbar.createCustomControl({
+    name: 'centroidTool',
+    block: 'custom',
+    title: 'Centroid Tool',
+    className: 'custom-centroid-tool-icon',
+    onClick: toggleCentroidTool,
+    actions: [],
+    toggle: false,
+  })
+
+  nextTick(() => {
+    syncCentroidToolControl()
+  })
+
   // Geoman settings
   imageMap.pm.setGlobalOptions({
     hideMiddleMarkers: true,
@@ -169,6 +216,8 @@ function createMap(){
 function addMapHandlers() {
   // Remove last drawn line when starting new one
   imageMap.on('pm:drawstart', ({ workingLayer }) => {
+    isLeafletDrawToolActive.value = true
+    centroidDrawStart = null
     if (lineLayer && imageMap.hasLayer(lineLayer)) {
       imageMap.removeLayer(lineLayer)
     }
@@ -182,12 +231,19 @@ function addMapHandlers() {
 
   // Requests a Line Profile when a line is drawn/edited
   imageMap.on('pm:create', (e) => {
+    isLeafletDrawToolActive.value = false
     lineLayer = e.layer
     requestLineProfile(lineLayer.getLatLngs())
   })
 
+  imageMap.on('pm:drawend', () => {
+    isLeafletDrawToolActive.value = false
+  })
+
   // Handler for displaying ra, dec coordinates when hovering over the image
   imageMap.on('mousemove', (e) => {
+    handleCentroidDrag(e)
+
     // If we don't have a WCS solution, we can't display coordinates
     if(!props.wcsSolution) return
 
@@ -211,6 +267,10 @@ function addMapHandlers() {
     const dec = wcs.pixelToDec(x, y)
     raDec.value = { ra, dec }
   })
+
+  imageMap.on('mousedown', handleCentroidStart)
+  imageMap.on('mouseup', handleCentroidEnd)
+  imageMap.on('mouseout', handleCentroidEnd)
 }
 
 // Event handler for drawn lines, emits an action that will trigger an api call in the parent
@@ -269,6 +329,149 @@ function createCatalogLayer(){
   }
 }
 
+function toggleCentroidTool() {
+  centroidToolActive.value = !centroidToolActive.value
+  centroidDrawStart = null
+  imageMap?.pm?.disableDraw?.()
+}
+
+function syncCentroidToolControl() {
+  const centroidToolButton = leafletDiv.value?.querySelector('.custom-centroid-tool-icon')
+
+  if (!centroidToolButton) {
+    return
+  }
+
+  const resetToolContainer = leafletDiv.value?.querySelector('.custom-reset-zoom-icon')?.closest('.button-container')
+  const centroidToolContainer = centroidToolButton.closest('.button-container')
+
+  resetToolContainer?.classList.add('custom-tool-container')
+  centroidToolButton.classList.toggle('centroid-tool-active', centroidToolActive.value)
+  centroidToolButton.classList.toggle('active', centroidToolActive.value)
+  centroidToolButton.classList.remove('leaflet-disabled')
+  centroidToolContainer?.classList.add('custom-tool-container')
+  centroidToolContainer?.classList.toggle('centroid-tool-active', centroidToolActive.value)
+  centroidToolContainer?.classList.toggle('active', centroidToolActive.value)
+}
+
+function emitCentroidRegionUpdated(region) {
+  emit('centroidRegionUpdated', region ? { ...region } : null)
+}
+
+function centroidDistance(center, point) {
+  const dx = point.lng - center.lng
+  const dy = point.lat - center.lat
+  return Math.sqrt(dx * dx + dy * dy)
+}
+
+function buildCentroidRegion(center, rawRadius) {
+  const radius = Math.max(rawRadius, MIN_CENTROID_RADIUS)
+
+  return {
+    x: center.lng,
+    y: center.lat,
+    ra: null,
+    dec: null,
+    radius,
+    r_back1: radius * (CENTROID_DEFAULTS.r_back1 / CENTROID_DEFAULTS.radius),
+    r_back2: radius * (CENTROID_DEFAULTS.r_back2 / CENTROID_DEFAULTS.radius),
+    width: imageDimensions.value.width,
+    height: imageDimensions.value.height,
+    ready: true,
+  }
+}
+
+function handleCentroidStart(event) {
+  if (!centroidToolActive.value || isLeafletDrawToolActive.value || !imageMap || !imageBounds) {
+    return
+  }
+
+  centroidDrawStart = event.latlng
+  const region = buildCentroidRegion(event.latlng, MIN_CENTROID_RADIUS)
+  syncCentroidOverlay(region)
+  emitCentroidRegionUpdated(region)
+}
+
+function handleCentroidDrag(event) {
+  if (!centroidToolActive.value || isLeafletDrawToolActive.value || !centroidDrawStart) {
+    return
+  }
+
+  const region = buildCentroidRegion(
+    centroidDrawStart,
+    centroidDistance(centroidDrawStart, event.latlng),
+  )
+
+  syncCentroidOverlay(region)
+  emitCentroidRegionUpdated(region)
+}
+
+function handleCentroidEnd() {
+  if (!centroidDrawStart) {
+    return
+  }
+
+  centroidDrawStart = null
+}
+
+function syncCentroidOverlay(region) {
+  if (!imageMap) {
+    return
+  }
+
+  if (!region) {
+    if (centroidOverlay && imageMap.hasLayer(centroidOverlay)) {
+      imageMap.removeLayer(centroidOverlay)
+    }
+    centroidOverlay = null
+    return
+  }
+
+  const center = [region.y, region.x]
+  const layers = [
+    L.circleMarker(center, {
+      radius: 4,
+      color: 'var(--text)',
+      fillColor: 'var(--text)',
+      fillOpacity: 1,
+      weight: 1,
+      pmIgnore: true,
+    }),
+    L.circle(center, {
+      radius: region.radius,
+      color: 'var(--cancel)',
+      fill: false,
+      weight: 2,
+      pmIgnore: true,
+    }),
+    L.circle(center, {
+      radius: region.r_back1,
+      color: 'var(--warning)',
+      fill: false,
+      dashArray: '6 4',
+      weight: 2,
+      pmIgnore: true,
+    }),
+    L.circle(center, {
+      radius: region.r_back2,
+      color: 'var(--warning)',
+      fill: false,
+      dashArray: '3 4',
+      weight: 2,
+      pmIgnore: true,
+    }),
+  ]
+
+  if (centroidOverlay) {
+    centroidOverlay.clearLayers()
+    layers.forEach((layer) => centroidOverlay.addLayer(layer))
+    return
+  }
+
+  centroidOverlay = new L.LayerGroup(layers)
+  centroidOverlay.addTo(imageMap)
+}
+
 </script>
 <template>
   <div
@@ -315,6 +518,11 @@ function createCatalogLayer(){
   filter: invert(1);
 }
 
+.custom-centroid-tool-icon {
+  background-image: url('../../assets/images/vector-circle.svg');
+  filter: invert(1);
+}
+
 .leaflet-pm-toolbar .leaflet-pm-icon-polyline {
   background-image: url('../../assets/images/vector-line.svg');
   filter: invert(1);
@@ -338,6 +546,21 @@ function createCatalogLayer(){
 .leaflet-bar a.leaflet-disabled{
   background-color: var(--secondary-background);
   color: var(--disabled-text);
+}
+
+.button-container.custom-tool-container {
+  width: auto !important;
+  display: inline-flex;
+}
+
+.leaflet-bar a.custom-centroid-tool-icon {
+  background-color: var(--primary-interactive);
+}
+
+.leaflet-bar a.custom-centroid-tool-icon.centroid-tool-active,
+.leaflet-bar a.custom-centroid-tool-icon.active,
+.button-container.centroid-tool-active a.custom-centroid-tool-icon {
+  background-color: var(--warning);
 }
 
 .leaflet-top.leaflet-left .leaflet-pm-toolbar.leaflet-bar a {

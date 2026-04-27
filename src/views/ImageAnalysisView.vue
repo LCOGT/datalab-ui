@@ -38,12 +38,17 @@ const sideChart = ref('')
 const fluxSliderRange = ref([0, 10000])
 const positionAngle = ref()
 const wcsSolution = ref()
+const centroidRegion = ref(null)
+const centroidResult = ref(null)
+const centroidToolActive = ref(false)
+const usePlaneBackground = ref(false)
 const showHeaderDialog = ref(false)
 const selectedBasename = ref(props.image?.basename || '')
 const activeImage = ref(props.image)
 let imgWorker = new Worker('drawImageWorker.js')
 let imgWorkerProcessing = false
 let imgWorkerNextScale = null
+const scalerReady = ref(false)
 const touchStartX = ref(null)
 
 const selectedMode = ref(userDataStore.imageDisplayMode || 'Analysis Mode')
@@ -120,6 +125,7 @@ function cleanupWorker() {
     imgWorker.terminate()
     imgWorker = null
   }
+  scalerReady.value = false
 }
 
 function resetAnalysisState() {
@@ -132,9 +138,14 @@ function resetAnalysisState() {
   fluxSliderRange.value = [0, 10000]
   positionAngle.value = null
   wcsSolution.value = null
+  centroidRegion.value = null
+  centroidResult.value = null
+  centroidToolActive.value = false
+  usePlaneBackground.value = false
   showHeaderDialog.value = false
   imgWorkerProcessing = false
   imgWorkerNextScale = null
+  scalerReady.value = false
   analysisStore.headerData = null
   analysisStore.rawData = null
   analysisStore.zmin = null
@@ -232,6 +243,18 @@ function requestAnalysis(action, input={}, action_callback=null){
 // The successCallback function for the fetchApiCall in requestAnalysis new operations can be added here as an additional case
 function handleAnalysisOutput(response, action, action_callback){
   switch (action) {
+  case 'centroiding':
+    centroidResult.value = response
+    if (response?.success && centroidRegion.value) {
+      centroidRegion.value = {
+        ...centroidRegion.value,
+        x: response.x,
+        y: response.y,
+        ra: response.ra,
+        dec: response.dec,
+      }
+    }
+    break
   case 'line-profile':
     lineProfile.value = response.line_profile
     lineProfileLength.value = response.arcsec
@@ -260,7 +283,33 @@ function handleAnalysisOutput(response, action, action_callback){
   }
 }
 
+function handleCentroidRegionUpdated(region) {
+  centroidRegion.value = region
+  centroidResult.value = null
+}
+
+function requestCentroid() {
+  if (!centroidRegion.value?.ready) {
+    return
+  }
+
+  requestAnalysis('centroiding', {
+    x: centroidRegion.value.x,
+    y: centroidRegion.value.y,
+    width: centroidRegion.value.width,
+    height: centroidRegion.value.height,
+    radius: centroidRegion.value.radius,
+    r_back1: centroidRegion.value.r_back1,
+    r_back2: centroidRegion.value.r_back2,
+    find_centroid: true,
+    remove_background_stars: true,
+    use_plane_background: usePlaneBackground.value,
+  })
+}
+
 async function instantiateScalerWorker(){
+  scalerReady.value = false
+
   // Load the image scale data if it is not already loaded
   try { await analysisStore.loadScaleData() } 
   catch (error) { return console.error('Failed to load scale data:', error) }
@@ -282,6 +331,8 @@ async function instantiateScalerWorker(){
     canvas: offscreen,
     imageData: rawDataCopy,
   }, [offscreen])
+
+  scalerReady.value = true
 
   // Image creation for leaflet map, clean up the old image url
   imgWorker.onmessage = (event) => {
@@ -421,11 +472,104 @@ async function onModeChange(val) {
       class="analysis-content"
     >
       <image-viewer
+        v-model:centroid-tool-active="centroidToolActive"
         :catalog="filteredCatalog"
+        :centroid-region="centroidRegion"
         :wcs-solution="wcsSolution"
         @analysis-action="requestAnalysis"
+        @centroid-region-updated="handleCentroidRegionUpdated"
       />
       <div class="side-panel-container">
+        <v-expand-transition>
+          <v-sheet
+            v-if="centroidToolActive"
+            class="side-panel-item"
+          >
+            <div class="d-flex align-center justify-space-between mb-3 flex-wrap ga-2">
+              <div class="d-flex align-center ga-2">
+                <v-icon icon="mdi-vector-circle" />
+                <b>Centroiding</b>
+              </div>
+              <v-chip
+                :color="'var(--success)'"
+                size="small"
+              >
+                Tool Active
+              </v-chip>
+            </div>
+            <div class="view-mode-meta mb-3">
+              <div class="view-mode-meta-row">
+                <span class="view-mode-meta-value">Click the centroid tool, then click and drag on the image to size the linked aperture and background rings.</span>
+              </div>
+              <div
+                v-if="centroidRegion"
+                class="view-mode-meta-row"
+              >
+                <span class="view-mode-meta-label">Current Region</span>
+                <span
+                  v-if="centroidRegion.ra != null && centroidRegion.dec != null"
+                  class="view-mode-meta-value"
+                >
+                  Center (RA, Dec): {{ centroidRegion.ra.toFixed(6) }}, {{ centroidRegion.dec.toFixed(6) }}
+                </span>
+                <span class="view-mode-meta-value">
+                  Radius: {{ centroidRegion.radius.toFixed(2) }} px
+                </span>
+                <span class="view-mode-meta-value">
+                  Inner annulus: {{ centroidRegion.r_back1.toFixed(2) }} px
+                </span> 
+                <span class="view-mode-meta-value">
+                  Outer annulus: {{ centroidRegion.r_back2.toFixed(2) }} px
+                </span>
+              </div>
+            </div>
+            <div class="centroid-legend mb-3">
+              <div class="centroid-legend-item">
+                <span class="centroid-legend-swatch centroid-legend-swatch--aperture" />
+                <span class="view-mode-meta-value">Aperture</span>
+              </div>
+              <div class="centroid-legend-item">
+                <span class="centroid-legend-swatch centroid-legend-swatch--annulus" />
+                <span class="view-mode-meta-value">Background-subtracted annulus</span>
+              </div>
+            </div>
+            <v-checkbox
+              v-model="usePlaneBackground"
+              color="var(--primary-interactive)"
+              density="comfortable"
+              hide-details
+              label="Plane background removal"
+            />
+            <v-btn
+              class="mt-3"
+              color="var(--primary-interactive)"
+              :disabled="!centroidRegion?.ready"
+              @click="requestCentroid"
+            >
+              Get Centroid
+            </v-btn>
+            <div
+              v-if="centroidResult"
+              class="view-mode-meta mt-4"
+            >
+              <div class="view-mode-meta-row">
+                <span class="view-mode-meta-label">Result</span>
+                <template v-if="centroidResult.success">
+                  <span class="view-mode-meta-value">RA: {{ Number(centroidResult.ra) }}</span>
+                  <span class="view-mode-meta-value">Dec: {{ Number(centroidResult.dec) }}</span>
+                  <span class="view-mode-meta-value">background: {{ Number(centroidResult.background).toFixed(2) }}</span>
+                  <span class="view-mode-meta-value">peak: {{ Number(centroidResult.peak).toFixed(2) }}</span>
+                </template>
+                <span
+                  v-else
+                  class="view-mode-meta-value"
+                >
+                  {{ centroidResult.error || centroidResult.message || 'Centroiding failed.' }}
+                </span>
+              </div>
+            </div>
+          </v-sheet>
+        </v-expand-transition>
         <v-expand-transition>
           <v-sheet
             v-if="catalog.length"
@@ -453,7 +597,7 @@ async function onModeChange(val) {
         </v-expand-transition>
         <v-expand-transition>
           <v-sheet
-            v-if="analysisStore.imageScaleReady"
+            v-if="analysisStore.imageScaleReady && scalerReady"
             class="side-panel-item"
             rounded
           >
@@ -586,6 +730,33 @@ async function onModeChange(val) {
 .side-panel-item:last-of-type {
   margin-bottom: 0;
   height: 100%;
+}
+
+.centroid-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.centroid-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.centroid-legend-swatch {
+  width: 1.125rem;
+  height: 1.125rem;
+  border-radius: 0.125rem;
+  flex-shrink: 0;
+}
+
+.centroid-legend-swatch--aperture {
+  background-color: var(--cancel);
+}
+
+.centroid-legend-swatch--annulus {
+  background-color: var(--warning);
 }
 
 .v-tabs-window{
