@@ -404,6 +404,7 @@ function handleCentroidStart(event) {
     return
   }
 
+  // disables map while centroiding is active, then reenables map dragging after centroiding is done in handleCentroidEnd
   wasMapDraggingEnabled = imageMap.dragging.enabled()
   if (wasMapDraggingEnabled) {
     imageMap.dragging.disable()
