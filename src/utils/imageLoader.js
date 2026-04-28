@@ -3,8 +3,14 @@ import { useConfigurationStore } from '@/stores/configuration'
 
 const cacheOptions = { 'ignoreVary': true, 'ignoreMethod': true, 'ignoreSearch': true }
 
+function cacheStorageAvailable() {
+  return typeof caches !== 'undefined'
+}
 
 async function getAllCacheKeys(size) {
+  if (!cacheStorageAvailable()) {
+    return []
+  }
   const cacheName = size + 'Thumbnails'
   return caches.open(cacheName).then((cache) => {
     return cache.keys().then((keys) => {
@@ -16,6 +22,9 @@ async function getAllCacheKeys(size) {
 async function getImageFromBasename(size, archive, url, imageBasename) {
   // Clean up the -large or -small on the basename from ptr archive images
   imageBasename = imageBasename.replace('-small', '').replace('-large', '')
+  if (!cacheStorageAvailable()) {
+    return cacheImageFromBasename(size, archive, url, imageBasename)
+  }
   const cacheName = size + 'Thumbnails'
   return caches.open(cacheName).then((cache) => {
     return cache.match(imageBasename, cacheOptions).then(function (response) {
@@ -26,6 +35,9 @@ async function getImageFromBasename(size, archive, url, imageBasename) {
 }
 
 async function deleteCachedImageFromBasename(size, imageBasename) {
+  if (!cacheStorageAvailable()) {
+    return false
+  }
   const cacheName = size + 'Thumbnails'
   return caches.open(cacheName).then((cache) => {
     return cache.delete(imageBasename, cacheOptions)
@@ -35,9 +47,11 @@ async function deleteCachedImageFromBasename(size, imageBasename) {
 async function cacheImageFromUrl(size, url, imageBasename) {
   const imageResponse = await fetch(url, { method: 'GET', mode: 'cors' })
   const cacheName = size + 'Thumbnails'
-  caches.open(cacheName).then((cache) => {
-    cache.put(imageBasename, imageResponse.clone())
-  })
+  if (cacheStorageAvailable()) {
+    caches.open(cacheName).then((cache) => {
+      cache.put(imageBasename, imageResponse.clone())
+    })
+  }
   return imageResponse.clone()
 }
 
