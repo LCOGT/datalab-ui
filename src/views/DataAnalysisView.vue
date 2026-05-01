@@ -19,6 +19,8 @@ const periodogramData = ref({})
 const variableStarData = ref({})
 const bestPeriod = ref(null)
 const selectedPoints = ref([])
+const hasLightCurve = computed(() => Array.isArray(props.data?.light_curve) && props.data.light_curve.length > 0)
+const hasPeriodogram = computed(() => Array.isArray(periodogramData.value.frequencies) && periodogramData.value.frequencies.length > 0)
 
 function foldPeriod(magTimeSeries, period) {
   const frequency = 1.0 / period
@@ -31,21 +33,23 @@ function foldPeriod(magTimeSeries, period) {
 
 function assignVariableStarData() {
   const data = props.data
-  const magnitudeTimeSeries = data.light_curve
+  const magnitudeTimeSeries = data.light_curve || []
   const period = data.period
   const frequency = data.frequency
   const power = data.power
 
-  if (period && magnitudeTimeSeries.length >0) {
+  if (magnitudeTimeSeries.length > 0) {
     variableStarData.value = {
       targetCoords: data.target_coords,
       magPhasedLightCurve: [],
       period: period,
       falseAlarmProbability: data.fap,
       fluxFallback: data.flux_fallback,
-      excludedImages: data.excluded_images,
+      excludedImages: data.excluded_images || [],
       magnitudeTimeSeries: magnitudeTimeSeries,
     }
+  } else {
+    variableStarData.value = {}
   }
 
   // Pairing frequency and power data
@@ -142,11 +146,15 @@ const title = computed(() => {
       >
         <v-row class="analysis-row">
           <light-curve-plot
+            v-if="hasLightCurve"
             :variable-star-data="variableStarData"
             class="light-curve-plot"
           />
         </v-row>
-        <v-row class="analysis-row">
+        <v-row
+          v-if="hasPeriodogram"
+          class="analysis-row"
+        >
           <periodogram-plot
             :periodogram-data="periodogramData"
             :variable-star-data="variableStarData"
@@ -154,7 +162,10 @@ const title = computed(() => {
             @period-selected="handlePeriodSelected"
           />
         </v-row>
-        <v-row class="analysis-row">
+        <v-row
+          v-if="hasPeriodogram"
+          class="analysis-row"
+        >
           <phased-light-curve-plot
             :variable-star-data="variableStarData"
             :periodogram-data="periodogramData"
