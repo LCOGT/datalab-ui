@@ -42,7 +42,11 @@ async function performTargetLookup() {
 </script>
 <template>
   <v-row>
-    <v-col class="pb-0">
+    <v-col
+      cols="12"
+      md="4"
+      class="pb-0"
+    >
       <v-text-field
         v-model="source.name"
         :loading="loading"
@@ -53,20 +57,28 @@ async function performTargetLookup() {
         @click:append-inner="performTargetLookup"
       />
     </v-col>
-    <v-col>
-      <v-number-input
-        v-model="source.ra"
+    <v-col
+      cols="12"
+      md="4"
+      class="pb-0"
+    >
+      <v-text-field
+        :model-value="source.ra"
         label="Right Ascension"
-        :precision="null"
-        control-variant="hidden"
+        type="number"
+        @update:model-value="source.ra = $event === '' ? null : Number($event)"
       />
     </v-col>
-    <v-col>
-      <v-number-input
-        v-model="source.dec"
+    <v-col
+      cols="12"
+      md="4"
+      class="pb-0"
+    >
+      <v-text-field
+        :model-value="source.dec"
         label="Declination"
-        :precision="null"
-        control-variant="hidden"
+        type="number"
+        @update:model-value="source.dec = $event === '' ? null : Number($event)"
       />
     </v-col>
   </v-row>
