@@ -9,7 +9,7 @@ on:
 
 jobs:
   cd:      
-    uses: LCOGT/reusable-workflows/.github/workflows/continuous-deployment.yaml@main
+    uses: LCOGT/reusable-workflows/.github/workflows/continuous-deployment.yaml@f654fc1b6c3e297fccb38baf31c659899b547408
     with:
       skaffoldBuildModules: "datalab-ui"
     secrets: inherit
