@@ -90,6 +90,8 @@ function createChart() {
       ]
     },
     options: {
+      responsive: true,
+      maintainAspectRatio: false,
       scales: {
         x: {
           type: 'linear',
@@ -208,21 +210,33 @@ onMounted(() => {
 .wrapper {
   display: flex;
   flex-direction: column;
+  width: min(100%, 1120px);
+  height: 100%;
+  min-height: 0;
 }
 .title-pd {
   align-self: center;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0 0 1rem;
 }
 .periodogram-plot-wrapper {
   display: flex;
   flex-direction: row;
   align-items: center;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
   width: 100%;
+  position: relative;
 }
 .periodogram-plot {
+  width: 100% !important;
   height: 100% !important;
 }
 .download-btn {
-  align-self: flex-end;
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
 }
 </style>

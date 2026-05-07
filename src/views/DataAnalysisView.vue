@@ -144,14 +144,14 @@ const title = computed(() => {
       <div
         class="analysis-content"
       >
-        <v-row class="analysis-row">
+        <div class="analysis-row">
           <light-curve-plot
             v-if="hasLightCurve"
             :variable-star-data="variableStarData"
             class="light-curve-plot"
           />
-        </v-row>
-        <v-row
+        </div>
+        <div
           v-if="hasPeriodogram"
           class="analysis-row"
         >
@@ -161,10 +161,10 @@ const title = computed(() => {
             class="periodogram-plot"
             @period-selected="handlePeriodSelected"
           />
-        </v-row>
-        <v-row
+        </div>
+        <div
           v-if="hasPeriodogram"
-          class="analysis-row"
+          class="analysis-row phased-analysis-row"
         >
           <phased-light-curve-plot
             :variable-star-data="variableStarData"
@@ -173,7 +173,7 @@ const title = computed(() => {
             :selected-points="selectedPoints"
             class="period-plot"
           />
-        </v-row>
+        </div>
       </div>
     </template>
   </v-sheet>
@@ -183,8 +183,11 @@ const title = computed(() => {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 4.5vh;
-  overflow: hidden;
+  gap: 2rem;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 2rem clamp(1rem, 4vw, 4rem) 3rem;
+  min-height: 0;
 }
 .analysis-page{
   background-color: var(--primary-background);
@@ -201,13 +204,16 @@ const title = computed(() => {
   background-color: var(--header);
 }
 .analysis-row {
-  flex: 0 0 24vh;
-  min-height: 0;
+  flex: 0 0 auto;
+  height: clamp(360px, 46vh, 560px);
+  width: 100%;
   border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 0.2rem
+}
+.phased-analysis-row {
+  height: clamp(420px, 54vh, 640px);
 }
 
 </style>
