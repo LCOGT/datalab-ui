@@ -256,6 +256,32 @@ function cubicPolynomialPoints(dateValues, magnitudes, minDate, maxDate) {
   })
 }
 
+/*
+  Fits the visible light-curve points with a least-squares polynomial.
+  The returned coefficients describe this curve:
+
+    y = a + bx + cx^2 + dx^3
+
+  Example return value:
+
+    [a, b, c, d]
+
+  The x values are normalized dates from 0 to 1 before fitting so the
+  polynomial is stable across large timestamp values. Normalized dates
+  mean each timestamp is converted relative to the visible date range:
+
+    normalizedX = (date - minDate) / (maxDate - minDate)
+
+  Example:
+
+    first date  -> 0
+    middle date -> 0.5
+    last date   -> 1
+
+  The plotted x values are still real dates. The degree is capped by the
+  available point count, so two points produce a line, three points produce
+  a quadratic, and four or more points produce a cubic.
+*/
 function polynomialRegression(points, degree) {
   const matrix = []
   const vector = []
