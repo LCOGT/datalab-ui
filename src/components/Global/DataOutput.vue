@@ -32,22 +32,10 @@ const lightCurveSparkline = computed(() => {
 
 const diagnosticsDialog = ref(false)
 
-const diagnostics = computed(() => {
-  const value = props.operationOutput?.diagnostics
-  if (Array.isArray(value)) return value
-  if (value && typeof value === 'object') return Object.values(value).flat()
-  return []
-})
-
 const diagnosticSections = computed(() => {
-  const value = props.operationOutput?.diagnostics
-  if (value && !Array.isArray(value) && typeof value === 'object') {
-    return Object.entries(value).map(([fileName, fileDiagnostics]) => {
-      const sectionDiagnostics = Array.isArray(fileDiagnostics) ? fileDiagnostics : []
-      return buildDiagnosticSection(fileName, sectionDiagnostics)
-    })
-  }
-  return [buildDiagnosticSection('Diagnostics', diagnostics.value)]
+  return Object.entries(props.operationOutput?.diagnostics || {}).map(([fileName, sectionDiagnostics]) => {
+    return buildDiagnosticSection(fileName, sectionDiagnostics)
+  })
 })
 
 const hasDiagnostics = computed(() => {
