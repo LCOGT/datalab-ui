@@ -4,6 +4,7 @@ import 'chartjs-adapter-luxon'
 import { ref, watch, computed, defineProps, onMounted } from 'vue'
 import { downloadChartAsPNG } from '@/utils/downloadChart.js'
 import { normalizeLightCurveRows } from '@/utils/lightCurve.js'
+import { loessPoints } from '@/utils/lightCurveFit.js'
 
 const props = defineProps({
   variableStarData: {
@@ -17,7 +18,6 @@ let lightCurveChart = null
 const CHART_PADDING = 0.5
 const DECIMAL_PLACES = 4
 const ERROR_BAR_CAP_WIDTH = 8
-const POLYNOMIAL_SAMPLE_COUNT = 120
 const X_AXIS_LEFT_PADDING_RATIO = 0.05
 const MIN_X_AXIS_LEFT_PADDING_MS = 60 * 60 * 1000
 
@@ -71,8 +71,9 @@ const chartData = computed(() => {
     .filter(Number.isFinite)
   const minDate = Math.min(...dateValues)
   const maxDate = Math.max(...dateValues)
+  const magerrs = magTimeSeries.map(({ magerr }) => magerr)
   const magnitudePoints = magnitudes.map((magnitude, index) => ({ x: dateValues[index], y: magnitude }))
-  const polynomialPoints = cubicPolynomialPoints(dateValues, magnitudes, minDate, maxDate)
+  const trendPoints = loessPoints(dateValues, magnitudes, magerrs, minDate, maxDate)
   const errors = magTimeSeries.map(({ mag, magerr }) => {
     if (!Number.isFinite(magerr)) return null
     const lowerBound = Number((mag - magerr).toFixed(DECIMAL_PLACES))
@@ -80,8 +81,8 @@ const chartData = computed(() => {
     return [lowerBound, upperBound]
   })
   const errorBounds = errors.flatMap(error => error || [])
-  const polynomialMagnitudes = polynomialPoints.map(point => point.y)
-  const plotValues = [...magnitudes, ...errorBounds, ...polynomialMagnitudes]
+  const trendMagnitudes = trendPoints.map(point => point.y)
+  const plotValues = [...magnitudes, ...errorBounds, ...trendMagnitudes]
   const minMagnitude = Math.min(...plotValues)
   const maxMagnitude = Math.max(...plotValues)
   const leftTimePadding = Math.max((maxDate - minDate) * X_AXIS_LEFT_PADDING_RATIO, MIN_X_AXIS_LEFT_PADDING_MS)
@@ -91,7 +92,7 @@ const chartData = computed(() => {
     dates: dates,
     magnitudes: magnitudes,
     magnitudePoints: magnitudePoints,
-    polynomialPoints: polynomialPoints,
+    trendPoints: trendPoints,
     errors: errors,
     chartMin: minMagnitude - CHART_PADDING,
     chartMax: maxMagnitude + CHART_PADDING,
@@ -110,10 +111,10 @@ watch(() => props.variableStarData, () => {
 
 function updateChart() {
   // Set all the new data
-  const { dates, magnitudePoints, polynomialPoints, errors, chartMin, chartMax, chartMinDate } = chartData.value
+  const { dates, magnitudePoints, trendPoints, errors, chartMin, chartMax, chartMinDate } = chartData.value
   lightCurveChart.data.labels = dates
   lightCurveChart.data.datasets[0].data = magnitudePoints
-  lightCurveChart.data.datasets[1].data = polynomialPoints
+  lightCurveChart.data.datasets[1].data = trendPoints
   lightCurveChart.options.scales.x.min = chartMinDate
   lightCurveChart.options.scales.x.max = undefined
   lightCurveChart.options.plugins.lightCurveErrorBars.errors = errors
@@ -132,7 +133,7 @@ function createChart() {
   const background = style.getPropertyValue('--secondary-background')
   const info = style.getPropertyValue('--info')
 
-  const { dates, magnitudePoints, polynomialPoints, errors, chartMin, chartMax, chartMinDate } = chartData.value
+  const { dates, magnitudePoints, trendPoints, errors, chartMin, chartMax, chartMinDate } = chartData.value
   if (!magnitudePoints.length) return
 
   lightCurveChart = new Chart(lightCurveCanvas.value, {
@@ -156,8 +157,8 @@ function createChart() {
           pointHoverBackgroundColor: secondary,
         },
         {
-          label: 'Cubic Fit',
-          data: polynomialPoints,
+          label: 'LOESS Fit',
+          data: trendPoints,
           order: 1,
           borderColor: secondary,
           borderWidth: 2,
@@ -226,117 +227,6 @@ function createChart() {
       }
     }
   })
-}
-
-function cubicPolynomialPoints(dateValues, magnitudes, minDate, maxDate) {
-  const points = dateValues
-    .map((date, index) => ({ date, magnitude: magnitudes[index] }))
-    .filter(point => Number.isFinite(point.date) && Number.isFinite(point.magnitude))
-
-  if (points.length < 2 || !Number.isFinite(minDate) || !Number.isFinite(maxDate)) {
-    return []
-  }
-
-  const xSpan = maxDate - minDate || 1
-  const normalizedPoints = points.map(point => ({
-    x: (point.date - minDate) / xSpan,
-    y: point.magnitude
-  }))
-  const degree = Math.min(3, normalizedPoints.length - 1)
-  const coefficients = polynomialRegression(normalizedPoints, degree)
-  if (!coefficients) return []
-
-  const sampleCount = Math.max(POLYNOMIAL_SAMPLE_COUNT, magnitudes.length)
-  return Array.from({ length: sampleCount }, (_, sampleIndex) => {
-    const normalizedX = sampleCount === 1 ? 0 : sampleIndex / (sampleCount - 1)
-    return {
-      x: minDate + (normalizedX * xSpan),
-      y: evaluatePolynomial(coefficients, normalizedX)
-    }
-  })
-}
-
-/*
-  Fits the visible light-curve points with a least-squares polynomial.
-  The returned coefficients describe this curve:
-
-    y = a + bx + cx^2 + dx^3
-
-  Example return value:
-
-    [a, b, c, d]
-
-  The x values are normalized dates from 0 to 1 before fitting so the
-  polynomial is stable across large timestamp values. Normalized dates
-  mean each timestamp is converted relative to the visible date range:
-
-    normalizedX = (date - minDate) / (maxDate - minDate)
-
-  Example:
-
-    first date  -> 0
-    middle date -> 0.5
-    last date   -> 1
-
-  The plotted x values are still real dates. The degree is capped by the
-  available point count, so two points produce a line, three points produce
-  a quadratic, and four or more points produce a cubic.
-*/
-function polynomialRegression(points, degree) {
-  const matrix = []
-  const vector = []
-
-  for (let row = 0; row <= degree; row++) {
-    matrix[row] = []
-    for (let col = 0; col <= degree; col++) {
-      matrix[row][col] = points.reduce((sum, point) => sum + Math.pow(point.x, row + col), 0)
-    }
-    vector[row] = points.reduce((sum, point) => sum + point.y * Math.pow(point.x, row), 0)
-  }
-
-  return solveLinearSystem(matrix, vector)
-}
-
-function solveLinearSystem(matrix, vector) {
-  const size = vector.length
-  const augmented = matrix.map((row, index) => [...row, vector[index]])
-
-  for (let pivot = 0; pivot < size; pivot++) {
-    let pivotRow = pivot
-    for (let row = pivot + 1; row < size; row++) {
-      if (Math.abs(augmented[row][pivot]) > Math.abs(augmented[pivotRow][pivot])) {
-        pivotRow = row
-      }
-    }
-    if (Math.abs(augmented[pivotRow][pivot]) < Number.EPSILON) return null
-
-    if (pivotRow !== pivot) {
-      const temp = augmented[pivot]
-      augmented[pivot] = augmented[pivotRow]
-      augmented[pivotRow] = temp
-    }
-
-    const pivotValue = augmented[pivot][pivot]
-    for (let col = pivot; col <= size; col++) {
-      augmented[pivot][col] /= pivotValue
-    }
-
-    for (let row = 0; row < size; row++) {
-      if (row === pivot) continue
-      const factor = augmented[row][pivot]
-      for (let col = pivot; col <= size; col++) {
-        augmented[row][col] -= factor * augmented[pivot][col]
-      }
-    }
-  }
-
-  return augmented.map(row => row[size])
-}
-
-function evaluatePolynomial(coefficients, x) {
-  return coefficients.reduce((sum, coefficient, power) => {
-    return sum + coefficient * Math.pow(x, power)
-  }, 0)
 }
 
 onMounted(() => {
