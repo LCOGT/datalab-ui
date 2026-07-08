@@ -313,7 +313,7 @@ function createCatalogLayer(){
       <b>Flux:</b> ${source.flux ?? 'N/A'} counts<br>
       <b>RA:</b> ${source.ra ?? 'N/A'} degrees<br>
       <b>Dec:</b> ${source.dec ?? 'N/A'} degrees<br>
-      ${source.flux_fallback !== true ? `<b>Magnitude:</b> ${source.mag ?? 'N/A'}<br>` : ''}
+      ${source.flux_fallback !== true ? `<b>Magnitude:</b> ${Number(source.mag).toFixed(3) ?? 'N/A'}<br>` : ''}
     `
     // Create a circle marker for the source
     return new L.Circle([source.y_win, source.x_win], {
