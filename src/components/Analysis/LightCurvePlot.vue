@@ -402,7 +402,6 @@ onMounted(() => {
             size="18"
           />
         </button>
-        <span>- Light Curve</span>
       </div>
       <span
         v-for="line in chartSubtitleText"
