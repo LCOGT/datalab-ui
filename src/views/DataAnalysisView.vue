@@ -120,7 +120,11 @@ watch(() => props.data, () => {
 )
 
 const title = computed(() => {
-  return props.data?.operationName || 'Unknown'
+  let text = props.data?.operationName || 'Unknown'
+  if (props.data?.source) {
+    text += ': ' + props.data.source?.name
+  }
+  return text
 })
 
 </script>
