@@ -46,6 +46,12 @@ function assignVariableStarData() {
       falseAlarmProbability: data.fap,
       fluxFallback: data.flux_fallback,
       excludedImages: data.excluded_images || [],
+      source: data.operationInputData?.source || data.source,
+      aperture: {
+        apertureRadius: data.aperture_radius_arcsec || data.operationInputData?.aperture_radius_arcsec,
+        annulusInnerRadius: data.annulus_inner_radius_arcsec || data.operationInputData?.annulus_inner_radius_arcsec,
+        annulusOuterRadius: data.annulus_outer_radius_arcsec || data.operationInputData?.annulus_outer_radius_arcsec,
+      },
       magnitudeTimeSeries: magnitudeTimeSeries,
     }
   } else {
@@ -114,11 +120,7 @@ watch(() => props.data, () => {
 )
 
 const title = computed(() => {
-  let text = props.data?.operationName || 'Unknown'
-  if (props.data?.source) {
-    text += ': ' + props.data.source?.name
-  }
-  return text
+  return props.data?.operationName || 'Unknown'
 })
 
 </script>
