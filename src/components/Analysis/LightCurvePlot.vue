@@ -379,29 +379,31 @@ onMounted(() => {
   <div class="wrapper">
     <div class="title-lc">
       <div class="title-heading">
-        <input
+        <v-text-field
           v-if="isEditingTitle"
           ref="titleInput"
           v-model="userTitle"
           class="title-input"
-          aria-label="Light curve title"
+          label="Light curve title"
           placeholder="Add a Title"
+          density="compact"
+          variant="outlined"
+          hide-details
+          single-line
           @blur="stopEditingTitle"
           @keyup.enter="stopEditingTitle"
           @keyup.esc="stopEditingTitle"
-        >
-        <button
+        />
+        <v-btn
           v-else
-          type="button"
           class="title-edit-trigger"
+          variant="text"
+          density="compact"
+          append-icon="mdi-pencil"
           @click="startEditingTitle"
         >
-          <span>{{ chartTitle }}</span>
-          <v-icon
-            icon="mdi-pencil"
-            size="18"
-          />
-        </button>
+          {{ chartTitle }}
+        </v-btn>
       </div>
       <span
         v-for="line in chartSubtitleText"
@@ -423,20 +425,22 @@ onMounted(() => {
         class="light-curve-plot"
       />
       <div class="telescope-legend">
-        <button
+        <v-btn
           v-for="item in telescopeLegendItems"
           :key="item.key"
-          type="button"
           class="telescope-legend-item"
           :class="{ 'telescope-legend-item-hidden': item.hidden }"
+          variant="text"
+          density="compact"
           @click="toggleTelescope(item.key)"
         >
-          <span
-            class="telescope-legend-swatch"
-            :style="{ backgroundColor: item.color }"
+          <v-icon
+            icon="mdi-square"
+            size="14"
+            :color="item.color"
           />
           <span class="telescope-legend-label">{{ item.label }}</span>
-        </button>
+        </v-btn>
       </div>
     </div>
   </div>
@@ -469,24 +473,14 @@ onMounted(() => {
   flex-wrap: wrap;
 }
 .title-edit-trigger {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  border: 0;
-  background: transparent;
   color: var(--text);
-  cursor: pointer;
-  font: inherit;
-  padding: 0;
+  letter-spacing: 0;
+  text-transform: none;
 }
 .title-input {
   width: min(280px, 64vw);
-  border: 1px solid var(--secondary-background);
-  border-radius: 4px;
-  background: var(--primary-background);
-  color: var(--text);
-  font: inherit;
-  padding: 0.2rem 0.45rem;
+}
+.title-input :deep(input) {
   text-align: center;
 }
 .subtitle-lc {
@@ -518,26 +512,15 @@ onMounted(() => {
   padding-top: 0.75rem;
 }
 .telescope-legend-item {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  border: 0;
-  background: transparent;
+  justify-content: flex-start;
   color: var(--text);
-  cursor: pointer;
-  font: inherit;
-  padding: 0.2rem 0;
-  text-align: left;
-}
-.telescope-legend-swatch {
-  width: 12px;
-  height: 12px;
-  flex: 0 0 auto;
+  letter-spacing: 0;
+  text-transform: none;
 }
 .telescope-legend-item-hidden .telescope-legend-label {
   text-decoration: line-through;
 }
-.telescope-legend-item-hidden .telescope-legend-swatch {
+.telescope-legend-item-hidden :deep(.v-icon) {
   opacity: 0.45;
 }
 .download-btn {
