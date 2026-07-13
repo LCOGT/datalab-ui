@@ -77,6 +77,7 @@ function addCompletedOperation(operation) {
           output.operation = operation.id
           output.operationIndex = operation.index
           output.operationName = operation.name
+          output.operationInputData = operation.input_data
           if (!itemsContainsOutput(output)) {
             items.value.push(output)
           }
