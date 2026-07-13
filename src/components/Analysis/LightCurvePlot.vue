@@ -4,6 +4,7 @@ import { ref, watch, computed, defineProps, onMounted, nextTick } from 'vue'
 import { downloadChartAsPNG } from '@/utils/downloadChart.js'
 import { normalizeLightCurveRows } from '@/utils/lightCurve.js'
 import { telescope_colors, telescope_labels } from '@/utils/color.js'
+import { dateToMjd, formatMjd, formatDayOffset } from '@/utils/formatDate.js'
 
 const props = defineProps({
   variableStarData: {
@@ -27,8 +28,6 @@ const MAGNITUDE_TICK_STEP = 0.25
 const ERROR_BAR_CAP_WIDTH = 8
 const X_AXIS_LEFT_PADDING_RATIO = 0.05
 const MIN_X_AXIS_LEFT_PADDING_DAYS = 1 / 24
-const MJD_UNIX_EPOCH = 40587
-const MS_PER_DAY = 24 * 60 * 60 * 1000
 
 const errorBarPlugin = {
   id: 'lightCurveErrorBars',
@@ -65,20 +64,6 @@ const errorBarPlugin = {
 
     ctx.restore()
   }
-}
-
-function dateToMjd(date) {
-  const time = new Date(date).getTime()
-  return (time / MS_PER_DAY) + MJD_UNIX_EPOCH
-}
-
-function formatMjd(value) {
-  return Number(value).toFixed(MJD_DECIMAL_PLACES)
-}
-
-function formatDayOffset(value) {
-  const sign = value >= 0 ? '+' : ''
-  return `${sign}${Number(value).toFixed(DAY_OFFSET_DECIMAL_PLACES)} d`
 }
 
 function telescopeColorMap(style) {
@@ -297,8 +282,8 @@ function createChart() {
             color: text,
             maxTicksLimit: 8,
             callback: (value) => [
-              formatMjd(value),
-              formatDayOffset(value - chartData.value.baseMjd),
+              formatMjd(value, MJD_DECIMAL_PLACES),
+              formatDayOffset(value - chartData.value.baseMjd, DAY_OFFSET_DECIMAL_PLACES),
             ],
           },
           grid: { color: background, tickColor: text},
@@ -326,7 +311,7 @@ function createChart() {
           callbacks: {
             title: (contexts) => {
               const point = chartData.value.magnitudePoints[contexts[0]?.dataIndex]
-              return `MJD ${formatMjd(point.x)} (${formatDayOffset(point.dayOffset)})`
+              return `MJD ${formatMjd(point.x, MJD_DECIMAL_PLACES)} (${formatDayOffset(point.dayOffset, DAY_OFFSET_DECIMAL_PLACES)})`
             },
             label: (context) => {
               const error = chartData.value.errors[context.dataIndex]
