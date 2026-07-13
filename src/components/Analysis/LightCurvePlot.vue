@@ -3,6 +3,7 @@ import Chart from 'chart.js/auto'
 import { ref, watch, computed, defineProps, onMounted, nextTick } from 'vue'
 import { downloadChartAsPNG } from '@/utils/downloadChart.js'
 import { normalizeLightCurveRows } from '@/utils/lightCurve.js'
+import { telescope_colors, telescope_labels } from '@/utils/color.js'
 
 const props = defineProps({
   variableStarData: {
@@ -28,18 +29,6 @@ const X_AXIS_LEFT_PADDING_RATIO = 0.05
 const MIN_X_AXIS_LEFT_PADDING_DAYS = 1 / 24
 const MJD_UNIX_EPOCH = 40587
 const MS_PER_DAY = 24 * 60 * 60 * 1000
-const TELESCOPE_COLORS = {
-  '0.4m': '--blue',
-  '1m': '--orange',
-  '2m': '--green',
-  '4m': '--red',
-}
-const TELESCOPE_LABELS = [
-  { key: '0.4m', label: '0.4m Telescope' },
-  { key: '1m', label: '1m Telescope' },
-  { key: '2m', label: '2m Telescope' },
-  { key: '4m', label: '4m Telescope' },
-]
 
 const errorBarPlugin = {
   id: 'lightCurveErrorBars',
@@ -94,13 +83,13 @@ function formatDayOffset(value) {
 
 function telescopeColorMap(style) {
   return Object.fromEntries(
-    Object.entries(TELESCOPE_COLORS).map(([key, color]) => [key, style.getPropertyValue(color).trim()])
+    Object.entries(telescope_colors).map(([key, color]) => [key, style.getPropertyValue(color).trim()])
   )
 }
 
 function telescopeLegendLabels(style) {
   const telescopeColors = telescopeColorMap(style)
-  return TELESCOPE_LABELS.map(item => ({
+  return telescope_labels.map(item => ({
     ...item,
     color: telescopeColors[item.key],
     hidden: hiddenTelescopeSizes.value.has(item.key),
