@@ -40,6 +40,9 @@ const title = computed (() => {
   if (props.operationOutput?.source) {
     text = props.operationOutput.source?.name
   }
+  else if (props.operationOutput?.cluster?.name) {
+    text = props.operationOutput.cluster.name
+  }
   else {
     text = props.operationOutput?.operationName
   }
@@ -71,16 +74,36 @@ const emit = defineEmits(['selectOperationOutput', 'launchAnalysis', 'removeOper
       </v-card-title>
       <v-card-text class="p-1">
         <v-sparkline
-          v-if="props.operationOutput.light_curve" 
+          v-if="props.operationOutput.light_curve"
           v-model="lightCurveSparkline"
         />
         <v-sparkline
-          v-if="props.operationOutput.power" 
+          v-if="props.operationOutput.power"
           v-model="periodogramSparkline"
         />
         <p v-if="props.operationOutput.period">
           {{ props.operationOutput.period.toFixed(4) }} days
         </p>
+        <div
+          v-if="props.operationOutput.cmd"
+          class="cmd-card-summary d-flex flex-column align-center"
+        >
+          <v-icon
+            icon="mdi-chart-scatter-plot"
+            size="42"
+          />
+          <p>{{ props.operationOutput.n_stars }} stars</p>
+          <span class="d-flex ga-1 mt-1">
+            <filter-badge
+              v-if="props.operationOutput.blue_filter"
+              :filter="props.operationOutput.blue_filter"
+            />
+            <filter-badge
+              v-if="props.operationOutput.red_filter"
+              :filter="props.operationOutput.red_filter"
+            />
+          </span>
+        </div>
         <span
           v-if="props.enableRemoval"
           class="removal-button-overlay"
