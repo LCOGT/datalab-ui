@@ -77,6 +77,7 @@ function addCompletedOperation(operation) {
           output.operation = operation.id
           output.operationIndex = operation.index
           output.operationName = operation.name
+          output.operationInputData = operation.input_data
           if (!itemsContainsOutput(output)) {
             items.value.push(output)
           }
@@ -88,13 +89,13 @@ function addCompletedOperation(operation) {
 
 async function addOperation(operationDefinition) {
   const url = dataSessionsUrl + props.data.id + '/operations/'
-
-  // first operation doesn't load unless this is here
-  function postOperationSuccess() {
-    refreshOperations()
-  }
-
-  await fetchApiCall({ url: url, method: 'POST', body: operationDefinition, successCallback: postOperationSuccess, failCallback: handleError })
+  await fetchApiCall({
+    url: url,
+    method: 'POST',
+    body: operationDefinition,
+    successCallback: refreshOperations,
+    failCallback: handleError
+  })
 }
 
 function stopPollingById(operationIDs) {
@@ -121,43 +122,52 @@ function operationDeleted(operationIDs){
 
 // Main lifecycle function for managing operation polling and updates
 async function pollOperationCompletion(operation) {
-  // Success Callback for checking operation status
-  const updateOperationStatus = (response) => {
-    // Copy over the updated status into the operation
-    operationMap[response.id].status = response.status
-    operationMap[response.id].operation_progress = response.operation_progress
-    operationMap[response.id].output = response.output
-    operationMap[response.id].message = response.message
-    if(response){
-      switch(response.status){
-      case 'PENDING':
-        break
-      case 'IN_PROGRESS':
-        if (response.output){
-          // This will add output as it is generated in progress
-          addCompletedOperation(operationMap[response.id])
-        }
-        break
-      case 'COMPLETED':
-        addCompletedOperation(operationMap[response.id])
-        stopPollingById(response.id)
-        // Trigger use to attempt to start polling again for any dependent operations
-        startOperationPolling()
-        break
-      case 'FAILED':
-        alertStore.setAlert('error', response.message ? response.message : 'Failed', 'Operation Error:')
-        stopPollingById(response.id)
-        break
-      default:
-        console.error('Unknown Operation Status:', response.status)
-      }
-    }
-    else{
-      alertStore.setAlert('error', 'Operation status not found')
-    }
-  }
   const url = store.datalabApiBaseUrl + 'datasessions/' + props.data.id + '/operations/' + operation.id + '/'
-  await fetchApiCall({ url: url, method: 'GET', successCallback: updateOperationStatus, failCallback: handleError })
+  const response = await fetchApiCall({
+    url: url,
+    method: 'GET',
+    failCallback: handleError
+  })
+  if (response) {
+    updateOperationStatus(response)
+  }
+}
+
+function updateOperationStatus(response) {
+  // Copy over the updated status into the operation
+  operationMap[response.id].status = response.status
+  operationMap[response.id].operation_progress = response.operation_progress
+  operationMap[response.id].output = response.output
+  operationMap[response.id].message = response.message
+
+  switch(response.status){
+  case 'PENDING':
+    break
+  case 'IN_PROGRESS':
+    if (response.output){
+      // This will add output as it is generated in progress
+      addCompletedOperation(operationMap[response.id])
+    }
+    break
+  case 'COMPLETED':
+    addCompletedOperation(operationMap[response.id])
+    stopPollingById(response.id)
+    // Trigger use to attempt to start polling again for any dependent operations
+    startOperationPolling()
+    break
+  case 'FAILED':
+    console.error('[DataSession] operation failed', {
+      id: response.id,
+      name: response.name,
+      message: response.message,
+      response
+    })
+    alertStore.setAlert('error', response.message ? response.message : 'Failed', 'Operation Error:')
+    stopPollingById(response.id)
+    break
+  default:
+    console.error('Unknown Operation Status:', response.status)
+  }
 }
 
 // Kicks off the lifecycle function above for any operations that are not completed
@@ -178,19 +188,16 @@ function startOperationPolling() {
 // This triggers us to just get the operations for a datasession
 async function refreshOperations() {
   const url = dataSessionsUrl + props.data.id + '/operations/'
-
-  function onRefreshOperations(response) {
-    operations.value = response.results
-    processOperations()
-    operations.value.forEach(operation => {
-      if (operation.status == 'COMPLETED') {
-        addCompletedOperation(operation)
-      }
-    })
-    startOperationPolling()
-  }
-
-  await fetchApiCall({ url: url, method: 'GET', successCallback: onRefreshOperations, failCallback: handleError })
+  const response = await fetchApiCall({ url: url, method: 'GET', failCallback: handleError })
+  if (!response) return
+  operations.value = response.results
+  processOperations()
+  operations.value.forEach(operation => {
+    if (operation.status == 'COMPLETED') {
+      addCompletedOperation(operation)
+    }
+  })
+  startOperationPolling()
 }
 
 function processOperations() {

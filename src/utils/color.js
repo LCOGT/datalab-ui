@@ -30,4 +30,18 @@ const colorRGBMap = {
   'blue': { r: 0, g: 0, b: 255 },
 }
 
-export { rgbFilterMap, filterToColor, colorToFilter , colorRGBMap, rgbObjectToString }
+const telescope_colors = {
+  '0.4m': '--blue',
+  '1m': '--orange',
+  '2m': '--green',
+  '4m': '--red',
+}
+
+const telescope_labels = [
+  { key: '0.4m', label: '0.4m Telescope' },
+  { key: '1m', label: '1m Telescope' },
+  { key: '2m', label: '2m Telescope' },
+  { key: '4m', label: '4m Telescope' }
+]
+
+export { rgbFilterMap, filterToColor, colorToFilter , colorRGBMap, rgbObjectToString, telescope_colors, telescope_labels }

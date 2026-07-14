@@ -31,6 +31,7 @@ const selectedOperation = ref('')
 const operationInputs = ref({})
 const MAX_COLOR_CHANNELS = 6
 const MIN_COLOR_CHANNELS = 1
+const FRONTEND_HIDDEN_INPUT_KEYS = new Set(['min_comparisons', 'max_comparisons'])
 
 const WIZARD_PAGES = {
   SELECT: 'select',
@@ -52,7 +53,7 @@ const groupedInputDescriptions = computed(() => {
   let currentGroup = {}
   if (inputDescriptions.value) {
     for ( const [inputKey, inputDescription] of Object.entries(inputDescriptions.value)) {
-      if (typesToGroup.includes(inputDescription.type)) {
+      if (shouldRenderInput(inputKey, inputDescription) && typesToGroup.includes(inputDescription.type)) {
         currentGroup[inputKey] = inputDescription
         if (Object.keys(currentGroup).length == 2) {
           groups.push({...currentGroup})
@@ -73,7 +74,7 @@ const sourceInputDescriptions = computed(() => {
   let sourceDescriptions = {}
   if (inputDescriptions.value) {
     for ( const [inputKey, inputDescription] of Object.entries(inputDescriptions.value)) {
-      if (inputDescription.type == 'source') {
+      if (shouldRenderInput(inputKey, inputDescription) && inputDescription.type == 'source') {
         sourceDescriptions[inputKey] = {...inputDescription}
       }
     }
@@ -127,16 +128,25 @@ const disableGoForward = computed(() => {
 const isInputComplete = computed(() => {
   for (const inputKey in operationInputs.value) {
     const input = operationInputs.value[inputKey]
+    const inputDescription = inputDescriptions.value[inputKey]
     if ( input === undefined || input === null) {
       return false
     }
-    if (inputDescriptions.value[inputKey].type == 'source') {
-      if (!input.ra || !input.dec) {
+    if (inputDescription.required && input === '') {
+      return false
+    }
+    if (inputDescription.type == 'source') {
+      if (isMissingCoordinate(input.ra) || isMissingCoordinate(input.dec)) {
+        return false
+      }
+    }
+    if (['float', 'int'].includes(inputDescription.type)) {
+      if (!isValidNumberInput(input, inputDescription.type)) {
         return false
       }
     }
     if (Array.isArray(input)) {
-      const minimum = inputDescriptions.value[inputKey].minimum || 0
+      const minimum = inputDescription.minimum || 0
       if (input.length < minimum) {
         return false
       }
@@ -157,7 +167,9 @@ const isInputScaling = computed(() => {
 
 const imageInputDescriptions = computed(() => {
   if (inputDescriptions.value) {
-    return Object.fromEntries(Object.entries(inputDescriptions.value).filter(([, inputDescription]) => inputDescription.type == 'fits'))
+    return Object.fromEntries(Object.entries(inputDescriptions.value).filter(([inputKey, inputDescription]) => {
+      return shouldRenderInput(inputKey, inputDescription) && inputDescription.type == 'fits'
+    }))
   }
   return {}
 })
@@ -165,7 +177,12 @@ const imageInputDescriptions = computed(() => {
 onMounted(async () => {
   // Fetch available operations from the server
   const url = dataSessionsUrl + 'available_operations/'
-  await fetchApiCall({ url: url, method: 'GET', successCallback: (data) => { availableOperations.value = data }, failCallback: handleError })
+  const response = await fetchApiCall({
+    url: url,
+    method: 'GET',
+    failCallback: handleError
+  })
+  availableOperations.value = response || {}
   if (Object.keys(availableOperations.value).length > 0) {
     // Select the first operation by default
     selectOperation(Object.keys(availableOperations.value)[0])
@@ -220,6 +237,7 @@ function selectOperation(name) {
   selectedOperation.value = availableOperations.value[name]
   operationInputs.value = {}
   for (const [key, value] of Object.entries(inputDescriptions.value)) {
+    if (!shouldRenderInput(key, value)) continue
     if ('default' in value) {
       operationInputs.value[key] = value.default
     }
@@ -330,6 +348,30 @@ function updateScaling(channelIndex, zmin, zmax) {
   channel.zmin = zmin
   channel.zmax = zmax
 }
+
+function setNumberInput(inputKey, value, type) {
+  if (value === '') {
+    operationInputs.value[inputKey] = ''
+    return
+  }
+  const number = Number(value)
+  operationInputs.value[inputKey] = type == 'int' ? Math.trunc(number) : number
+}
+
+function isValidNumberInput(value, type) {
+  if (value === '') return false
+  const number = Number(value)
+  if (!Number.isFinite(number)) return false
+  return type != 'int' || Number.isInteger(number)
+}
+
+function isMissingCoordinate(value) {
+  return value === undefined || value === null || value === '' || !Number.isFinite(Number(value))
+}
+
+function shouldRenderInput(inputKey, inputDescription) {
+  return Boolean(inputDescription) && !FRONTEND_HIDDEN_INPUT_KEYS.has(inputKey)
+}
 </script>
 <template>
   <v-card
@@ -409,18 +451,27 @@ function updateScaling(channelIndex, zmin, zmax) {
               :label="inputDescription.name"
               :items="inputDescription.options"
             />
-            <v-number-input
+            <v-text-field
               v-else-if="inputDescription.type == 'int'"
-              v-model="operationInputs[inputKey]"
+              :model-value="operationInputs[inputKey]"
               :label="inputDescription.name"
-              :precision="0"
+              :hint="inputDescription.description"
+              :persistent-hint="Boolean(inputDescription.description)"
+              type="number"
+              step="1"
+              class="operation-input"
+              @update:model-value="setNumberInput(inputKey, $event, inputDescription.type)"
             />
-            <v-number-input
+            <v-text-field
               v-else-if="inputDescription.type == 'float'"
-              v-model="operationInputs[inputKey]"
+              :model-value="operationInputs[inputKey]"
               :label="inputDescription.name"
-              :precision="null"
-              control-variant="hidden"
+              :hint="inputDescription.description"
+              :persistent-hint="Boolean(inputDescription.description)"
+              type="number"
+              step="any"
+              class="operation-input"
+              @update:model-value="setNumberInput(inputKey, $event, inputDescription.type)"
             />
             <v-select
               v-else-if="inputDescription.type == 'select'"
