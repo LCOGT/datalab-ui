@@ -11,7 +11,7 @@ import { getRelativePosition } from 'chart.js/helpers'
   Options (all read lazily, so the chart can be created after this is called):
     chart:        () => Chart|null            the chart instance
     min, max:     () => number|null           current window bounds (from props)
-    emitMin/Max:  (value) => void             emit the v-model:...-min / -max update
+    emitMin/Max:  (value) => void             emit the v-model:... min / max update
     valueToPixel: (chart, value) => number    value -> x pixel
     pixelToValue: (chart, pixel) => number    x pixel -> value
     extent:       () => {min, max}|null        value-space span of the bars (null when no data)

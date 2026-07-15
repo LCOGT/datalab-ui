@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { distanceParsecs } from '@/utils/isochrones.js'
 
 /*
-  Slider controls for the manual isochrone fit: distance modulus and E(B-V) move
+  Slider controls for the manual isochrone fit: distance modulus and reddening E(B-V) move
   the model polyline across the CMD, while log(age) and [Fe/H] snap to the nodes
   of the shipped isochrone grid and select which polyline is drawn (interpolating
   between isochrones distorts the turnoff, so v1 is snap-to-node by design). The

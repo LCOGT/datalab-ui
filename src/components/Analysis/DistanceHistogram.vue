@@ -7,22 +7,14 @@ import { useHistogramWindowSelect } from '@/utils/histogramWindowSelect.js'
 
 /*
   Histogram of the Gaia Bailer-Jones geometric distances of the matched stars - a
-  distance-space companion to ParallaxHistogram. Two things differ from the parallax
-  version, both because distances behave differently from parallaxes:
-
-  1. Bins are spaced in log10(distance), not linearly. Bailer-Jones distances span a
-     huge dynamic range (a cluster piled up near its distance, field stars scattered
-     out to tens of kpc); linear bins would collapse the whole cluster into one bar.
-     Distances are always positive, so the log is always defined.
-
-  2. The measurement error is folded in. Each star's distance posterior is asymmetric
-     (distance_lo / distance_hi are its 16th / 84th percentiles), so instead of dropping
-     the star into a single bin by its point estimate, we spread its unit weight across
-     bins as a split-normal in log-distance (sigma below = log(d) - log(d_lo), sigma
-     above = log(d_hi) - log(d)). Summed over stars this is the "uncertainty-weighted"
-     overlay curve: tightly-measured stars stay sharp, poorly-measured far stars melt
-     into a low broad bump instead of faking a crisp peak. The bars stay as familiar
-     integer counts of the point estimates; the curve is the error-aware view.
+  distance-space companion to ParallaxHistogram. Bins are spaced in log10(distance), not linearly.
+  Each star's distance posterior is asymmetric (distance_lo / distance_hi are its 16th / 84th percentiles),
+  so instead of dropping the star into a single bin by its point estimate, we spread its unit weight across
+  bins as a split-normal in log-distance (sigma below = log(d) - log(d_lo), sigma
+  above = log(d_hi) - log(d)). Summed over stars this is the "uncertainty-weighted"
+  overlay curve: tightly-measured stars stay sharp, poorly-measured far stars melt
+  into a low broad bump instead of faking a crisp peak. The bars stay as familiar
+  integer counts of the point estimates; the curve is the error-aware view.
 
   Bars inside the [distance_min, distance_max] window keep the primary color, the rest are
   dimmed. The window is selected with two vertical lines (useHistogramWindowSelect): with no
@@ -73,8 +65,7 @@ function splitNormalCdf(value, mode, sigmaLo, sigmaHi) {
   return leftFraction + (sigmaHi / (sigmaLo + sigmaHi)) * erf((value - mode) / (sigmaHi * Math.SQRT2))
 }
 
-// stars with a Bailer-Jones distance (always positive); the point estimate feeds the
-// count bars, the lo/hi bounds feed the uncertainty-weighted curve
+// get non-null and positive distances only
 const distanceStars = computed(() => {
   return props.cmd.filter((star) => Number.isFinite(star.distance) && star.distance > 0)
 })

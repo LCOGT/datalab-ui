@@ -143,7 +143,8 @@ function buildIsochroneDataset() {
   }
 }
 
-// restyle the existing datasets in place - replacing them would recreate the chart elements
+// restyle the existing datasets in place by changing their properties depending on the membership group they are in.
+// Replacing them would recreate the chart elements and cause flickering in the points on the plot.
 function syncDatasets(datasets) {
   const { colors, radii, shapes, hitRadii } = pointStyles()
   const starDataset = datasets[0]
@@ -256,7 +257,6 @@ function axisBounds() {
 }
 
 function showLegend() {
-  // anything beyond a lone always-on 'Stars' chip is worth showing/toggling
   return !!props.memberFlags || hasGaiaOnlyPoints.value || !!(props.isochrone && props.isochrone.length)
 }
 
