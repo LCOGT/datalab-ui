@@ -48,9 +48,9 @@ function assignVariableStarData() {
       excludedImages: data.excluded_images || [],
       source: data.operationInputData?.source || data.source,
       aperture: {
-        apertureRadius: data.aperture_radius_arcsec || data.operationInputData?.aperture_radius_arcsec,
-        annulusInnerRadius: data.annulus_inner_radius_arcsec || data.operationInputData?.annulus_inner_radius_arcsec,
-        annulusOuterRadius: data.annulus_outer_radius_arcsec || data.operationInputData?.annulus_outer_radius_arcsec,
+        apertureRadius: data.aperture_radius || data.operationInputData?.aperture_radius,
+        annulusInnerRadius: data.annulus_inner_radius || data.operationInputData?.annulus_inner_radius,
+        annulusOuterRadius: data.annulus_outer_radius || data.operationInputData?.annulus_outer_radius,
       },
       magnitudeTimeSeries: magnitudeTimeSeries,
     }
