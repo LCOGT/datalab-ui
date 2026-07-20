@@ -36,7 +36,7 @@ function selectOperation(index) {
     :status="props.data.status"
     :index="props.data.index"
     :text="props.data.name"
-    :error="props.data.message ?? ''"
+    :message="props.data.message ?? ''"
     @click="selectOperation(props.id)"
   />
 </template>

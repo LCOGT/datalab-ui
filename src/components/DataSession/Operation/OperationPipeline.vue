@@ -77,7 +77,7 @@ function itemDeleted(deletedIds) {
       :class="{selected: operation.id == props.selectedOperation}"
       :progress="operation.operation_progress ?? 0"
       :state="operation.state"
-      :error="operation.message ?? ''"
+      :message="operation.message ?? ''"
       :index="operation.index"
       :text="operation.name"
       :status="operation.status"
