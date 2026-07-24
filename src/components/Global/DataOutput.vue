@@ -71,11 +71,10 @@ function diagnosticImageForFile(fileName) {
   const images = props.operationOutput?.diagnostic_images
   if (!images || Array.isArray(images) || typeof images !== 'object') return null
 
-  const imageBase64 = images[fileName] || Object.entries(images).find(([imageFileName]) => {
+  const imageUrl = images[fileName] || Object.entries(images).find(([imageFileName]) => {
     return fitsPathMatches(imageFileName, fileName)
   })?.[1]
-  if (!imageBase64) return null
-  return `data:image/jpeg;base64,${imageBase64}`
+  return imageUrl || null
 }
 
 function targetForFile(fileName) {
@@ -313,6 +312,7 @@ const emit = defineEmits(['selectOperationOutput', 'launchAnalysis', 'removeOper
                     <img
                       :src="section.diagnosticImage"
                       :alt="`${section.fileName} candidate star overlay`"
+                      crossorigin="anonymous"
                       class="diagnostic-overlay-image"
                     >
                   </div>
@@ -419,9 +419,9 @@ const emit = defineEmits(['selectOperationOutput', 'launchAnalysis', 'removeOper
 
 .diagnostic-overlay-image {
   display: block;
-  width: 100%;
+  max-width: 100%;
   max-height: 360px;
-  object-fit: contain;
+  margin: 0 auto;
   border-radius: 8px;
   background: #000;
 }
