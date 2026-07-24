@@ -7,6 +7,7 @@ import WizardScalingPage from '@/components/Global/Scaling/WizardScalingPage.vue
 import SourceInputWidget from './SourceInputWidget.vue'
 import { useConfigurationStore } from '@/stores/configuration'
 import { coordinateInputToDegrees, raSexagesimalToDegrees, decSexagesimalToDegrees } from '@/utils/coordinates'
+import { coordinateInputToDegrees, raSexagesimalToDegrees, decSexagesimalToDegrees } from '@/utils/coordinates'
 /*
   This component is a step wizard for configuring the input of a new operation to the data session.
   It has three main pages:
