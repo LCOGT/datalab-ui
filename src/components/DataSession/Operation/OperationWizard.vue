@@ -6,6 +6,7 @@ import MultiImageInputSelector from '@/components/DataSession/Operation/MultiIma
 import WizardScalingPage from '@/components/Global/Scaling/WizardScalingPage.vue'
 import SourceInputWidget from './SourceInputWidget.vue'
 import { useConfigurationStore } from '@/stores/configuration'
+import { coordinateInputToDegrees, raSexagesimalToDegrees, decSexagesimalToDegrees } from '@/utils/coordinates'
 /*
   This component is a step wizard for configuring the input of a new operation to the data session.
   It has three main pages:
@@ -223,14 +224,26 @@ function goBack() {
 }
 
 function submitOperation() {
+  const inputData = operationInputDataForRequest()
   let operationDefinition = {
     'name': selectedOperation.value.name,
-    'input_data': {
-      ...operationInputs.value
-    }
+    'input_data': inputData
   }
   emit('addOperation', operationDefinition)
   emit('closeWizard')
+}
+
+function operationInputDataForRequest() {
+  const inputData = { ...operationInputs.value }
+  Object.keys(sourceInputDescriptions.value).forEach(inputKey => {
+    const source = inputData[inputKey]
+    inputData[inputKey] = {
+      ...source,
+      ra: coordinateInputToDegrees(source.ra, raSexagesimalToDegrees),
+      dec: coordinateInputToDegrees(source.dec, decSexagesimalToDegrees),
+    }
+  })
+  return inputData
 }
 
 function selectOperation(name) {
@@ -366,7 +379,7 @@ function isValidNumberInput(value, type) {
 }
 
 function isMissingCoordinate(value) {
-  return value === undefined || value === null || value === '' || !Number.isFinite(Number(value))
+  return value === undefined || value === null || value === ''
 }
 
 function shouldRenderInput(inputKey, inputDescription) {

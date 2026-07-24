@@ -13,6 +13,7 @@ import FitsHeaderTable from '@/components/Analysis/FitsHeaderTable.vue'
 import ImageViewer from '@/components/Analysis/ImageViewer.vue'
 import LinePlot from '@/components/Analysis/LinePlot.vue'
 import ViewMode from '@/components/Analysis/ViewMode.vue'
+import CoordinateValue from '@/components/Global/CoordinateValue.vue'
 import { getActivePinia } from 'pinia'
 
 const props = defineProps({
@@ -91,8 +92,8 @@ const viewModeDetails = computed(() => {
   const headerData = analysisStore.headerData || {}
 
   return [
-    { label: 'RA', value: headerData.RA || 'Unknown' },
-    { label: 'Dec', value: headerData.DEC || 'Unknown' },
+    { label: 'RA', value: headerData.RA || 'Unknown', axis: 'ra' },
+    { label: 'Dec', value: headerData.DEC || 'Unknown', axis: 'dec' },
     { label: 'Object', value: headerData.OBJECT || 'Unknown' }
   ]
 })
@@ -461,7 +462,16 @@ async function onModeChange(val) {
               class="view-mode-meta-row"
             >
               <span class="view-mode-meta-label">{{ item.label }}</span>
-              <span class="view-mode-meta-value">{{ item.value }}</span>
+              <span class="view-mode-meta-value">
+                <coordinate-value
+                  v-if="item.axis && item.value !== 'Unknown'"
+                  :value="item.value"
+                  :axis="item.axis"
+                />
+                <template v-else>
+                  {{ item.value }}
+                </template>
+              </span>
             </div>
           </div>
         </v-sheet>
@@ -510,7 +520,15 @@ async function onModeChange(val) {
                   v-if="centroidRegion.ra != null && centroidRegion.dec != null"
                   class="view-mode-meta-value"
                 >
-                  Center (RA, Dec): {{ centroidRegion.ra.toFixed(6) }}, {{ centroidRegion.dec.toFixed(6) }}
+                  Center (RA, Dec):
+                  <coordinate-value
+                    :value="centroidRegion.ra"
+                    axis="ra"
+                  />,
+                  <coordinate-value
+                    :value="centroidRegion.dec"
+                    axis="dec"
+                  />
                 </span>
                 <span class="view-mode-meta-value">
                   Radius: {{ centroidRegion.radius.toFixed(2) }} px
@@ -555,8 +573,20 @@ async function onModeChange(val) {
               <div class="view-mode-meta-row">
                 <span class="view-mode-meta-label">Result</span>
                 <template v-if="centroidResult.success">
-                  <span class="view-mode-meta-value">RA: {{ Number(centroidResult.ra) }}</span>
-                  <span class="view-mode-meta-value">Dec: {{ Number(centroidResult.dec) }}</span>
+                  <span class="view-mode-meta-value">
+                    RA:
+                    <coordinate-value
+                      :value="centroidResult.ra"
+                      axis="ra"
+                    />
+                  </span>
+                  <span class="view-mode-meta-value">
+                    Dec:
+                    <coordinate-value
+                      :value="centroidResult.dec"
+                      axis="dec"
+                    />
+                  </span>
                   <span class="view-mode-meta-value">background: {{ Number(centroidResult.background).toFixed(2) }}</span>
                   <span class="view-mode-meta-value">peak: {{ Number(centroidResult.peak).toFixed(2) }}</span>
                 </template>

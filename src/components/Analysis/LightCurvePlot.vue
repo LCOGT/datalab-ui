@@ -5,6 +5,8 @@ import { downloadChartAsPNG } from '@/utils/downloadChart.js'
 import { normalizeLightCurveRows } from '@/utils/lightCurve.js'
 import { telescope_colors, telescope_labels } from '@/utils/color.js'
 import { dateToMjd, formatMjd, formatDayOffset } from '@/utils/formatDate.js'
+import CoordinateValue from '@/components/Global/CoordinateValue.vue'
+import { coordinateInputToDegrees, raSexagesimalToDegrees, decSexagesimalToDegrees } from '@/utils/coordinates'
 
 const props = defineProps({
   variableStarData: {
@@ -102,9 +104,17 @@ const sourceInfo = computed(() => {
   const source = props.variableStarData?.source
   if (source.name) return `Source: ${source.name}`
 
-  const ra = Number(source.ra).toFixed(3)
-  const dec = Number(source.dec).toFixed(3)
+  const ra = coordinateInputToDegrees(source.ra, raSexagesimalToDegrees).toFixed(3)
+  const dec = coordinateInputToDegrees(source.dec, decSexagesimalToDegrees).toFixed(3)
   return ra && dec ? `RA: ${ra}, Dec: ${dec}` : ''
+})
+
+const sourceCoordinates = computed(() => {
+  const source = props.variableStarData?.source
+  return source?.name ? null : {
+    ra: coordinateInputToDegrees(source.ra, raSexagesimalToDegrees),
+    dec: coordinateInputToDegrees(source.dec, decSexagesimalToDegrees),
+  }
 })
 
 const apertureInfo = computed(() => {
@@ -118,6 +128,10 @@ const apertureInfo = computed(() => {
 
 const chartSubtitleText = computed(() => {
   return [sourceInfo.value, apertureInfo.value].filter(Boolean)
+})
+
+const displaySubtitleText = computed(() => {
+  return [sourceCoordinates.value ? '' : sourceInfo.value, apertureInfo.value].filter(Boolean)
 })
 
 const downloadTitle = computed(() => {
@@ -380,11 +394,26 @@ onMounted(() => {
         </v-btn>
       </div>
       <span
-        v-for="line in chartSubtitleText"
+        v-for="line in displaySubtitleText"
         :key="line"
         class="subtitle-lc"
       >
         {{ line }}
+      </span>
+      <span
+        v-if="sourceCoordinates"
+        class="subtitle-lc"
+      >
+        RA:
+        <coordinate-value
+          :value="sourceCoordinates.ra"
+          axis="ra"
+        />,
+        Dec:
+        <coordinate-value
+          :value="sourceCoordinates.dec"
+          axis="dec"
+        />
       </span>
       <v-btn
         icon="mdi-download"

@@ -8,6 +8,14 @@ import { useAlertsStore } from '@/stores/alerts'
 import { useAnalysisStore } from '@/stores/analysis'
 import { loadImage, scalePoint } from '@/utils/common'
 import WCS from '@/utils/wcs'
+import CoordinateValue from '@/components/Global/CoordinateValue.vue'
+import {
+  coordinateInputToDegrees,
+  raDegreesToSexagesimal,
+  decDegreesToSexagesimal,
+  raSexagesimalToDegrees,
+  decSexagesimalToDegrees,
+} from '@/utils/coordinates'
 
 const props = defineProps({
   catalog: {
@@ -307,14 +315,17 @@ function createCatalogLayer(){
 
   // Function to create a marker for a source
   function createSourceMarker(source){
-    // Marker popup text
     const div = document.createElement('div')
-    div.innerHTML = `
-      <b>Flux:</b> ${source.flux ?? 'N/A'} counts<br>
-      <b>RA:</b> ${source.ra ?? 'N/A'} degrees<br>
-      <b>Dec:</b> ${source.dec ?? 'N/A'} degrees<br>
-      ${source.flux_fallback !== true ? `<b>Magnitude:</b> ${Number(source.mag).toFixed(3) ?? 'N/A'}<br>` : ''}
-    `
+    div.append('Flux: ', `${source.flux} counts`)
+    div.append(document.createElement('br'))
+    div.append('RA: ', catalogCoordinateValue(source.ra, 'ra'))
+    div.append(document.createElement('br'))
+    div.append('Dec: ', catalogCoordinateValue(source.dec, 'dec'))
+    div.append(document.createElement('br'))
+    if (source.flux_fallback !== true) {
+      div.append('Magnitude: ', Number(source.mag).toFixed(3))
+      div.append(document.createElement('br'))
+    }
     // Create a circle marker for the source
     return new L.Circle([source.y_win, source.x_win], {
       color: 'var(--info)',
@@ -335,6 +346,28 @@ function createCatalogLayer(){
     catalogLayerGroup = new L.LayerGroup(sourceCatalogMarkers)
     catalogLayerGroup.addTo(imageMap)
   }
+}
+
+function catalogCoordinateValue(value, axis) {
+  let sexagesimal = false
+  const span = document.createElement('span')
+  span.className = 'coordinate-popup-value'
+
+  function updateText() {
+    const degrees = axis === 'ra'
+      ? coordinateInputToDegrees(value, raSexagesimalToDegrees)
+      : coordinateInputToDegrees(value, decSexagesimalToDegrees)
+    span.textContent = sexagesimal
+      ? axis === 'ra' ? raDegreesToSexagesimal(degrees) : decDegreesToSexagesimal(degrees)
+      : `${degrees.toFixed(6)}°`
+  }
+
+  span.addEventListener('click', () => {
+    sexagesimal = !sexagesimal
+    updateText()
+  })
+  updateText()
+  return span
 }
 
 function toggleCentroidTool() {
@@ -552,7 +585,16 @@ function syncCentroidOverlay(region) {
         variant="flat"
         prepend-icon="mdi-crosshairs"
       >
-        RA: {{ raDec.ra.toFixed(6) }}, Dec: {{ raDec.dec.toFixed(6) }}
+        RA:
+        <coordinate-value
+          :value="raDec.ra"
+          axis="ra"
+        />,
+        Dec:
+        <coordinate-value
+          :value="raDec.dec"
+          axis="dec"
+        />
       </v-chip>
     </v-fade-transition>
   </div>
@@ -648,6 +690,10 @@ function syncCentroidOverlay(region) {
   border-radius: 0.25rem;
   user-select: none;
   -webkit-user-select: none;
+}
+
+.coordinate-popup-value {
+  cursor: pointer;
 }
 
 </style>

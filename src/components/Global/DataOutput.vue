@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import FilterBadge from './FilterBadge.vue'
 import CalibrationComparisonPlot from '@/components/Global/CalibrationComparisonPlot.vue'
+import CoordinateValue from '@/components/Global/CoordinateValue.vue'
 import { lightCurveMagnitudes, normalizeLightCurveRows } from '@/utils/lightCurve.js'
 
 const props = defineProps({
@@ -283,10 +284,16 @@ const emit = defineEmits(['selectOperationOutput', 'launchAnalysis', 'removeOper
                       >
                         <td>{{ row.identifier }}</td>
                         <td class="numeric-column">
-                          {{ row.ra }}
+                          <coordinate-value
+                            :value="row.ra"
+                            axis="ra"
+                          />
                         </td>
                         <td class="numeric-column">
-                          {{ row.dec }}
+                          <coordinate-value
+                            :value="row.dec"
+                            axis="dec"
+                          />
                         </td>
                         <td class="numeric-column">
                           {{ row.calculatedFlux }}

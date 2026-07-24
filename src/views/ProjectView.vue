@@ -11,6 +11,13 @@ import { useConfigurationStore } from '@/stores/configuration'
 import { useAlertsStore } from '@/stores/alerts'
 import { fetchApiCall } from '@/utils/api'
 import { initializeDate } from '@/utils/common'
+import {
+  coordinateInputToDegrees,
+  raDegreesToSexagesimal,
+  decDegreesToSexagesimal,
+  raSexagesimalToDegrees,
+  decSexagesimalToDegrees,
+} from '@/utils/coordinates'
 import { useRoute } from 'vue-router'
 import router from '@/router'
 
@@ -162,9 +169,10 @@ async function loadProposals(singleProposalID=null){
       params.set('proposal_id', proposalID)
     }
 
-    // Handle special 'covers' parameter from ra/dec
-    if (filters.value.ra.value && filters.value.dec.value && !isNaN(filters.value.ra.value) && !isNaN(filters.value.dec.value)) {
-      params.set('covers', `POINT(${filters.value.ra.value} ${filters.value.dec.value})`)
+    if (filters.value.ra.value && filters.value.dec.value) {
+      const ra = coordinateInputToDegrees(filters.value.ra.value, raSexagesimalToDegrees)
+      const dec = coordinateInputToDegrees(filters.value.dec.value, decSexagesimalToDegrees)
+      params.set('covers', `POINT(${ra} ${dec})`)
     }
 
     for (const [key, filter] of Object.entries(filters.value)) {
@@ -214,9 +222,6 @@ async function loadProposals(singleProposalID=null){
 
 function invalidFilters() {
   const errors = []
-  if (isNaN(filters.value.ra.value) || isNaN(filters.value.dec.value)) {
-    errors.push('RA and Dec must be numbers.')
-  }
   if (isNaN(filters.value.observation_id.value)) {
     errors.push('Observation ID must be a number.')
   }
@@ -256,8 +261,8 @@ watch(() => filters.value.search.value, async () => {
           alertsStore.setAlert('warning', 'LCO archive doesn\'t support Non-Sidereal target lookup')
         }
         else{
-          filters.value.ra.value = data.ra_d
-          filters.value.dec.value = data.dec_d
+          filters.value.ra.value = raDegreesToSexagesimal(data.ra_d)
+          filters.value.dec.value = decDegreesToSexagesimal(data.dec_d)
         }
       }})
     }, FILTER_DEBOUNCE)
