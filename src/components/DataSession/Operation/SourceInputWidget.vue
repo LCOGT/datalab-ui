@@ -1,10 +1,20 @@
 <script setup>
 import { ref } from 'vue'
 import { useConfigurationStore } from '@/stores/configuration'
+import {
+  coordinateInputToDegrees,
+  raDegreesToSexagesimal,
+  decDegreesToSexagesimal,
+  raSexagesimalToDegrees,
+  decSexagesimalToDegrees,
+} from '@/utils/coordinates'
 
 const configStore = useConfigurationStore()
 
-const source = defineModel()
+const source = defineModel({
+  type: Object,
+  required: true,
+})
 const loading = ref(false)
 const targetNameError = ref('')
 
@@ -24,11 +34,11 @@ async function performTargetLookup() {
         if (result.error) {
           targetNameError.value = result.error
         }
-        if (result.dec) {
-          source.value.dec = result.dec
+        if (result.ra !== undefined) {
+          source.value.ra = raDegreesToSexagesimal(coordinateInputToDegrees(result.ra, raSexagesimalToDegrees))
         }
-        if (result.ra) {
-          source.value.ra = result.ra
+        if (result.dec !== undefined) {
+          source.value.dec = decDegreesToSexagesimal(coordinateInputToDegrees(result.dec, decSexagesimalToDegrees))
         }
         loading.value = false
       }
@@ -63,10 +73,9 @@ async function performTargetLookup() {
       class="pb-0"
     >
       <v-text-field
-        :model-value="source.ra"
+        v-model="source.ra"
         label="Right Ascension"
-        type="number"
-        @update:model-value="source.ra = $event === '' ? null : Number($event)"
+        type="text"
       />
     </v-col>
     <v-col
@@ -75,10 +84,9 @@ async function performTargetLookup() {
       class="pb-0"
     >
       <v-text-field
-        :model-value="source.dec"
+        v-model="source.dec"
         label="Declination"
-        type="number"
-        @update:model-value="source.dec = $event === '' ? null : Number($event)"
+        type="text"
       />
     </v-col>
   </v-row>

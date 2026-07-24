@@ -1,8 +1,9 @@
 <script setup>
 import { computed, ref } from 'vue'
 import FilterBadge from './FilterBadge.vue'
-import { diagnosticsViewFor } from '@/components/Global/diagnostics'
-import { lightCurveMagnitudes } from '@/utils/lightCurve.js'
+import CalibrationComparisonPlot from '@/components/Global/CalibrationComparisonPlot.vue'
+import CoordinateValue from '@/components/Global/CoordinateValue.vue'
+import { lightCurveMagnitudes, normalizeLightCurveRows } from '@/utils/lightCurve.js'
 
 const props = defineProps({
   operationOutput: {
@@ -157,10 +158,127 @@ const emit = defineEmits(['selectOperationOutput', 'launchAnalysis', 'removeOper
           {{ props.operationOutput.operationName }} Diagnostics
         </v-card-title>
         <v-card-text>
-          <component
-            :is="diagnosticsView"
-            :operation-output="props.operationOutput"
-          />
+          <v-expansion-panels
+            variant="accordion"
+            class="diagnostics-panels"
+          >
+            <v-expansion-panel
+              v-for="section in diagnosticSections"
+              :key="section.fileName"
+              class="diagnostics-panel"
+            >
+              <v-expansion-panel-title>
+                <span class="diagnostics-file-title">{{ section.fileName }}</span>
+              </v-expansion-panel-title>
+              <v-expansion-panel-text>
+                <section
+                  v-if="section.rows.length"
+                  class="diagnostics-section"
+                >
+                  <h3 class="diagnostics-section-title">
+                    Comparison Star Validation
+                  </h3>
+                  <v-table
+                    density="compact"
+                    class="diagnostics-table"
+                  >
+                    <thead>
+                      <tr>
+                        <th>Candidate ID</th>
+                        <th class="numeric-column">
+                          RA
+                        </th>
+                        <th class="numeric-column">
+                          Dec
+                        </th>
+                        <th class="numeric-column">
+                          Flux
+                        </th>
+                        <th class="numeric-column">
+                          Catalog Flux
+                        </th>
+                        <th class="numeric-column">
+                          Mag
+                        </th>
+                        <th class="numeric-column">
+                          Catalog Mag
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr
+                        v-for="row in section.rows"
+                        :key="section.fileName + '-' + row.identifier"
+                      >
+                        <td>{{ row.identifier }}</td>
+                        <td class="numeric-column">
+                          <coordinate-value
+                            :value="row.ra"
+                            axis="ra"
+                          />
+                        </td>
+                        <td class="numeric-column">
+                          <coordinate-value
+                            :value="row.dec"
+                            axis="dec"
+                          />
+                        </td>
+                        <td class="numeric-column">
+                          {{ row.calculatedFlux }}
+                        </td>
+                        <td class="numeric-column">
+                          {{ row.catalogFlux }}
+                        </td>
+                        <td class="numeric-column">
+                          {{ row.calculatedMagnitude }}
+                        </td>
+                        <td class="numeric-column">
+                          {{ row.catalogMagnitude }}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </v-table>
+                  <div
+                    v-if="section.diagnosticImage"
+                    class="diagnostic-overlay"
+                  >
+                    <h3 class="diagnostics-section-title">
+                      Candidate Star Overlay
+                    </h3>
+                    <img
+                      :src="section.diagnosticImage"
+                      :alt="`${section.fileName} candidate star overlay`"
+                      class="diagnostic-overlay-image"
+                    >
+                  </div>
+                  <calibration-comparison-plot
+                    :rows="section.rows"
+                    :target="section.target"
+                  />
+                </section>
+                <section
+                  v-if="section.notes.length"
+                  class="diagnostics-section"
+                >
+                  <h3 class="diagnostics-section-title">
+                    Notes
+                  </h3>
+                  <v-list
+                    density="compact"
+                    bg-color="transparent"
+                  >
+                    <v-list-item
+                      v-for="(diagnostic, index) in section.notes"
+                      :key="index"
+                      :title="formatDiagnosticTitle(diagnostic)"
+                      :subtitle="formatDiagnosticDetails(diagnostic)"
+                      class="diagnostic-item"
+                    />
+                  </v-list>
+                </section>
+              </v-expansion-panel-text>
+            </v-expansion-panel>
+          </v-expansion-panels>
         </v-card-text>
         <v-card-actions>
           <v-spacer />
