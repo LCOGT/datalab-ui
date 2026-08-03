@@ -20,19 +20,23 @@ const props = defineProps({
     type: Number,
     required: true,
   },
-  error: {
+  // Status message shown as a tooltip on hover. During a run this is the progress message; on a
+  // failed operation it is the error detail (see isError for the error styling).
+  message: {
     type: String,
     required: false,
     default: ''
   }
 })
 
+const isError = computed(() => props.status === 'FAILED')
+
 const progressPercent = computed(() => {
-  return props.error ? 100.0: props.progress * 100.0
+  return isError.value ? 100.0 : props.progress * 100.0
 })
 
 const progressBg = computed(() => {
-  return props.error ? 'progress-bar error-progress-bar' : 'progress-bar good-progress-bar'
+  return isError.value ? 'progress-bar error-progress-bar' : 'progress-bar good-progress-bar'
 })
 
 const textClass = computed(() => {
@@ -50,11 +54,11 @@ const textClass = computed(() => {
 <template>
   <v-btn class="loadBarButton">
     <v-tooltip
-      v-if="props.error"
+      v-if="props.message"
       activator="parent"
       location="bottom"
     >
-      {{ props.error }}
+      {{ props.message }}
     </v-tooltip>
     <p :class="textClass">
       {{ index ? `${index}. ${text}` : text }}

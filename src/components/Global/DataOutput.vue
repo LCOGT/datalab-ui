@@ -31,6 +31,7 @@ const lightCurveSparkline = computed(() => {
 })
 
 const diagnosticsDialog = ref(false)
+const expandedDiagnosticImage = ref(null)
 
 const diagnosticSections = computed(() => {
   return Object.entries(props.operationOutput?.diagnostics || {}).map(([fileName, sectionDiagnostics]) => {
@@ -71,11 +72,10 @@ function diagnosticImageForFile(fileName) {
   const images = props.operationOutput?.diagnostic_images
   if (!images || Array.isArray(images) || typeof images !== 'object') return null
 
-  const imageBase64 = images[fileName] || Object.entries(images).find(([imageFileName]) => {
+  const imageUrl = images[fileName] || Object.entries(images).find(([imageFileName]) => {
     return fitsPathMatches(imageFileName, fileName)
   })?.[1]
-  if (!imageBase64) return null
-  return `data:image/jpeg;base64,${imageBase64}`
+  return imageUrl || null
 }
 
 function targetForFile(fileName) {
@@ -336,7 +336,10 @@ const emit = defineEmits(['selectOperationOutput', 'launchAnalysis', 'removeOper
                     <img
                       :src="section.diagnosticImage"
                       :alt="`${section.fileName} candidate star overlay`"
+                      crossorigin="anonymous"
                       class="diagnostic-overlay-image"
+                      title="Click to view at full resolution"
+                      @click.stop="expandedDiagnosticImage = { url: section.diagnosticImage, fileName: section.fileName }"
                     >
                   </div>
                   <calibration-comparison-plot
@@ -376,6 +379,39 @@ const emit = defineEmits(['selectOperationOutput', 'launchAnalysis', 'removeOper
             @click="diagnosticsDialog = false"
           />
         </v-card-actions>
+      </v-card>
+    </v-dialog>
+    <v-dialog
+      :model-value="expandedDiagnosticImage !== null"
+      fullscreen
+      @update:model-value="expandedDiagnosticImage = null"
+    >
+      <v-card
+        color="var(--card-background)"
+        class="expanded-image-card"
+        :ripple="false"
+        @click="expandedDiagnosticImage = null"
+      >
+        <v-card-title class="expanded-image-title">
+          <span class="diagnostics-file-title">{{ expandedDiagnosticImage?.fileName }}</span>
+          <v-spacer />
+          <v-btn
+            icon="mdi-close"
+            variant="text"
+            density="compact"
+            title="Close"
+            @click="expandedDiagnosticImage = null"
+          />
+        </v-card-title>
+        <v-card-text class="expanded-image-viewport">
+          <img
+            v-if="expandedDiagnosticImage"
+            :src="expandedDiagnosticImage.url"
+            :alt="`${expandedDiagnosticImage.fileName} candidate star overlay at full resolution`"
+            crossorigin="anonymous"
+            class="expanded-image"
+          >
+        </v-card-text>
       </v-card>
     </v-dialog>
   </v-sheet>
@@ -442,11 +478,37 @@ const emit = defineEmits(['selectOperationOutput', 'launchAnalysis', 'removeOper
 
 .diagnostic-overlay-image {
   display: block;
-  width: 100%;
+  max-width: 100%;
   max-height: 360px;
-  object-fit: contain;
+  margin: 0 auto;
   border-radius: 8px;
   background: #000;
+  cursor: zoom-in;
+}
+
+/* Anywhere on the expanded view closes it, so the whole surface shows the zoom-out cursor. */
+.expanded-image-card {
+  cursor: zoom-out;
+}
+
+.expanded-image-title {
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+/* Fills the dialog under the title bar and scrolls when the overlay is wider or taller
+   than the window, since the image inside is drawn at its native pixel size. */
+.expanded-image-viewport {
+  height: calc(100vh - 64px);
+  overflow: auto;
+  background: #000;
+}
+
+.expanded-image {
+  display: block;
+  margin: 0 auto;
 }
 
 .diagnostics-table :deep(th) {
