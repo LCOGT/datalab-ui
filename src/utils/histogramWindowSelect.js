@@ -1,4 +1,4 @@
-import { getRelativePosition } from 'chart.js/helpers'
+import { useChartPointerDrag, rafBatch } from '@/utils/chartPointerDrag.js'
 
 /*
   The draggable two-line min/max window shared by ParallaxHistogram and DistanceHistogram:
@@ -63,8 +63,6 @@ export function useHistogramWindowSelect({ chart, min, max, emitMin, emitMax, va
   let dragMode = null       // 'min' | 'max' | 'create' | null
   let createAnchor = null   // the fixed edge while dragging out a new window
   let createMoved = false   // whether a create drag actually moved (else it was a stray click)
-  let pendingEmit = null     // batched { min?, max? }, flushed at most once per frame
-  let emitScheduled = false
 
   // which boundary line, if any, is under the pointer (at its drawn, clamped position)
   function hitTest(pixelX) {
@@ -81,49 +79,30 @@ export function useHistogramWindowSelect({ chart, min, max, emitMin, emitMax, va
     return span ? Math.min(Math.max(value, span.min), span.max) : value
   }
 
-  // live-updating on every pointermove is wasteful, so emit at most once per frame
-  function scheduleEmit(update) {
-    pendingEmit = { ...pendingEmit, ...update }
-    if (emitScheduled) return
-    emitScheduled = true
-    requestAnimationFrame(() => {
-      if (pendingEmit.min !== undefined) emitMin(pendingEmit.min)
-      if (pendingEmit.max !== undefined) emitMax(pendingEmit.max)
-      pendingEmit = null
-      emitScheduled = false
-    })
-  }
+  // Ensures we only update the plot values at most once per rendered frame
+  const scheduleEmit = rafBatch((batch) => {
+    if (batch.min !== undefined) emitMin(batch.min)
+    if (batch.max !== undefined) emitMax(batch.max)
+  })
 
-  function onPointerDown(event) {
-    const chartInstance = chart()
-    const position = getRelativePosition(event, chartInstance)
-    const grabbed = hitTest(position.x)
+  function onDown(point) {
+    const grabbed = hitTest(point.pixelX)
     if (grabbed) {
       dragMode = grabbed
     } else if (!windowActive() && extent()) {
       // no window yet: start dragging one out, both edges anchored at this point for now
       dragMode = 'create'
-      createAnchor = clampToExtent(pixelToValue(chartInstance, position.x))
+      createAnchor = clampToExtent(pixelToValue(chart(), point.pixelX))
       createMoved = false
       scheduleEmit({ min: round(createAnchor), max: round(createAnchor) })
     } else {
-      return   // a window exists but no line was grabbed: ignore, like the PM plot
+      return false   // a window exists but no line was grabbed: ignore, like the PM plot
     }
-    event.target.setPointerCapture?.(event.pointerId)
-    event.preventDefault()
+    return true
   }
 
-  function onPointerMove(event) {
-    const chartInstance = chart()
-    const position = getRelativePosition(event, chartInstance)
-    if (!dragMode) {
-      // a crosshair invites drawing a window when none exists, else resize over a line
-      chartInstance.canvas.style.cursor = windowActive()
-        ? (hitTest(position.x) ? 'ew-resize' : 'default')
-        : 'crosshair'
-      return
-    }
-    const value = clampToExtent(pixelToValue(chartInstance, position.x))
+  function onDrag(point) {
+    const value = clampToExtent(pixelToValue(chart(), point.pixelX))
     if (dragMode === 'create') {
       createMoved = true
       scheduleEmit({ min: round(Math.min(createAnchor, value)), max: round(Math.max(createAnchor, value)) })
@@ -134,32 +113,22 @@ export function useHistogramWindowSelect({ chart, min, max, emitMin, emitMax, va
     }
   }
 
-  function onPointerUp(event) {
+  // Mouse cursor is crosshair when no bounds are drawn, or resize icon when over existing bounds, or default
+  function onHover(point) {
+    if (!windowActive()) return 'crosshair'
+    return hitTest(point.pixelX) ? 'ew-resize' : 'default'
+  }
+
+  function onUp() {
     // a create gesture that never moved is a stray click - don't leave a zero-width window
     if (dragMode === 'create' && !createMoved) {
       scheduleEmit({ min: null, max: null })
     }
     dragMode = null
     createAnchor = null
-    event.target.releasePointerCapture?.(event.pointerId)
   }
 
-  function attach() {
-    const canvas = chart().canvas
-    canvas.addEventListener('pointerdown', onPointerDown)
-    canvas.addEventListener('pointermove', onPointerMove)
-    canvas.addEventListener('pointerup', onPointerUp)
-    canvas.addEventListener('pointercancel', onPointerUp)
-  }
-
-  function detach() {
-    const canvas = chart()?.canvas
-    if (!canvas) return
-    canvas.removeEventListener('pointerdown', onPointerDown)
-    canvas.removeEventListener('pointermove', onPointerMove)
-    canvas.removeEventListener('pointerup', onPointerUp)
-    canvas.removeEventListener('pointercancel', onPointerUp)
-  }
+  const { attach, detach } = useChartPointerDrag({ chart, onDown, onDrag, onHover, onUp })
 
   return { windowActive, plugin, attach, detach }
 }

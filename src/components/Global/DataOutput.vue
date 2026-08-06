@@ -169,7 +169,10 @@ const emit = defineEmits(['selectOperationOutput', 'launchAnalysis', 'removeOper
     :class="{ 'selected-output': isSelected }"
     @click="emit('selectOperationOutput', props.operationOutput)"
   >
-    <v-card density="compact">
+    <v-card
+      density="compact"
+      class="output-card"
+    >
       <v-card-title class="output-title">
         <filter-badge
           v-if="props.operationOutput.filter"
@@ -424,6 +427,22 @@ const emit = defineEmits(['selectOperationOutput', 'launchAnalysis', 'removeOper
 </template>
 
 <style scoped>
+.output-card {
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.output-card :deep(.v-card-text) {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+}
+
 .output-title {
   padding: 0 0 0 0;
   display: flex;

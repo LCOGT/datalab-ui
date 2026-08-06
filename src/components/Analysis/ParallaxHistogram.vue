@@ -6,6 +6,9 @@ import { getThemeColors, DIMMED_COLOR } from '@/utils/analysisCharts.js'
 import { useHistogramWindowSelect } from '@/utils/histogramWindowSelect.js'
 
 /*
+  NOTE: not currently mounted anywhere. HRDiagramOutput's tabs filter on distance instead
+  (DistanceHistogram, which works in the same parallax information but with real posteriors).
+
   Histogram of the Gaia parallaxes of the matched stars. Cluster stars pile up at a
   common parallax (distance) while field stars spread out. Bars inside the selected
   [parallax_min, parallax_max] membership window keep the primary color, bars outside
@@ -177,7 +180,7 @@ watch(() => [props.cmd, props.parallaxMin, props.parallaxMax], () => {
   if (parallaxChart) {
     updateChart()
   }
-}, { deep: true })
+})
 
 onMounted(() => {
   createChart()
@@ -227,7 +230,7 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  margin: 0 0 1rem;
+  margin: 0 0 0.5rem;
 }
 .parallax-plot-wrapper {
   display: flex;

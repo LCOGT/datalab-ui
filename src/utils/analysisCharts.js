@@ -18,17 +18,13 @@ export function getThemeColors() {
 }
 
 /*
-  Per-point color / radius / shape / hit-radius arrays for a star scatter, styled by
-  membership. Every star stays in ONE dataset with these indexable options rather than being
-  split into member/field datasets: re-partitioning changes each dataset's element count on
-  every drag frame, and Chart.js destroying/recreating point elements mid-drag makes stars
-  blink. Members take the primary color and field stars are dimmed; Gaia-only stars are
-  triangles, image stars circles. Points where isVisible(point) is false are hidden (radius and
-  hit radius zeroed) rather than removed, so the element count stays stable.
-
-  points: [{ cmdIndex, star }, ...]; memberFlags aligned by cmdIndex (null = all members).
+  Decompose the input HR diagram output into separate arrays for color, radii, shape,
+  and hitRadii for use in chartjs charts. This is meant to be fed in as a single dataset
+  with these arrays controlling some of the displayable styles of the dataset.
+  We do this to keep the length of the dataset constant as stars are selected/deselected in
+  the chart, because otherwise the chart points would flicker during selection.
 */
-export function starPointStyles(points, { memberFlags, themeColors, isVisible = null }) {
+export function createStarPointStyles(points, { memberFlags, themeColors, isVisible = null }) {
   const memberCount = memberFlags ? points.filter((point) => memberFlags[point.cmdIndex]).length : points.length
   // smaller points keep a dense cluster field readable
   const memberRadius = memberCount > 1000 ? 2 : 3
@@ -45,4 +41,35 @@ export function starPointStyles(points, { memberFlags, themeColors, isVisible = 
     shapes.push(point.star.gaia_only ? 'triangle' : 'circle')
   }
   return { colors, radii, shapes, hitRadii }
+}
+
+/*
+  This is called as star selection / membership changes - it updates the properties of the
+  star points in place without triggering a chart.update() which takes a long time. This is
+  fine as long as we don't change the whole dataset, which only happens when loading a new dataset.
+
+  Returns false if the data in the chart doesn't match the length of the star point styles passed in.
+*/
+export function restyleStarPoints(chart, { colors, radii, shapes, hitRadii }) {
+  const elements = chart.getDatasetMeta(0).data
+  if (elements.length !== colors.length) return false
+
+  const dataset = chart.data.datasets[0]
+  dataset.pointBackgroundColor = colors
+  dataset.pointBorderColor = colors
+  dataset.pointRadius = radii
+  dataset.pointHitRadius = hitRadii
+  dataset.pointStyle = shapes
+
+  for (let index = 0; index < elements.length; index++) {
+    const options = elements[index].options
+    options.backgroundColor = colors[index]
+    options.borderColor = colors[index]
+    options.radius = radii[index]
+    options.hitRadius = hitRadii[index]
+    options.pointStyle = shapes[index]
+  }
+  // redraws the plots (which is very quick compared to updating them)
+  chart.render()
+  return true
 }

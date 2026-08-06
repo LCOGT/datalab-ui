@@ -1,9 +1,9 @@
 <script setup>
 import Chart from 'chart.js/auto'
-import { getRelativePosition } from 'chart.js/helpers'
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { downloadChartAsPNG } from '@/utils/downloadChart.js'
-import { getThemeColors, DIMMED_COLOR, starPointStyles } from '@/utils/analysisCharts.js'
+import { getThemeColors, DIMMED_COLOR, createStarPointStyles, restyleStarPoints } from '@/utils/analysisCharts.js'
+import { useChartPointerDrag, rafBatch } from '@/utils/chartPointerDrag.js'
 
 /*
   Proper-motion vector-point diagram (pmRA vs pmDec) of the Gaia-matched stars.
@@ -12,9 +12,9 @@ import { getThemeColors, DIMMED_COLOR, starPointStyles } from '@/utils/analysisC
   it renders as an ellipse in pixels) and is directly draggable:
     - drag inside the circle to move its center
     - drag its edge to grow/shrink the radius
-    - drag on an empty plot (no active selection) to create one
-  Updates are emitted through v-model:selection; the numeric MembershipControls stay
-  available for precise entry.
+    - pinch with two fingers to resize and move it at once
+    - drag on an empty plot (no active selection) to create one from its corner
+  There are also fields underneath the plot that reflect the value of the pmRA/pmDec and pmRadii.
 */
 
 const props = defineProps({
@@ -31,10 +31,27 @@ const props = defineProps({
   memberFlags: {
     type: Array,
     default: null
+  },
+  // the backend's suggested selection, applied by the Use Defaults button
+  membershipGuess: {
+    type: Object,
+    default: null
+  },
+  // true if the plot is in the active tab, false if not to prevent updates
+  active: {
+    type: Boolean,
+    default: true
+  },
+  // target the operation was run on, shown in the title when known
+  clusterName: {
+    type: String,
+    default: null
   }
 })
 
 const emit = defineEmits(['update:selection'])
+
+const chartTitle = computed(() => (props.clusterName ? `${props.clusterName}: Proper Motions` : 'Proper Motions'))
 
 const properMotionCanvas = ref(null)
 let properMotionChart = null
@@ -44,13 +61,18 @@ let themeColors = {}
 const BOUND_QUANTILE = 0.05
 const BOUND_PADDING_FRACTION = 0.3
 const MIN_HALF_RANGE = 5.0
-// selection dragging
+// edge width for resizing by mouse or by touch controls
 const EDGE_GRAB_PIXELS = 10
+const EDGE_GRAB_PIXELS_TOUCH = 22
+// fingers landing this close together give a separation ratio that explodes on the first move
+const MIN_PINCH_PIXELS = 20
 const MIN_PM_RADIUS = 0.1
 
+// True if this is running on a tablet with touch screen, false otherwise.
+const coarsePointer = window.matchMedia?.('(pointer: coarse)').matches ?? false
+
 // point objects depend only on the cmd data, never on the membership selection, so
-// their identity is stable while the selection circle is dragged (cmdIndex keys the
-// star back into memberFlags)
+// they are computed only when the underlying cmd data changes
 const gaiaPoints = computed(() => {
   const points = []
   props.cmd.forEach((star, index) => {
@@ -84,7 +106,7 @@ function axisBounds() {
 }
 
 function pointStyles() {
-  return starPointStyles(gaiaPoints.value, { memberFlags: props.memberFlags, themeColors })
+  return createStarPointStyles(gaiaPoints.value, { memberFlags: props.memberFlags, themeColors })
 }
 
 function buildDataset() {
@@ -122,8 +144,6 @@ function selectionActive() {
 }
 
 // the selection circle's center and radii in pixel space (an ellipse, since the scales differ).
-// Takes the chart as an argument because plugins can fire during the Chart constructor's first
-// synchronous draw, before the component's chart variable is assigned
 function selectionEllipse(chart) {
   const selection = props.selection
   const xScale = chart.scales.x
@@ -162,33 +182,20 @@ const selectionRegionPlugin = {
 let dragMode = null   // 'move' | 'resize' | 'create' | null
 let dragOffset = { x: 0, y: 0 }
 let createAnchor = null
-let pendingSelection = null
-let emitScheduled = false
+let pinchStart = null   // circle + finger geometry captured when the second finger lands
 
 // round emitted selection values to 3 decimals (~milliarcsec)
 function round3(value) {
   return Math.round(value * 1000) / 1000
 }
 
-// live-updating three charts on every pointermove is wasteful, so emit once per frame
-function emitSelection(updates) {
-  pendingSelection = { ...props.selection, ...updates }
-  if (emitScheduled) return
-  emitScheduled = true
-  requestAnimationFrame(() => {
-    emit('update:selection', pendingSelection)
-    pendingSelection = null
-    emitScheduled = false
-  })
-}
+const emitSelection = rafBatch((updates) => emit('update:selection', { ...props.selection, ...updates }))
 
-function pointerPosition(event) {
-  const position = getRelativePosition(event, properMotionChart)
+// a pointer position in pixels -> the same position in data units (mas/yr)
+function toData(point) {
   return {
-    pixelX: position.x,
-    pixelY: position.y,
-    x: properMotionChart.scales.x.getValueForPixel(position.x),
-    y: properMotionChart.scales.y.getValueForPixel(position.y)
+    x: properMotionChart.scales.x.getValueForPixel(point.pixelX),
+    y: properMotionChart.scales.y.getValueForPixel(point.pixelY)
   }
 }
 
@@ -204,93 +211,168 @@ function clampCenter(x, y) {
   }
 }
 
-// which part of the selection circle, if any, is under the pointer
-function hitTest(pixelX, pixelY) {
+// the created circle is inscribed in the square box whose near corner is the pointer-down
+// anchor, sized by the longer of the two drag directions 
+function cornerSelection(anchor, point) {
+  const side = Math.max(Math.abs(point.x - anchor.x), Math.abs(point.y - anchor.y))
+  const radius = Math.max(side / 2, MIN_PM_RADIUS)
+  // Math.sign is 0 before the drag has a direction, which leaves the circle on the anchor
+  const center = clampCenter(
+    anchor.x + Math.sign(point.x - anchor.x) * radius,
+    anchor.y + Math.sign(point.y - anchor.y) * radius
+  )
+  return { pmra: round3(center.x), pmdec: round3(center.y), pm_radius: round3(radius) }
+}
+
+// mouses get a smaller edge grab pixel width than non-mouse touch events
+function edgeGrabPixels(event) {
+  return event.pointerType === 'mouse' ? EDGE_GRAB_PIXELS : EDGE_GRAB_PIXELS_TOUCH
+}
+
+function hitTest(pixelX, pixelY, grabPixels) {
   if (!selectionActive()) return null
   const { centerX, centerY, radiusX, radiusY } = selectionEllipse(properMotionChart)
   if (radiusX <= 0 || radiusY <= 0) return null
+  const minRadius = Math.min(radiusX, radiusY)
+  // on a small circle a full-width grab band would swallow the whole interior and leave
+  // nothing to drag the circle by, so the edge never claims more than the outer half
+  const band = Math.min(grabPixels, minRadius / 2)
   // normalized radial coordinate: 1.0 lies exactly on the ellipse boundary
   const rho = Math.hypot((pixelX - centerX) / radiusX, (pixelY - centerY) / radiusY)
-  if (Math.abs(rho - 1) * Math.min(radiusX, radiusY) <= EDGE_GRAB_PIXELS) return 'edge'
+  if (Math.abs(rho - 1) * minRadius <= band) return 'edge'
   if (rho < 1) return 'inside'
   return null
 }
 
-function onPointerDown(event) {
-  const point = pointerPosition(event)
-  const hit = hitTest(point.pixelX, point.pixelY)
+function onDown(point, event) {
+  const at = toData(point)
+  const hit = hitTest(point.pixelX, point.pixelY, edgeGrabPixels(event))
   if (hit === 'edge') {
     dragMode = 'resize'
   }
   else if (hit === 'inside') {
     dragMode = 'move'
-    dragOffset = { x: point.x - props.selection.pmra, y: point.y - props.selection.pmdec }
+    dragOffset = { x: at.x - props.selection.pmra, y: at.y - props.selection.pmdec }
     properMotionChart.canvas.style.cursor = 'grabbing'
   }
   else if (!selectionActive()) {
-    // dragging on an empty plot creates a selection around the anchor point
+    // dragging on an empty plot creates a selection cornered at the anchor point
     dragMode = 'create'
-    createAnchor = { x: point.x, y: point.y }
-    emitSelection({ pmra: round3(point.x), pmdec: round3(point.y), pm_radius: MIN_PM_RADIUS })
+    createAnchor = clampCenter(at.x, at.y)
+    emitSelection(cornerSelection(createAnchor, createAnchor))
   }
   else {
-    return
+    return false
   }
-  event.target.setPointerCapture?.(event.pointerId)
-  event.preventDefault()
+  return true
 }
 
-function onPointerMove(event) {
-  const point = pointerPosition(event)
-  if (!dragMode) {
-    // hover feedback only
-    const hit = hitTest(point.pixelX, point.pixelY)
-    properMotionChart.canvas.style.cursor =
-      hit === 'edge' ? 'ew-resize' : hit === 'inside' ? 'grab' : selectionActive() ? 'default' : 'crosshair'
-    return
-  }
+function onDrag(point) {
+  const at = toData(point)
   if (dragMode === 'move') {
-    const center = clampCenter(point.x - dragOffset.x, point.y - dragOffset.y)
+    const center = clampCenter(at.x - dragOffset.x, at.y - dragOffset.y)
     emitSelection({ pmra: round3(center.x), pmdec: round3(center.y) })
   }
   else if (dragMode === 'resize') {
     // both axes are mas/yr, so the radius is a plain data-space distance (same as the member predicate)
-    const radius = Math.hypot(point.x - props.selection.pmra, point.y - props.selection.pmdec)
+    const radius = Math.hypot(at.x - props.selection.pmra, at.y - props.selection.pmdec)
     emitSelection({ pm_radius: round3(Math.max(radius, MIN_PM_RADIUS)) })
   }
   else if (dragMode === 'create') {
-    const anchor = clampCenter(createAnchor.x, createAnchor.y)
-    const radius = Math.hypot(point.x - anchor.x, point.y - anchor.y)
-    emitSelection({
-      pmra: round3(anchor.x),
-      pmdec: round3(anchor.y),
-      pm_radius: round3(Math.max(radius, MIN_PM_RADIUS))
-    })
+    emitSelection(cornerSelection(createAnchor, at))
   }
 }
 
-function onPointerUp(event) {
+// Decide the mouse icon based on what mouse is hovering over
+function onHover(point, event) {
+  const hit = hitTest(point.pixelX, point.pixelY, edgeGrabPixels(event))
+  return hit === 'edge' ? 'ew-resize' : hit === 'inside' ? 'grab' : selectionActive() ? 'default' : 'crosshair'
+}
+
+function onUp() {
   dragMode = null
   createAnchor = null
   properMotionChart.canvas.style.cursor = 'default'
-  event.target.releasePointerCapture?.(event.pointerId)
 }
 
-function attachPointerHandlers() {
-  const canvas = properMotionChart.canvas
-  canvas.addEventListener('pointerdown', onPointerDown)
-  canvas.addEventListener('pointermove', onPointerMove)
-  canvas.addEventListener('pointerup', onPointerUp)
-  canvas.addEventListener('pointercancel', onPointerUp)
+// Two-finger pinch resizes the circle by the change in finger separation and moves it by the
+// change in midpoint, so one gesture does what edge-drag and inside-drag do separately. Both
+// are measured in data units.
+function fingerGeometry(points) {
+  const [first, second] = points.map(toData)
+  return {
+    separation: Math.hypot(second.x - first.x, second.y - first.y),
+    midpoint: { x: (first.x + second.x) / 2, y: (first.y + second.y) / 2 }
+  }
 }
 
-function detachPointerHandlers() {
-  const canvas = properMotionChart?.canvas
-  if (!canvas) return
-  canvas.removeEventListener('pointerdown', onPointerDown)
-  canvas.removeEventListener('pointermove', onPointerMove)
-  canvas.removeEventListener('pointerup', onPointerUp)
-  canvas.removeEventListener('pointercancel', onPointerUp)
+function onPinchStart(points) {
+  const pixelSeparation = Math.hypot(points[1].pixelX - points[0].pixelX, points[1].pixelY - points[0].pixelY)
+  // Can only pinch if you already have a circle selection created
+  if (!selectionActive() || pixelSeparation < MIN_PINCH_PIXELS) {
+    pinchStart = null
+    return
+  }
+  pinchStart = {
+    ...fingerGeometry(points),
+    radius: props.selection.pm_radius,
+    center: { x: props.selection.pmra, y: props.selection.pmdec }
+  }
+}
+
+function onPinchMove(points) {
+  if (!pinchStart) return
+  const { separation, midpoint } = fingerGeometry(points)
+  const center = clampCenter(
+    pinchStart.center.x + midpoint.x - pinchStart.midpoint.x,
+    pinchStart.center.y + midpoint.y - pinchStart.midpoint.y
+  )
+  const radius = Math.max(pinchStart.radius * (separation / pinchStart.separation), MIN_PM_RADIUS)
+  emitSelection({ pmra: round3(center.x), pmdec: round3(center.y), pm_radius: round3(radius) })
+}
+
+function onPinchEnd() {
+  pinchStart = null
+}
+
+const { attach: attachPointerHandlers, detach: detachPointerHandlers } = useChartPointerDrag({
+  chart: () => properMotionChart,
+  onDown,
+  onDrag,
+  onHover,
+  onUp,
+  onPinchStart,
+  onPinchMove,
+  onPinchEnd
+})
+
+/* ---- numeric controls ---- */
+
+function setField(field, value) {
+  emit('update:selection', { ...props.selection, [field]: value })
+}
+
+const hasDefaults = computed(() => {
+  const guess = props.membershipGuess
+  return !!guess && Number.isFinite(guess.pmra) && Number.isFinite(guess.pmdec) && Number.isFinite(guess.pm_radius)
+})
+
+function useDefaults() {
+  emit('update:selection', {
+    ...props.selection,
+    pmra: props.membershipGuess.pmra,
+    pmdec: props.membershipGuess.pmdec,
+    pm_radius: props.membershipGuess.pm_radius
+  })
+}
+
+function clearSelection() {
+  emit('update:selection', {
+    ...props.selection,
+    pmra: null,
+    pmdec: null,
+    pm_radius: null
+  })
 }
 
 /* ---- chart lifecycle ---- */
@@ -374,13 +456,50 @@ function createChart() {
       }
     }
   })
+  lastCmd = props.cmd
+  lastLegendShown = !!props.memberFlags
 }
 
-watch(() => [props.cmd, props.selection, props.memberFlags], () => {
-  if (properMotionChart) {
-    updateChart()
+// Keep track of changes in the data
+let lastCmd = null
+let lastLegendShown = null
+let refreshPending = false
+
+function refreshChart() {
+  // If this tab isn't currently displayed, flag the update for the next time this tab becomes active
+  if (!props.active) {
+    refreshPending = true
+    return
   }
-}, { deep: true })
+  refreshPending = false
+  const legendShown = !!props.memberFlags
+  // Checks if the underlying data (cmd) has changed, or legend has changed what is shown/hidden
+  // If not, we can just restyle the points in place. 
+  if (props.cmd === lastCmd && legendShown === lastLegendShown
+      && restyleStarPoints(properMotionChart, pointStyles())) {
+    return
+  }
+  // If so, we need to update the chart, which takes order of magnitude more time
+  lastCmd = props.cmd
+  lastLegendShown = legendShown
+  updateChart()
+}
+
+watch(
+  () => [props.cmd, props.memberFlags, props.selection?.pmra, props.selection?.pmdec, props.selection?.pm_radius],
+  () => {
+    if (properMotionChart) {
+      refreshChart()
+    }
+  }
+)
+
+// When the tab becomes active and visible again, if we had a pending update, refresh the chart now.
+watch(() => props.active, (active) => {
+  if (active && refreshPending && properMotionChart) {
+    refreshChart()
+  }
+})
 
 onMounted(() => {
   createChart()
@@ -395,12 +514,12 @@ onBeforeUnmount(() => {
 <template>
   <div class="wrapper">
     <p class="title-pm">
-      Proper Motions
+      {{ chartTitle }}
       <v-btn
         icon="mdi-download"
         class="download-btn"
         title="Download as PNG"
-        @click="downloadChartAsPNG(properMotionChart, 'proper-motions.png', 'Proper Motions')"
+        @click="downloadChartAsPNG(properMotionChart, 'proper-motions.png', chartTitle)"
       />
     </p>
     <div class="pm-plot-wrapper">
@@ -410,8 +529,58 @@ onBeforeUnmount(() => {
       />
     </div>
     <p class="drag-hint">
-      Drag the circle to move it, drag its edge to resize{{ selectionActive() ? '' : ', or drag on the plot to select the cluster' }}
+      Drag the circle to move it, {{ coarsePointer ? 'pinch or drag its edge' : 'drag its edge' }} to resize{{ selectionActive() ? '' : ', or drag from one corner of the cluster to select it' }}
     </p>
+    <v-sheet
+      class="filter-controls pa-3 d-flex flex-wrap align-center ga-3"
+      color="var(--card-background)"
+      rounded
+    >
+      <v-number-input
+        :model-value="props.selection?.pmra"
+        label="pmRA (mas/yr)"
+        :precision="null"
+        control-variant="hidden"
+        density="compact"
+        hide-details
+        class="filter-input"
+        @update:model-value="setField('pmra', $event)"
+      />
+      <v-number-input
+        :model-value="props.selection?.pmdec"
+        label="pmDec (mas/yr)"
+        :precision="null"
+        control-variant="hidden"
+        density="compact"
+        hide-details
+        class="filter-input"
+        @update:model-value="setField('pmdec', $event)"
+      />
+      <v-number-input
+        :model-value="props.selection?.pm_radius"
+        label="PM radius (mas/yr)"
+        :precision="null"
+        :min="0"
+        control-variant="hidden"
+        density="compact"
+        hide-details
+        class="filter-input"
+        @update:model-value="setField('pm_radius', $event)"
+      />
+      <v-btn
+        text="Use Defaults"
+        size="small"
+        color="var(--primary-interactive)"
+        :disabled="!hasDefaults"
+        @click="useDefaults"
+      />
+      <v-btn
+        text="Clear"
+        size="small"
+        color="var(--cancel)"
+        @click="clearSelection"
+      />
+    </v-sheet>
   </div>
 </template>
 
@@ -428,7 +597,7 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  margin: 0 0 1rem;
+  margin: 0 0 0.5rem;
 }
 .pm-plot-wrapper {
   display: flex;
@@ -449,6 +618,17 @@ onBeforeUnmount(() => {
   font-size: 0.75rem;
   color: var(--info);
   margin: 0.25rem 0 0;
+}
+.filter-controls {
+  flex: 0 0 auto;
+  align-self: center;
+  width: min(100%, 1120px);
+  margin-top: 0.75rem;
+  color: var(--text);
+}
+.filter-input {
+  min-width: 9.5rem;
+  max-width: 11rem;
 }
 .download-btn {
   flex: 0 0 auto;
