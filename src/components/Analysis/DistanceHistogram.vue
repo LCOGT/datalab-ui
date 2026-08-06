@@ -6,8 +6,8 @@ import { getThemeColors, DIMMED_COLOR } from '@/utils/analysisCharts.js'
 import { useHistogramWindowSelect } from '@/utils/histogramWindowSelect.js'
 
 /*
-  Histogram of the Gaia Bailer-Jones geometric distances of the matched stars - a
-  distance-space companion to ParallaxHistogram. Bins are spaced in log10(distance), not linearly.
+  Histogram of the Gaia Bailer-Jones geometric distances of the matched stars.
+  Bins are spaced in log10(distance), not linearly.
   Each star's distance posterior is asymmetric (distance_lo / distance_hi are its 16th / 84th percentiles),
   so instead of dropping the star into a single bin by its point estimate, we spread its unit weight across
   bins as a split-normal in log-distance (sigma below = log(d) - log(d_lo), sigma
@@ -16,10 +16,9 @@ import { useHistogramWindowSelect } from '@/utils/histogramWindowSelect.js'
   into a low broad bump instead of faking a crisp peak. The bars stay as familiar
   integer counts of the point estimates; the curve is the error-aware view.
 
-  Bars inside the [distance_min, distance_max] window keep the primary color, the rest are
-  dimmed. The window is selected with two vertical lines (useHistogramWindowSelect): with no
-  window yet, drag across the plot to draw one out; once it exists, drag either dashed line to
-  adjust it (both bound through v-model:distance-min / distance-max).
+  Keeps track of distance min/max either through drawing or dragging a range on the graph,
+  or by typing exact values in the fields below the graph. These values are emitted out to
+  the parent for use elsewhere.
 */
 
 const props = defineProps({
@@ -34,10 +33,22 @@ const props = defineProps({
   distanceMax: {
     type: Number,
     default: null
+  },
+  // the backend's suggested selection, applied by the Use Defaults button
+  membershipGuess: {
+    type: Object,
+    default: null
+  },
+  // target the operation was run on, shown in the title when known
+  clusterName: {
+    type: String,
+    default: null
   }
 })
 
 const emit = defineEmits(['update:distanceMin', 'update:distanceMax'])
+
+const chartTitle = computed(() => (props.clusterName ? `${props.clusterName}: Distances` : 'Distances'))
 
 const distanceCanvas = ref(null)
 let distanceChart = null
@@ -170,6 +181,22 @@ const barColors = computed(() => {
   })
 })
 
+// the backend only suggests a distance window when the matched stars had usable distances
+const hasDefaults = computed(() => {
+  const guess = props.membershipGuess
+  return !!guess && Number.isFinite(guess.distance_min) && Number.isFinite(guess.distance_max)
+})
+
+function useDefaults() {
+  emit('update:distanceMin', props.membershipGuess.distance_min)
+  emit('update:distanceMax', props.membershipGuess.distance_max)
+}
+
+function clearWindow() {
+  emit('update:distanceMin', null)
+  emit('update:distanceMax', null)
+}
+
 function formatPc(value) {
   if (value >= 10000) return `${Math.round(value / 1000)}k`
   if (value >= 1000) return `${(value / 1000).toFixed(1)}k`
@@ -266,7 +293,7 @@ watch(() => [props.cmd, props.distanceMin, props.distanceMax], () => {
   if (distanceChart) {
     updateChart()
   }
-}, { deep: true })
+})
 
 onMounted(() => {
   createChart()
@@ -281,12 +308,12 @@ onBeforeUnmount(() => {
 <template>
   <div class="wrapper">
     <p class="title-distance">
-      Distances
+      {{ chartTitle }}
       <v-btn
         icon="mdi-download"
         class="download-btn"
         title="Download as PNG"
-        @click="downloadChartAsPNG(distanceChart, 'distances.png', 'Distances')"
+        @click="downloadChartAsPNG(distanceChart, 'distances.png', chartTitle)"
       />
     </p>
     <div class="distance-plot-wrapper">
@@ -300,6 +327,47 @@ onBeforeUnmount(() => {
         ? 'Drag the dashed lines to adjust the distance window'
         : 'Drag across the plot to select a distance window' }}
     </p>
+    <v-sheet
+      class="filter-controls pa-3 d-flex flex-wrap align-center ga-3"
+      color="var(--card-background)"
+      rounded
+    >
+      <v-number-input
+        :model-value="props.distanceMin"
+        label="distance min (pc)"
+        :precision="null"
+        :min="0"
+        control-variant="hidden"
+        density="compact"
+        hide-details
+        class="filter-input"
+        @update:model-value="emit('update:distanceMin', $event)"
+      />
+      <v-number-input
+        :model-value="props.distanceMax"
+        label="distance max (pc)"
+        :precision="null"
+        :min="0"
+        control-variant="hidden"
+        density="compact"
+        hide-details
+        class="filter-input"
+        @update:model-value="emit('update:distanceMax', $event)"
+      />
+      <v-btn
+        text="Use Defaults"
+        size="small"
+        color="var(--primary-interactive)"
+        :disabled="!hasDefaults"
+        @click="useDefaults"
+      />
+      <v-btn
+        text="Clear"
+        size="small"
+        color="var(--cancel)"
+        @click="clearWindow"
+      />
+    </v-sheet>
   </div>
 </template>
 
@@ -316,7 +384,7 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  margin: 0 0 1rem;
+  margin: 0 0 0.5rem;
 }
 .distance-plot-wrapper {
   display: flex;
@@ -337,6 +405,17 @@ onBeforeUnmount(() => {
   font-size: 0.75rem;
   color: var(--info);
   margin: 0.25rem 0 0;
+}
+.filter-controls {
+  flex: 0 0 auto;
+  align-self: center;
+  width: min(100%, 1120px);
+  margin-top: 0.75rem;
+  color: var(--text);
+}
+.filter-input {
+  min-width: 9.5rem;
+  max-width: 11rem;
 }
 .download-btn {
   flex: 0 0 auto;

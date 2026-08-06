@@ -296,6 +296,7 @@ function insertImage(inputKey, image, inputIndex=0) {
     // skip if duplicate or invalid input key
     if (inputImages.includes(image) || !inputImages) return
 
+    // a single image input replaces what it holds, the selector refuses drops onto any other full input
     if(inputImages.length >= description.maximum) {
       inputImages.pop()
     }
