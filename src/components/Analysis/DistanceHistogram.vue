@@ -6,8 +6,8 @@ import { getThemeColors, DIMMED_COLOR } from '@/utils/analysisCharts.js'
 import { useHistogramWindowSelect } from '@/utils/histogramWindowSelect.js'
 
 /*
-  Histogram of the Gaia Bailer-Jones geometric distances of the matched stars - a
-  distance-space companion to ParallaxHistogram. Bins are spaced in log10(distance), not linearly.
+  Histogram of the Gaia Bailer-Jones geometric distances of the matched stars.
+  Bins are spaced in log10(distance), not linearly.
   Each star's distance posterior is asymmetric (distance_lo / distance_hi are its 16th / 84th percentiles),
   so instead of dropping the star into a single bin by its point estimate, we spread its unit weight across
   bins as a split-normal in log-distance (sigma below = log(d) - log(d_lo), sigma
@@ -16,12 +16,9 @@ import { useHistogramWindowSelect } from '@/utils/histogramWindowSelect.js'
   into a low broad bump instead of faking a crisp peak. The bars stay as familiar
   integer counts of the point estimates; the curve is the error-aware view.
 
-  Bars inside the [distance_min, distance_max] window keep the primary color, the rest are
-  dimmed. The window is selected with two vertical lines (useHistogramWindowSelect): with no
-  window yet, drag across the plot to draw one out; once it exists, drag either dashed line to
-  adjust it. The controls underneath are the precision route to the same two numbers. Both
-  routes emit through v-model:distance-min / distance-max and touch nothing else - the parent
-  owns the rest of the membership selection.
+  Keeps track of distance min/max either through drawing or dragging a range on the graph,
+  or by typing exact values in the fields below the graph. These values are emitted out to
+  the parent for use elsewhere.
 */
 
 const props = defineProps({
@@ -292,8 +289,6 @@ function createChart() {
   })
 }
 
-// not deep-watched: cmd is replaced wholesale, and traversing every star object on each
-// frame of a window drag costs more than the redraw it would be guarding
 watch(() => [props.cmd, props.distanceMin, props.distanceMax], () => {
   if (distanceChart) {
     updateChart()
