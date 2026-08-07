@@ -29,9 +29,23 @@ const dataSessionsUrl = store.datalabApiBaseUrl
 const availableOperations = ref({})
 const selectedOperation = ref('')
 const operationInputs = ref({})
+const coordinatePreviewBasename = ref('')
 const MAX_COLOR_CHANNELS = 6
 const MIN_COLOR_CHANNELS = 1
 const FRONTEND_HIDDEN_INPUT_KEYS = new Set(['min_comparisons', 'max_comparisons'])
+const CENTROID_TEXT_HINTS = ['photometry', 'aperture', 'centroid']
+const CENTROID_INPUT_HINTS = new Set([
+  'aperture_radius',
+  'annulus_inner_radius',
+  'annulus_outer_radius',
+  'r_back1',
+  'r_back2',
+])
+const APERTURE_INPUT_KEYS = {
+  apertureRadius: 'aperture_radius',
+  annulusInnerRadius: 'annulus_inner_radius',
+  annulusOuterRadius: 'annulus_outer_radius',
+}
 
 const WIZARD_PAGES = {
   SELECT: 'select',
@@ -174,6 +188,41 @@ const imageInputDescriptions = computed(() => {
   return {}
 })
 
+const selectedFitsInputImages = computed(() => {
+  const selectedImages = []
+  const seenBasenames = new Set()
+
+  for (const inputKey in imageInputDescriptions.value) {
+    collectInputImages(operationInputs.value[inputKey], selectedImages, seenBasenames)
+  }
+
+  return selectedImages
+})
+
+const coordinatePreviewImages = computed(() => {
+  const previewImage = selectedFitsInputImages.value.find((image) => image.basename === coordinatePreviewBasename.value) || selectedFitsInputImages.value[0]
+  return previewImage ? [previewImage] : []
+})
+
+const apertureRadii = computed(() => {
+  return Object.fromEntries(
+    Object.entries(APERTURE_INPUT_KEYS).map(([radiusKey, inputKey]) => [radiusKey, operationInputs.value[inputKey]])
+  )
+})
+
+const operationSupportsCentroiding = computed(() => {
+  const operation = selectedOperation.value
+  const descriptions = inputDescriptions.value || {}
+
+  return hasCentroidTextHint(operation.name) ||
+    hasCentroidTextHint(operation.description) ||
+    Object.entries(descriptions).some(([key, description]) => {
+      return CENTROID_INPUT_HINTS.has(key) ||
+        hasCentroidTextHint(description.name) ||
+        hasCentroidTextHint(description.description)
+    })
+})
+
 onMounted(async () => {
   // Fetch available operations from the server
   const url = dataSessionsUrl + 'available_operations/'
@@ -236,6 +285,7 @@ function submitOperation() {
 function selectOperation(name) {
   selectedOperation.value = availableOperations.value[name]
   operationInputs.value = {}
+  coordinatePreviewBasename.value = ''
   for (const [key, value] of Object.entries(inputDescriptions.value)) {
     if (!shouldRenderInput(key, value)) continue
     if ('default' in value) {
@@ -326,6 +376,18 @@ function removeImage(inputKey, image, inputIndex=0) {
   }
 }
 
+function selectCoordinatePreviewImage(image) {
+  coordinatePreviewBasename.value = image.basename
+}
+
+function updateApertureRadii(radii) {
+  for (const [radiusKey, inputKey] of Object.entries(APERTURE_INPUT_KEYS)) {
+    if (inputKey in operationInputs.value && radiusKey in radii) {
+      operationInputs.value[inputKey] = radii[radiusKey]
+    }
+  }
+}
+
 function addColorChannel() {
   const colorChannels = operationInputs.value.color_channels
   if (colorChannels.length < MAX_COLOR_CHANNELS)
@@ -371,6 +433,23 @@ function isMissingCoordinate(value) {
 
 function shouldRenderInput(inputKey, inputDescription) {
   return Boolean(inputDescription) && !FRONTEND_HIDDEN_INPUT_KEYS.has(inputKey)
+}
+
+function collectInputImages(inputValue, selectedImages, seenBasenames) {
+  console.log('seenBasenames', seenBasenames)
+  console.log('input value', inputValue)
+  for (const image of inputValue) {
+    if (image?.basename && !seenBasenames.has(image.basename)) {
+      selectedImages.push(image)
+      seenBasenames.add(image.basename)
+    }
+  }
+  console.log('selectedImages', selectedImages)
+}
+
+function hasCentroidTextHint(value = '') {
+  const text = value.toLowerCase()
+  return CENTROID_TEXT_HINTS.some((hint) => text.includes(hint))
 }
 </script>
 <template>
@@ -485,6 +564,11 @@ function shouldRenderInput(inputKey, inputDescription) {
           v-for="(inputDescription, inputKey) in sourceInputDescriptions"
           :key="'source-input-widget-' + inputKey"
           v-model="operationInputs[inputKey]"
+          :images="coordinatePreviewImages"
+          :enable-centroiding="operationSupportsCentroiding"
+          :has-image-inputs="Object.keys(imageInputDescriptions).length > 0"
+          :aperture-radii="apertureRadii"
+          @update-aperture-radii="updateApertureRadii"
         />
         <multi-image-input-selector
           :input-descriptions="imageInputDescriptions"
@@ -495,6 +579,7 @@ function shouldRenderInput(inputKey, inputDescription) {
           @set-images="setImages"
           @insert-image="insertImage"
           @remove-image="removeImage"
+          @select-image="selectCoordinatePreviewImage"
           @add-channel="addColorChannel"
           @remove-channel="removeColorChannel"
           @update-channel-color="updateColorChannel"
