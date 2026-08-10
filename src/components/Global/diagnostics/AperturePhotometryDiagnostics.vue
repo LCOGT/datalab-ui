@@ -23,12 +23,10 @@ const normalizedLightCurveRows = computed(() => normalizeLightCurveRows(props.op
 const diagnosticSections = computed(() => {
   return Object.entries(props.operationOutput?.diagnostics || {}).map(([fileName, sectionDiagnostics]) => {
     const rows = sectionDiagnostics
-      .filter(diagnostic => typeof diagnostic === 'string' && diagnostic.startsWith(VALIDATION_ROW_PREFIX))
+      .filter(diagnostic => diagnostic.startsWith(VALIDATION_ROW_PREFIX))
       .map(parseComparisonValidationRow)
-      .filter(Boolean)
 
     const notes = sectionDiagnostics.filter(diagnostic => {
-      if (typeof diagnostic !== 'string') return true
       return !diagnostic.startsWith(VALIDATION_ROW_PREFIX) && !diagnostic.startsWith(VALIDATION_HEADER_PREFIX)
     })
 
@@ -43,13 +41,12 @@ const diagnosticSections = computed(() => {
 })
 
 function diagnosticImageForFile(fileName) {
-  const images = props.operationOutput?.diagnostic_images
-  if (!images || Array.isArray(images) || typeof images !== 'object') return null
+  const images = props.operationOutput?.diagnostic_images || {}
+  if (images[fileName]) return images[fileName]
 
-  const imageUrl = images[fileName] || Object.entries(images).find(([imageFileName]) => {
-    return fitsPathMatches(imageFileName, fileName)
-  })?.[1]
-  return imageUrl || null
+  // Fall back to a fuzzy filename match if we didn't find the exact filename
+  const matchedFileName = Object.keys(images).find(imageFileName => fitsPathMatches(imageFileName, fileName))
+  return images[matchedFileName] || null
 }
 
 function targetForFile(fileName) {
@@ -71,7 +68,6 @@ function fitsPathMatches(fitsPath, fileName) {
 function parseComparisonValidationRow(diagnostic) {
   const rowText = diagnostic.replace(VALIDATION_ROW_PREFIX, '').trim()
   const fields = rowText.split('|').map(field => field.trim())
-  if (fields.length !== 7) return null
 
   return {
     identifier: fields[0],
@@ -82,31 +78,6 @@ function parseComparisonValidationRow(diagnostic) {
     calculatedMagnitude: fields[5],
     catalogMagnitude: fields[6],
   }
-}
-
-function formatDiagnosticTitle(diagnostic) {
-  if (diagnostic === null || diagnostic === undefined) return 'No diagnostic detail'
-  if (typeof diagnostic === 'string') return diagnostic
-  if (typeof diagnostic !== 'object') return String(diagnostic)
-  return diagnostic.message || diagnostic.title || diagnostic.name || 'Diagnostic'
-}
-
-function formatDiagnosticDetails(diagnostic) {
-  if (!diagnostic || typeof diagnostic !== 'object') return ''
-  return Object.entries(diagnostic)
-    .filter(([key]) => !['message', 'title', 'name'].includes(key))
-    .map(([key, value]) => `${formatDiagnosticKey(key)}: ${formatDiagnosticValue(value)}`)
-    .join('\n')
-}
-
-function formatDiagnosticKey(key) {
-  return key.replaceAll('_', ' ')
-}
-
-function formatDiagnosticValue(value) {
-  if (value === null || value === undefined) return 'N/A'
-  if (typeof value === 'object') return JSON.stringify(value)
-  return String(value)
 }
 </script>
 <template>
@@ -219,8 +190,7 @@ function formatDiagnosticValue(value) {
             <v-list-item
               v-for="(diagnostic, index) in section.notes"
               :key="index"
-              :title="formatDiagnosticTitle(diagnostic)"
-              :subtitle="formatDiagnosticDetails(diagnostic)"
+              :title="diagnostic"
               class="diagnostic-item"
             />
           </v-list>
