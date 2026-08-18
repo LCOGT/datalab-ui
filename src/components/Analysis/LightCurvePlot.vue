@@ -390,7 +390,7 @@ onMounted(() => {
         icon="mdi-download"
         class="download-btn"
         title="Download as PNG"
-        @click="downloadChartAsPNG(lightCurveChart, 'light-curve.png', downloadTitle, { preserveDatasetColors: true, legendItems: telescopeLegendItems })"
+        @click="downloadChartAsPNG(lightCurveChart, 'light-curve.png', downloadTitle, { legendItems: telescopeLegendItems })"
       />
     </div>
     <div class="light-curve-plot-wrapper">

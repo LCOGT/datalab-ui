@@ -2,7 +2,7 @@
 import Chart from 'chart.js/auto'
 import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { downloadChartAsPNG } from '@/utils/downloadChart.js'
-import { getThemeColors, DIMMED_COLOR, starPointStyles } from '@/utils/analysisCharts.js'
+import { getThemeColors, DIMMED_COLOR, createStarPointStyles, restyleStarPoints } from '@/utils/analysisCharts.js'
 
 /*
   Color-Magnitude Diagram (observational HR diagram) of a star cluster.
@@ -23,6 +23,11 @@ const props = defineProps({
   memberFlags: {
     type: Array,
     default: null
+  },
+  // true if the plot is in the active tab, false if not to prevent updates
+  active: {
+    type: Boolean,
+    default: true
   },
   // placed isochrone polyline [{x, y}, ...] in observed CMD coordinates, or null when unavailable
   isochrone: {
@@ -49,14 +54,11 @@ const AXIS_PADDING = 0.3
 
 // the legend entries act as toggle chips for these rendering filters. Hidden
 // points keep their chart elements (radius and hit radius zeroed) instead of
-// being filtered out of the data: element counts must stay stable while the
-// membership selection drags, or points flicker (see pointStyles)
+// being filtered out of the data to prevent flickering
 const hiddenCategories = reactive({ members: false, field: false, gaiaOnly: false })
 
 // point objects depend only on the cmd data, never on the membership selection, so
-// their identity is stable while the selection is dragged (cmdIndex keys the star
-// back into memberFlags). Gaia-only stars plot too when they carry synthetic
-// photometry; those without any color/mag live on the membership plots only
+// they are computed only when the underlying cmd data changes
 const points = computed(() => {
   const cmd = props.cmdData.cmd || []
   const plottable = []
@@ -103,7 +105,7 @@ function pointVisible(point) {
 
 // hidden categories (legend toggles) zero a point's radius + hit radius instead of removing it
 function pointStyles() {
-  return starPointStyles(points.value, { memberFlags: props.memberFlags, themeColors, isVisible: pointVisible })
+  return createStarPointStyles(points.value, { memberFlags: props.memberFlags, themeColors, isVisible: pointVisible })
 }
 
 function buildStarDataset() {
@@ -144,7 +146,8 @@ function buildIsochroneDataset() {
 }
 
 // restyle the existing datasets in place by changing their properties depending on the membership group they are in.
-// Replacing them would recreate the chart elements and cause flickering in the points on the plot.
+// Replacing them would recreate the chart elements and cause flickering in the points on the plot. This handles both
+// the star points and isochrone datasets.
 function syncDatasets(datasets) {
   const { colors, radii, shapes, hitRadii } = pointStyles()
   const starDataset = datasets[0]
@@ -351,6 +354,10 @@ function createChart() {
       }
     }
   })
+  lastCmdData = props.cmdData
+  lastIsochrone = props.isochrone
+  lastIsochroneVisible = props.isochroneVisible
+  lastLegendState = legendState()
 }
 
 // a new operation output is a fresh plot: clear the legend toggles
@@ -358,13 +365,56 @@ watch(() => props.cmdData, () => {
   Object.assign(hiddenCategories, { members: false, field: false, gaiaOnly: false })
 })
 
+// Keep track of the data changing to know if we can restyle points or need a complete chart update
+let lastCmdData = null
+let lastIsochrone = null
+let lastIsochroneVisible = null
+let lastLegendState = null
+let refreshPending = false
+
+// the legend's entries change with the member split, not just its visibility
+function legendState() {
+  return `${showLegend()}|${!!props.memberFlags}`
+}
+
+function refreshChart() {
+  // If this tab isn't currently displayed, flag the update for the next time this tab becomes active
+  if (!props.active) {
+    refreshPending = true
+    return
+  }
+  refreshPending = false
+  // If the underlying cmd data changes, or if the isochrone changes or legend elements are shown/hidden
+  // then we need to do a full redraw. Otherwise we can just restyle the points in place.
+  if (props.cmdData === lastCmdData
+      && props.isochrone === lastIsochrone
+      && props.isochroneVisible === lastIsochroneVisible
+      && legendState() === lastLegendState
+      && restyleStarPoints(hrDiagramChart, pointStyles())) {
+    return
+  }
+  lastCmdData = props.cmdData
+  lastIsochrone = props.isochrone
+  lastIsochroneVisible = props.isochroneVisible
+  lastLegendState = legendState()
+  updateChart()
+}
+
 watch(() => [props.cmdData, props.memberFlags, props.isochrone, props.isochroneVisible], () => {
+  // Initial data load creates the chart, but future data updates just refresh it
   if (hrDiagramChart && props.cmdData.cmd) {
-    updateChart()
+    refreshChart()
   } else if (hrDiagramCanvas.value) {
     createChart()
   }
-}, { deep: true })
+})
+
+// When the tab becomes active and visible again, if we had a pending update, refresh the chart now.
+watch(() => props.active, (active) => {
+  if (active && refreshPending && hrDiagramChart) {
+    refreshChart()
+  }
+})
 
 onMounted(() => {
   createChart()
@@ -404,7 +454,7 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  margin: 0 0 1rem;
+  margin: 0 0 0.5rem;
 }
 .hr-diagram-plot-wrapper {
   display: flex;

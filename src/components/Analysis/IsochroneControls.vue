@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue'
-import { distanceParsecs } from '@/utils/isochrones.js'
+import { distanceParsecs, MU_MIN, MU_MAX, MU_STEP } from '@/utils/isochrones.js'
 
 /*
   Slider controls for the manual isochrone fit: distance modulus and reddening E(B-V) move
@@ -29,9 +29,6 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue'])
 
-const MU_MIN = 0
-const MU_MAX = 18
-const MU_STEP = 0.05
 const EBV_MIN = 0
 const EBV_MAX = 2
 const EBV_STEP = 0.01
@@ -68,18 +65,6 @@ const ageText = computed(() => {
     color="var(--card-background)"
     rounded
   >
-    <div class="controls-header">
-      <span class="controls-title">ISOCHRONE FIT</span>
-      <v-switch
-        :model-value="props.modelValue.show"
-        label="Show isochrone"
-        color="var(--primary-interactive)"
-        density="compact"
-        hide-details
-        class="show-switch"
-        @update:model-value="setField('show', $event)"
-      />
-    </div>
     <div class="sliders">
       <div class="slider-block">
         <div class="slider-head">
@@ -156,20 +141,6 @@ const ageText = computed(() => {
   color: var(--text);
   width: min(100%, 1120px);
   align-self: center;
-}
-.controls-header {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-.controls-title {
-  font-weight: 600;
-  letter-spacing: 0.05rem;
-  font-size: 0.9rem;
-}
-.show-switch {
-  flex: 0 0 auto;
 }
 .sliders {
   display: flex;
