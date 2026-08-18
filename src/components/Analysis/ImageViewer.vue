@@ -35,6 +35,11 @@ const props = defineProps({
     required: false,
     default: null,
   },
+  aperturePixelRadii: {
+    type: Object,
+    required: false,
+    default: null,
+  },
   apertureCenterCoordinate: {
     type: Object,
     required: false,
@@ -59,6 +64,10 @@ const props = defineProps({
   reloadOnImageUrlChange: {
     type: Boolean,
     default: true,
+  },
+  preserveApertureRadiiOnSelect: {
+    type: Boolean,
+    default: false,
   }
 })
 
@@ -170,6 +179,10 @@ watch(() => props.centroidRegion, (newRegion) => {
 }, { deep: true })
 
 watch(() => props.apertureRadii, () => {
+  syncCentroidOverlay(props.centroidRegion)
+}, { deep: true })
+
+watch(() => props.aperturePixelRadii, () => {
   syncCentroidOverlay(props.centroidRegion)
 }, { deep: true })
 
@@ -503,8 +516,8 @@ function syncCentroidToolControl() {
   centroidToolContainer?.classList.toggle('active', centroidToolActive.value)
 }
 
-function emitCentroidRegionUpdated(region) {
-  emit('centroidRegionUpdated', region ? { ...region } : null)
+function emitCentroidRegionUpdated(region, reason = null) {
+  emit('centroidRegionUpdated', region ? { ...region } : null, reason)
 }
 
 function centroidDistance(center, point) {
@@ -533,6 +546,9 @@ function buildCentroidRegion(center, rawRadius) {
     width: imageDimensions.value.width,
     height: imageDimensions.value.height,
     ready: true,
+  }
+  if (props.preserveApertureRadiiOnSelect && props.wcsSolution && hasApertureValues()) {
+    return apertureRegionFromRadii(region)
   }
   const maxRadius = maxImageRadius(region) / (CENTROID_DEFAULTS.r_back2 / CENTROID_DEFAULTS.radius)
   const radius = Math.min(Math.max(rawRadius, MIN_CENTROID_RADIUS), maxRadius)
@@ -619,7 +635,7 @@ function handleCentroidStart(event) {
   centroidDrawStart = event.latlng
   const region = buildCentroidRegion(event.latlng, MIN_CENTROID_RADIUS)
   syncCentroidOverlay(region, false)
-  emitCentroidRegionUpdated(region)
+  emitCentroidRegionUpdated(region, 'select')
 }
 
 function handleCentroidDrag(event) {
@@ -633,7 +649,7 @@ function handleCentroidDrag(event) {
   )
 
   syncCentroidOverlay(region, false)
-  emitCentroidRegionUpdated(region)
+  emitCentroidRegionUpdated(region, 'select')
 }
 
 function handleCentroidEnd() {
@@ -744,7 +760,7 @@ function handleApertureRadiusDrag(latlng) {
   const resizedRegion = resizeApertureRegion(region, activeRadiusHandle, centroidDistance(center, latlng))
 
   syncCentroidOverlay(resizedRegion, false)
-  emitCentroidRegionUpdated(resizedRegion)
+  emitCentroidRegionUpdated(resizedRegion, 'resize')
 }
 
 function handleApertureRadiusEnd(latlng) {
@@ -888,8 +904,16 @@ function buildDisplayApertureRegion(region) {
   const coordinateRegion = apertureCenterRegion()
   const baseRegion = coordinateRegion || region
 
-  if (!baseRegion || !props.wcsSolution || !hasApertureRadii()) {
+  if (!baseRegion || !props.wcsSolution || !hasApertureValues()) {
     return baseRegion
+  }
+
+  return apertureRegionFromRadii(baseRegion)
+}
+
+function apertureRegionFromRadii(baseRegion) {
+  if (hasAperturePixelRadii()) {
+    return apertureRegionFromPixelRadii(baseRegion)
   }
 
   const pixelScale = imagePixelScaleArcsec(props.wcsSolution, imageDimensions.value.width, imageDimensions.value.height)
@@ -902,8 +926,25 @@ function buildDisplayApertureRegion(region) {
   }
 }
 
+function apertureRegionFromPixelRadii(baseRegion) {
+  return {
+    ...baseRegion,
+    radius: props.aperturePixelRadii.apertureRadius,
+    r_back1: props.aperturePixelRadii.annulusInnerRadius,
+    r_back2: props.aperturePixelRadii.annulusOuterRadius,
+  }
+}
+
+function hasApertureValues() {
+  return hasAperturePixelRadii() || hasApertureRadii()
+}
+
 function hasApertureRadii() {
   return props.apertureRadii && APERTURE_RADIUS_KEYS.every((key) => props.apertureRadii[key] != null)
+}
+
+function hasAperturePixelRadii() {
+  return props.aperturePixelRadii && APERTURE_RADIUS_KEYS.every((key) => props.aperturePixelRadii[key] != null)
 }
 
 function apertureCenterRegion() {
