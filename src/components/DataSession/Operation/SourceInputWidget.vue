@@ -8,6 +8,13 @@ import { useImageScaling } from '@/components/Global/Scaling/useImageScaling'
 import { fetchApiCall } from '@/utils/api'
 import { ensureLargeCachedUrl } from '@/utils/common'
 import { imagePixelScaleArcsec } from '@/utils/wcs'
+import { dateToMjd } from '@/utils/formatDate'
+
+const APERTURE_RADIUS_KEYS = {
+  apertureRadius: 'radius',
+  annulusInnerRadius: 'r_back1',
+  annulusOuterRadius: 'r_back2',
+}
 import {
   coordinateInputToDegrees,
   raDegreesToSexagesimal,
@@ -28,6 +35,10 @@ const source = defineModel({
 })
 
 const props = defineProps({
+  title: {
+    type: String,
+    default: '',
+  },
   images: {
     type: Array,
     default: () => [],
@@ -44,8 +55,44 @@ const props = defineProps({
     type: Object,
     default: null,
   },
+  aperturePixelRadii: {
+    type: Object,
+    default: null,
+  },
+  syncPixelRadii: {
+    type: Boolean,
+    default: false,
+  },
+  apertureInputEditSequence: {
+    type: Number,
+    default: 0,
+  },
+  nameLookup: {
+    type: Boolean,
+    default: true,
+  },
+  includeMjd: {
+    type: Boolean,
+    default: false,
+  },
+  resetOnImageChange: {
+    type: Boolean,
+    default: false,
+  },
+  preserveApertureRadiiOnSelect: {
+    type: Boolean,
+    default: false,
+  },
+  targetPositionAction: {
+    type: String,
+    default: '',
+  },
+  coordinateReadOnly: {
+    type: Boolean,
+    default: false,
+  },
 })
-const emit = defineEmits(['updateApertureRadii'])
+const emit = defineEmits(['updateApertureRadii', 'updateAperturePixelRadii'])
 
 const loading = ref(false)
 const targetNameError = ref('')
@@ -72,6 +119,8 @@ const {
 const fitsImages = computed(() => props.images.filter((image) => image.basename))
 const selectedImage = computed(() => fitsImages.value[0])
 const displayImageUrl = computed(() => scaledImageUrl.value || selectedImageUrl.value)
+const coordinateColumnWidth = computed(() => props.nameLookup ? 4 : 6)
+const enableTargetSelection = computed(() => props.enableCentroiding && !props.coordinateReadOnly)
 
 const apertureCenterCoordinate = computed(() => {
   if (source.value.ra == null || source.value.dec == null) return null
@@ -115,6 +164,9 @@ watch(selectedImage, async (image) => {
     wcsSolution.value = null
     centroidRegion.value = null
     centroidResult.value = null
+    if (props.resetOnImageChange) {
+      source.value = {}
+    }
     resetImageScaling()
     return
   }
@@ -123,6 +175,10 @@ watch(selectedImage, async (image) => {
   wcsSolution.value = null
   centroidRegion.value = null
   centroidResult.value = null
+  syncImageSource(image)
+  if (props.targetPositionAction) {
+    requestAnalysis(props.targetPositionAction)
+  }
   await loadScaledImage(image, selectedImageUrl.value)
 }, { immediate: true })
 
@@ -130,9 +186,17 @@ watch(() => props.apertureRadii, () => {
   syncCentroidRegionRadii()
 }, { deep: true })
 
+watch(() => props.aperturePixelRadii, () => {
+  syncCentroidRegionRadii()
+}, { deep: true })
+
+watch(() => props.apertureInputEditSequence, () => {
+  updateSharedPixelRadii()
+})
+
 watch(wcsSolution, () => {
   syncCentroidRegionRadii()
-  if (centroidRegion.value) {
+  if (centroidRegion.value && !props.preserveApertureRadiiOnSelect) {
     updateApertureInputs(centroidRegion.value)
   }
 })
@@ -159,6 +223,15 @@ function handleAnalysisOutput(response, action) {
     return
   }
 
+  if (action === props.targetPositionAction) {
+    source.value = {
+      ...source.value,
+      ra: response.ra,
+      dec: response.dec,
+    }
+    return
+  }
+
   if (action === 'centroiding') {
     centroidResult.value = response
     if (!response.success) return
@@ -177,16 +250,25 @@ function handleAnalysisOutput(response, action) {
   }
 }
 
-function updateCentroidRegion(region) {
+function updateCentroidRegion(region, reason) {
   centroidRegion.value = region
   centroidResult.value = null
 
-  if (region.ra != null && region.dec != null) {
+  if (!props.coordinateReadOnly && region.ra != null && region.dec != null) {
     source.value.ra = region.ra
     source.value.dec = region.dec
   }
 
-  updateApertureInputs(region)
+  if (props.preserveApertureRadiiOnSelect && reason === 'resize') {
+    updateAperturePixels(region)
+  }
+
+  if (!props.preserveApertureRadiiOnSelect || reason === 'resize') {
+    updateApertureInputs(region)
+  }
+  else if (props.syncPixelRadii && props.apertureRadii) {
+    updateSharedPixelRadii(region)
+  }
 }
 
 function requestCentroid() {
@@ -207,41 +289,105 @@ function requestCentroid() {
 function updateApertureInputs(region) {
   if (!wcsSolution.value) return
 
-  emit('updateApertureRadii', {
-    apertureRadius: arcsecRadius(region.radius, region),
-    annulusInnerRadius: arcsecRadius(region.r_back1, region),
-    annulusOuterRadius: arcsecRadius(region.r_back2, region),
-  })
+  emit('updateApertureRadii', apertureRadiiFromRegion(region))
 }
 
 function syncCentroidRegionRadii() {
-  if (!centroidRegion.value || !props.apertureRadii || !wcsSolution.value) return
+  if (!centroidRegion.value) return
+
+  const radii = centroidPixelRadii()
+  if (!radii) return
 
   centroidRegion.value = {
     ...centroidRegion.value,
-    radius: pixelRadius(props.apertureRadii.apertureRadius),
-    r_back1: pixelRadius(props.apertureRadii.annulusInnerRadius),
-    r_back2: pixelRadius(props.apertureRadii.annulusOuterRadius),
+    radius: radii.apertureRadius,
+    r_back1: radii.annulusInnerRadius,
+    r_back2: radii.annulusOuterRadius,
   }
 }
 
-function arcsecRadius(radius, region) {
-  return Math.round(radius * pixelScale(region) * 1000) / 1000
+function updateAperturePixels(region) {
+  emit('updateAperturePixelRadii', pixelRadiiFromRegion(region))
 }
 
-function pixelRadius(radius) {
-  return radius / pixelScale(centroidRegion.value)
+function updateSharedPixelRadii(region = centroidRegion.value) {
+  if (!props.syncPixelRadii || !region || !props.apertureRadii || !wcsSolution.value) return
+
+  emit('updateAperturePixelRadii', aperturePixelRadiiFromInputs(region))
+}
+
+function centroidPixelRadii() {
+  if (props.aperturePixelRadii) {
+    return props.aperturePixelRadii
+  }
+  if (!props.apertureRadii || !wcsSolution.value) {
+    return null
+  }
+  return aperturePixelRadiiFromInputs(centroidRegion.value)
+}
+
+function apertureRadiiFromRegion(region) {
+  return Object.fromEntries(
+    Object.entries(APERTURE_RADIUS_KEYS).map(([radiusKey, regionKey]) => {
+      return [radiusKey, arcsecRadius(region[regionKey], region)]
+    })
+  )
+}
+
+function pixelRadiiFromRegion(region) {
+  return Object.fromEntries(
+    Object.entries(APERTURE_RADIUS_KEYS).map(([radiusKey, regionKey]) => {
+      return [radiusKey, region[regionKey]]
+    })
+  )
+}
+
+function aperturePixelRadiiFromInputs(region) {
+  return Object.fromEntries(
+    Object.keys(APERTURE_RADIUS_KEYS).map((radiusKey) => {
+      return [radiusKey, pixelRadius(props.apertureRadii[radiusKey], region)]
+    })
+  )
+}
+
+function arcsecRadius(radius, region) {
+  return Math.round(radius * pixelScale(region) * 100) / 100
+}
+
+function pixelRadius(radius, region) {
+  return radius / pixelScale(region)
 }
 
 function pixelScale(region) {
   return imagePixelScaleArcsec(wcsSolution.value, region.width, region.height)
 }
 
+function syncImageSource(image) {
+  if (props.resetOnImageChange) {
+    source.value = props.includeMjd ? { mjd: dateToMjd(image.observation_date) } : {}
+    return
+  }
+
+  if (props.includeMjd) {
+    source.value = {
+      ...source.value,
+      mjd: dateToMjd(image.observation_date),
+    }
+  }
+}
+
 </script>
 <template>
   <div class="source-input">
+    <div
+      v-if="title"
+      class="source-title"
+    >
+      {{ title }}
+    </div>
     <v-row>
       <v-col
+        v-if="props.nameLookup"
         cols="12"
         md="4"
         class="pb-0"
@@ -258,25 +404,27 @@ function pixelScale(region) {
       </v-col>
       <v-col
         cols="12"
-        md="4"
+        :md="coordinateColumnWidth"
         class="pb-0"
       >
         <v-text-field
           :model-value="source.ra"
           label="Right Ascension"
           type="number"
+          :readonly="coordinateReadOnly"
           @update:model-value="source.ra = $event === '' ? null : Number($event)"
         />
       </v-col>
       <v-col
         cols="12"
-        md="4"
+        :md="coordinateColumnWidth"
         class="pb-0"
       >
         <v-text-field
           :model-value="source.dec"
           label="Declination"
           type="number"
+          :readonly="coordinateReadOnly"
           @update:model-value="source.dec = $event === '' ? null : Number($event)"
         />
       </v-col>
@@ -302,13 +450,15 @@ function pixelScale(region) {
           compact
           :enable-catalog="false"
           :enable-line-profile="false"
-          :enable-centroid-tool="enableCentroiding"
+          :enable-centroid-tool="enableTargetSelection"
           :image-url="displayImageUrl"
           :reload-on-image-url-change="false"
           :wcs-solution="wcsSolution"
           :centroid-region="centroidRegion"
           :aperture-radii="apertureRadii"
+          :aperture-pixel-radii="aperturePixelRadii"
           :aperture-center-coordinate="apertureCenterCoordinate"
+          :preserve-aperture-radii-on-select="preserveApertureRadiiOnSelect"
           @analysis-action="requestAnalysis"
           @centroid-region-updated="updateCentroidRegion"
         />
@@ -335,6 +485,7 @@ function pixelScale(region) {
             <span>Outer annulus: {{ centroidRegion.r_back2.toFixed(2) }} px</span>
           </div>
           <v-checkbox
+            v-if="!coordinateReadOnly"
             v-model="usePlaneBackground"
             color="var(--primary-interactive)"
             density="comfortable"
@@ -342,6 +493,7 @@ function pixelScale(region) {
             label="Plane background removal"
           />
           <v-btn
+            v-if="!coordinateReadOnly"
             class="mt-3"
             color="var(--primary-interactive)"
             :disabled="!centroidRegion?.ready"
@@ -386,6 +538,12 @@ function pixelScale(region) {
 
 .source-picker-row {
   margin-top: 0.25rem;
+}
+
+.source-title {
+  color: var(--text);
+  font-weight: 600;
+  margin: 0.5rem 0;
 }
 
 .source-side-panel {
