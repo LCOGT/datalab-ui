@@ -48,14 +48,14 @@ const membership = ref({ ...emptyMembership })
   a star has to pass each cut that is set.
 */
 const pmCutActive = computed(() =>
-  ['pmra', 'pmdec', 'pm_radius'].every((field) => Number.isFinite(membership.value[field]))
+  ['pmra', 'pmdec', 'pm_radius'].every((field) => membership.value[field] !== null)
 )
 const distanceCutActive = computed(() =>
-  Number.isFinite(membership.value.distance_min) && Number.isFinite(membership.value.distance_max)
+  membership.value.distance_min !== null && membership.value.distance_max !== null
 )
 // Parallax is currently not shown, but remains here if we want to add it later
 const parallaxCutActive = computed(() =>
-  Number.isFinite(membership.value.parallax_min) && Number.isFinite(membership.value.parallax_max)
+  membership.value.parallax_min !== null && membership.value.parallax_max !== null
 )
 
 const membershipActive = computed(() => pmCutActive.value || distanceCutActive.value || parallaxCutActive.value)
@@ -177,7 +177,7 @@ function setDistanceBound(field, value) {
     return
   }
   // a half-drawn or cleared window has no midpoint; leave the line where it is
-  const mu = Number.isFinite(min) && Number.isFinite(max) ? distanceModulusFromParsecs((min + max) / 2) : null
+  const mu = min !== null && max !== null ? distanceModulusFromParsecs((min + max) / 2) : null
   if (mu !== null) {
     isochroneFit.value.mu = snapDistanceModulus(mu)
   }

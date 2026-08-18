@@ -181,10 +181,10 @@ const barColors = computed(() => {
   })
 })
 
-// the backend only suggests a distance window when the matched stars had usable distances
+// the backend only suggests a distance window when the matched stars had usable distances,
 const hasDefaults = computed(() => {
   const guess = props.membershipGuess
-  return !!guess && Number.isFinite(guess.distance_min) && Number.isFinite(guess.distance_max)
+  return !!guess && guess.distance_min !== null
 })
 
 function useDefaults() {

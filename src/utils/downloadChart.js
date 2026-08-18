@@ -42,6 +42,7 @@ export async function downloadChartAsPNG(chart, filename, titleText, options = {
 
   // Export as PNG: page background, then the chart canvas, then any hand-drawn legend
   const scale = chart.currentDevicePixelRatio || 1
+  // Default legend width of 190 pixels * scale if we have a legend at all
   const legendWidth = legendItems.length ? 190 * scale : 0
   const exportCanvas = document.createElement('canvas')
   const ctx = exportCanvas.getContext('2d')

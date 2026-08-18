@@ -139,8 +139,8 @@ function legendLabels() {
 
 function selectionActive() {
   const selection = props.selection
-  return selection && Number.isFinite(selection.pmra) && Number.isFinite(selection.pmdec)
-    && Number.isFinite(selection.pm_radius)
+  return selection && selection.pmra !== null && selection.pmdec !== null
+    && selection.pm_radius !== null
 }
 
 // the selection circle's center and radii in pixel space (an ellipse, since the scales differ).
