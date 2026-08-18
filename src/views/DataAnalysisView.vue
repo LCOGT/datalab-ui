@@ -1,6 +1,7 @@
 <script setup>
 import { computed, watch, ref } from 'vue'
 import FilterBadge from '@/components/Global/FilterBadge.vue'
+import HRDiagramOutput from '@/components/Analysis/HRDiagramOutput.vue'
 import LightCurvePlot from '@/components/Analysis/LightCurvePlot.vue'
 import PeriodogramPlot from '@/components/Analysis/PeriodogramPlot.vue'
 import PhasedLightCurvePlot from '@/components/Analysis/PhasedLightCurvePlot.vue'
@@ -19,6 +20,8 @@ const periodogramData = ref({})
 const variableStarData = ref({})
 const bestPeriod = ref(null)
 const selectedPoints = ref([])
+// each output type has its own detection key, dispatching to the right set of plots
+const hasCMD = computed(() => Array.isArray(props.data?.cmd))
 const hasLightCurve = computed(() => Array.isArray(props.data?.light_curve) && props.data.light_curve.length > 0)
 const hasPeriodogram = computed(() => Array.isArray(periodogramData.value.frequencies) && periodogramData.value.frequencies.length > 0)
 
@@ -114,7 +117,9 @@ const handlePeriodSelected = (period, freq, pow, bestPeriodFromPlot) => {
 }
 
 watch(() => props.data, () => {
-  assignVariableStarData()
+  if (hasLightCurve.value || hasPeriodogram.value) {
+    assignVariableStarData()
+  }
 },
 { immediate: true }
 )
@@ -123,6 +128,9 @@ const title = computed(() => {
   let text = props.data?.operationName || 'Unknown'
   if (props.data?.source) {
     text += ': ' + props.data.source?.name
+  }
+  else if (props.data?.cluster?.name) {
+    text += ': ' + props.data.cluster.name
   }
   return text
 })
@@ -139,6 +147,18 @@ const title = computed(() => {
         :filter="props.data.filter"
         class="ml-2"
       />
+      <template v-if="hasCMD">
+        <filter-badge
+          v-if="props.data.blue_filter"
+          :filter="props.data.blue_filter"
+          class="ml-2"
+        />
+        <filter-badge
+          v-if="props.data.red_filter"
+          :filter="props.data.red_filter"
+          class="ml-1"
+        />
+      </template>
       <v-toolbar-title :text="title" />
       <v-btn
         icon="mdi-close"
@@ -147,12 +167,19 @@ const title = computed(() => {
       />
     </v-toolbar>
     <template v-if="props.data">
+      <h-r-diagram-output
+        v-if="hasCMD"
+        :data="props.data"
+      />
       <div
+        v-else
         class="analysis-content"
       >
-        <div class="analysis-row">
+        <div
+          v-if="hasLightCurve"
+          class="analysis-row"
+        >
           <light-curve-plot
-            v-if="hasLightCurve"
             :variable-star-data="variableStarData"
             class="light-curve-plot"
           />
@@ -221,5 +248,4 @@ const title = computed(() => {
 .phased-analysis-row {
   height: clamp(420px, 54vh, 640px);
 }
-
 </style>

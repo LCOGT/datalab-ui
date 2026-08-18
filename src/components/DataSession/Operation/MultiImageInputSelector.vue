@@ -96,13 +96,51 @@ function filterOptionsForInputKey(inputKey) {
   }
 }
 
+// The most images an input box accepts, null when the input description sets no limit
+function maximumForInputKey(inputKey) {
+  if (colorChannelMode.value) {
+    return null
+  }
+  const maximum = props.inputDescriptions[inputKey].maximum
+  return maximum == null ? null : maximum
+}
+
+function isInputFull(inputKey) {
+  const maximum = maximumForInputKey(inputKey)
+  return maximum != null && props.inputImages[inputKey].length >= maximum
+}
+
+// An input that holds a single image swaps it out on drop rather than refusing the drop
+function replacesOnInsert(inputKey) {
+  return maximumForInputKey(inputKey) === 1
+}
+
+function matchesSelectedFilter(inputKey, image) {
+  if (!props.inputDescriptions[inputKey].single_filter) {
+    return true
+  }
+  return image.filter == selectedFilter.value[inputKey] || image.primary_optical_element == selectedFilter.value[inputKey]
+}
+
+// vue-easy-dnd asks this before a drop is allowed, so a full multi image input refuses the
+// image mid-drag rather than dropping it and silently discarding another one
+function acceptsImage(inputKey, image) {
+  if (colorChannelMode.value) {
+    return true
+  }
+  if (props.inputImages[inputKey].includes(image)) {
+    return false
+  }
+  if (isInputFull(inputKey) && !replacesOnInsert(inputKey)) {
+    return false
+  }
+  return matchesSelectedFilter(inputKey, image)
+}
+
 // Image dragged into the selected images area
 function insert(inputKey, index, event) {
-  if (inputKey !== 'all' && !props.inputImages[inputKey].includes(event.data)) {
-    // Also check if the inputKey is single_filter mode and already has another filter set
-    if (!props.inputDescriptions[inputKey].single_filter || event.data.filter == selectedFilter.value[inputKey] || event.data.primary_optical_element == selectedFilter.value[inputKey]) {
-      emit('insertImage', inputKey, event.data, index)
-    }
+  if (inputKey !== 'all' && acceptsImage(inputKey, event.data)) {
+    emit('insertImage', inputKey, event.data, index)
   }
 }
 
@@ -142,6 +180,10 @@ function updateSelectedImagesForFilter(inputKey, filter) {
   let filteredImages = fitsImages.value.filter(image => {
     return image.filter == filter || image.primary_optical_element == filter
   })
+  const maximum = maximumForInputKey(inputKey)
+  if (maximum != null) {
+    filteredImages = filteredImages.slice(0, maximum)
+  }
   emit('setImages', inputKey, filteredImages)
 }
 
@@ -181,6 +223,7 @@ function updateSelectedImagesForFilter(inputKey, filter) {
             mode="cut"
             :row="true"
             class="drop-section"
+            :accepts-data="(data) => acceptsImage(inputKey, data)"
             @insert="insert(inputKey, index, $event)"
           >
             <template #item="{item}">
@@ -210,13 +253,18 @@ function updateSelectedImagesForFilter(inputKey, filter) {
               />
             </template>
           </drop-list>
+          <div
+            v-if="!colorChannelMode"
+            class="input-count"
+          >
+            {{ props.inputImages[inputKey].length }}
+          </div>
           <v-alert
             v-if="props.inputDescriptions[inputKey].minimum && props.inputImages[inputKey].length < props.inputDescriptions[inputKey].minimum"
             density="compact"
             :text="'Requires at least ' + props.inputDescriptions[inputKey].minimum + ' images'"
             type="warning"
-          >
-          </v-alert>
+          />
           <v-color-picker
             v-if="colorChannelMode"
             :model-value="props.inputImages[inputKey][index].color"
@@ -310,6 +358,12 @@ function updateSelectedImagesForFilter(inputKey, filter) {
 
 .list-image {
   display: inline-block;
+}
+
+.input-count {
+  font-size: 0.8rem;
+  opacity: 0.7;
+  text-align: right;
 }
 
 .drop-section {
