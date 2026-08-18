@@ -555,6 +555,10 @@ function centroidRegionKey(preview) {
   return preview.inputKey + '-' + preview.index
 }
 
+function updateAperturePixelRadii(radii) {
+  movingAperturePixelRadii.value = { ...radii }
+}
+
 function addColorChannel() {
   const colorChannels = operationInputs.value.color_channels
   if (colorChannels.length < MAX_COLOR_CHANNELS)
@@ -601,6 +605,18 @@ function isValidNumberInput(value, type) {
 
 function isMissingCoordinate(value) {
   return value === undefined || value === null || value === ''
+}
+
+function isTargetPositionsComplete(input, inputDescription) {
+  const minimum = inputDescription.minimum || 1
+  if (!Array.isArray(input) || input.length < minimum) return false
+
+  return input.slice(0, minimum).every((position) => {
+    return position &&
+      !isMissingCoordinate(position.ra) &&
+      !isMissingCoordinate(position.dec) &&
+      (minimum === 1 || !isMissingCoordinate(position.mjd))
+  })
 }
 
 function isTargetPositionsComplete(input, inputDescription) {
