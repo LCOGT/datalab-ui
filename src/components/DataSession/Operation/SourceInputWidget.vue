@@ -15,11 +15,21 @@ const APERTURE_RADIUS_KEYS = {
   annulusInnerRadius: 'r_back1',
   annulusOuterRadius: 'r_back2',
 }
+import {
+  coordinateInputToDegrees,
+  raDegreesToSexagesimal,
+  decDegreesToSexagesimal,
+  raSexagesimalToDegrees,
+  decSexagesimalToDegrees,
+} from '@/utils/coordinates'
 
 const configStore = useConfigurationStore()
 const thumbnailsStore = useThumbnailsStore()
 
 const source = defineModel({
+  type: Object,
+  required: true,
+}{
   type: Object,
   required: true,
 })
@@ -133,11 +143,11 @@ async function performTargetLookup() {
         if (result.error) {
           targetNameError.value = result.error
         }
-        if (result.dec) {
-          source.value.dec = result.dec
+        if (result.ra !== undefined) {
+          source.value.ra = raDegreesToSexagesimal(coordinateInputToDegrees(result.ra, raSexagesimalToDegrees))
         }
-        if (result.ra) {
-          source.value.ra = result.ra
+        if (result.dec !== undefined) {
+          source.value.dec = decDegreesToSexagesimal(coordinateInputToDegrees(result.dec, decSexagesimalToDegrees))
         }
         loading.value = false
       }
