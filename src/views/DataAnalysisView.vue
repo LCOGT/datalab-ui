@@ -50,6 +50,7 @@ function assignVariableStarData() {
       fluxFallback: data.flux_fallback,
       excludedImages: data.excluded_images || [],
       source: data.operationInputData?.source || data.source,
+      targetPositions: data.target_positions,
       aperture: {
         apertureRadius: data.aperture_radius || data.operationInputData?.aperture_radius,
         annulusInnerRadius: data.annulus_inner_radius || data.operationInputData?.annulus_inner_radius,
