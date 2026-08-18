@@ -30,6 +30,9 @@ const availableOperations = ref({})
 const selectedOperation = ref('')
 const operationInputs = ref({})
 const coordinatePreviewBasename = ref('')
+const movingAperturePixelRadii = ref(null)
+const apertureInputEditSequence = ref(0)
+const nonSiderealPreviewSource = ref({})
 const MAX_COLOR_CHANNELS = 6
 const MIN_COLOR_CHANNELS = 1
 const FRONTEND_HIDDEN_INPUT_KEYS = new Set(['min_comparisons', 'max_comparisons'])
@@ -46,6 +49,10 @@ const APERTURE_INPUT_KEYS = {
   annulusInnerRadius: 'annulus_inner_radius',
   annulusOuterRadius: 'annulus_outer_radius',
 }
+const APERTURE_INPUT_NAMES = new Set(Object.values(APERTURE_INPUT_KEYS))
+const TARGET_POSITIONS_TYPE = 'target_positions'
+const NON_SIDEREAL_APERTURE_PHOTOMETRY_NAME = 'Non-Sidereal Aperture Photometry'
+const TARGET_POSITION_ACTION = 'target-position'
 
 const WIZARD_PAGES = {
   SELECT: 'select',
@@ -94,6 +101,18 @@ const sourceInputDescriptions = computed(() => {
     }
   }
   return sourceDescriptions
+})
+
+const targetPositionInputDescriptions = computed(() => {
+  let targetDescriptions = {}
+  if (inputDescriptions.value) {
+    for ( const [inputKey, inputDescription] of Object.entries(inputDescriptions.value)) {
+      if (shouldRenderInput(inputKey, inputDescription) && inputDescription.type == TARGET_POSITIONS_TYPE) {
+        targetDescriptions[inputKey] = {...inputDescription}
+      }
+    }
+  }
+  return targetDescriptions
 })
 
 // Text for the forward button changes based on the current page
@@ -154,6 +173,9 @@ const isInputComplete = computed(() => {
         return false
       }
     }
+    if (inputDescription.type == TARGET_POSITIONS_TYPE && !isTargetPositionsComplete(input, inputDescription)) {
+      return false
+    }
     if (['float', 'int'].includes(inputDescription.type)) {
       if (!isValidNumberInput(input, inputDescription.type)) {
         return false
@@ -199,9 +221,40 @@ const selectedFitsInputImages = computed(() => {
   return selectedImages
 })
 
+const selectedFitsInputImagesByObservationDate = computed(() => {
+  return [...selectedFitsInputImages.value].sort((a, b) => new Date(a.observation_date) - new Date(b.observation_date))
+})
+
 const coordinatePreviewImages = computed(() => {
   const previewImage = selectedFitsInputImages.value.find((image) => image.basename === coordinatePreviewBasename.value) || selectedFitsInputImages.value[0]
   return previewImage ? [previewImage] : []
+})
+
+const targetPositionPreviews = computed(() => {
+  const previews = []
+  for (const [inputKey, inputDescription] of Object.entries(targetPositionInputDescriptions.value)) {
+    const isTrack = (inputDescription.minimum || 1) > 1
+    const images = isTrack ? firstAndLastSelectedImages.value : [coordinatePreviewImages.value[0]]
+    images.forEach((image, index) => {
+      previews.push({
+        inputKey,
+        index,
+        image,
+        inputDescription,
+        isTrack,
+        title: isTrack ? ['First Target Position', 'Last Target Position'][index] : inputDescription.name,
+      })
+    })
+  }
+  return previews
+})
+
+const firstAndLastSelectedImages = computed(() => {
+  const sortedImages = selectedFitsInputImagesByObservationDate.value
+  if (sortedImages.length < 2) {
+    return [sortedImages[0], null]
+  }
+  return [sortedImages[0], sortedImages[sortedImages.length - 1]]
 })
 
 const apertureRadii = computed(() => {
@@ -221,6 +274,10 @@ const operationSupportsCentroiding = computed(() => {
         hasCentroidTextHint(description.name) ||
         hasCentroidTextHint(description.description)
     })
+})
+
+const isNonSiderealAperturePhotometry = computed(() => {
+  return selectedOperation.value.name === NON_SIDEREAL_APERTURE_PHOTOMETRY_NAME
 })
 
 onMounted(async () => {
@@ -286,6 +343,9 @@ function selectOperation(name) {
   selectedOperation.value = availableOperations.value[name]
   operationInputs.value = {}
   coordinatePreviewBasename.value = ''
+  movingAperturePixelRadii.value = null
+  apertureInputEditSequence.value = 0
+  nonSiderealPreviewSource.value = {}
   for (const [key, value] of Object.entries(inputDescriptions.value)) {
     if (!shouldRenderInput(key, value)) continue
     if ('default' in value) {
@@ -315,6 +375,9 @@ function selectOperation(name) {
     }
     else if (value.type == 'source') {
       operationInputs.value[key] = {}
+    }
+    else if (value.type == TARGET_POSITIONS_TYPE) {
+      operationInputs.value[key] = Array.from({ length: value.minimum || 1 }, () => ({}))
     }
     else if (value.type == 'select') {
       if ('default' in value) {
@@ -383,9 +446,13 @@ function selectCoordinatePreviewImage(image) {
 function updateApertureRadii(radii) {
   for (const [radiusKey, inputKey] of Object.entries(APERTURE_INPUT_KEYS)) {
     if (inputKey in operationInputs.value && radiusKey in radii) {
-      operationInputs.value[inputKey] = radii[radiusKey]
+      operationInputs.value[inputKey] = Math.round(radii[radiusKey] * 100) / 100
     }
   }
+}
+
+function updateAperturePixelRadii(radii) {
+  movingAperturePixelRadii.value = { ...radii }
 }
 
 function addColorChannel() {
@@ -417,6 +484,11 @@ function setNumberInput(inputKey, value, type) {
     return
   }
   const number = Number(value)
+  if (APERTURE_INPUT_NAMES.has(inputKey)) {
+    operationInputs.value[inputKey] = Math.round(number * 100) / 100
+    apertureInputEditSequence.value += 1
+    return
+  }
   operationInputs.value[inputKey] = type == 'int' ? Math.trunc(number) : number
 }
 
@@ -431,20 +503,29 @@ function isMissingCoordinate(value) {
   return value === undefined || value === null || value === '' || !Number.isFinite(Number(value))
 }
 
+function isTargetPositionsComplete(input, inputDescription) {
+  const minimum = inputDescription.minimum || 1
+  if (!Array.isArray(input) || input.length < minimum) return false
+
+  return input.slice(0, minimum).every((position) => {
+    return position &&
+      !isMissingCoordinate(position.ra) &&
+      !isMissingCoordinate(position.dec) &&
+      (minimum === 1 || !isMissingCoordinate(position.mjd))
+  })
+}
+
 function shouldRenderInput(inputKey, inputDescription) {
   return Boolean(inputDescription) && !FRONTEND_HIDDEN_INPUT_KEYS.has(inputKey)
 }
 
 function collectInputImages(inputValue, selectedImages, seenBasenames) {
-  console.log('seenBasenames', seenBasenames)
-  console.log('input value', inputValue)
   for (const image of inputValue) {
     if (image?.basename && !seenBasenames.has(image.basename)) {
       selectedImages.push(image)
       seenBasenames.add(image.basename)
     }
   }
-  console.log('selectedImages', selectedImages)
 }
 
 function hasCentroidTextHint(value = '') {
@@ -548,7 +629,7 @@ function hasCentroidTextHint(value = '') {
               :hint="inputDescription.description"
               :persistent-hint="Boolean(inputDescription.description)"
               type="number"
-              step="any"
+              :step="APERTURE_INPUT_NAMES.has(inputKey) ? 0.01 : 'any'"
               class="operation-input"
               @update:model-value="setNumberInput(inputKey, $event, inputDescription.type)"
             />
@@ -568,6 +649,40 @@ function hasCentroidTextHint(value = '') {
           :enable-centroiding="operationSupportsCentroiding"
           :has-image-inputs="Object.keys(imageInputDescriptions).length > 0"
           :aperture-radii="apertureRadii"
+          :name-lookup="inputDescription.name_lookup !== false"
+          @update-aperture-radii="updateApertureRadii"
+        />
+        <source-input-widget
+          v-for="preview in targetPositionPreviews"
+          :key="'target-position-widget-' + preview.inputKey + '-' + preview.index"
+          v-model="operationInputs[preview.inputKey][preview.index]"
+          :title="preview.title"
+          :images="preview.image ? [preview.image] : []"
+          :enable-centroiding="operationSupportsCentroiding"
+          :has-image-inputs="Object.keys(imageInputDescriptions).length > 0"
+          :aperture-radii="apertureRadii"
+          :aperture-pixel-radii="preview.isTrack ? movingAperturePixelRadii : null"
+          :sync-pixel-radii="preview.isTrack && preview.index === 0"
+          :aperture-input-edit-sequence="preview.isTrack ? apertureInputEditSequence : 0"
+          :name-lookup="preview.inputDescription.name_lookup === true"
+          :include-mjd="preview.isTrack"
+          :reset-on-image-change="preview.isTrack"
+          :preserve-aperture-radii-on-select="preview.isTrack"
+          @update-aperture-radii="updateApertureRadii"
+          @update-aperture-pixel-radii="updateAperturePixelRadii"
+        />
+        <source-input-widget
+          v-if="isNonSiderealAperturePhotometry"
+          v-model="nonSiderealPreviewSource"
+          title="Target Position"
+          :images="coordinatePreviewImages"
+          :enable-centroiding="operationSupportsCentroiding"
+          :has-image-inputs="Object.keys(imageInputDescriptions).length > 0"
+          :aperture-radii="apertureRadii"
+          :name-lookup="false"
+          :reset-on-image-change="true"
+          :coordinate-read-only="true"
+          :target-position-action="TARGET_POSITION_ACTION"
           @update-aperture-radii="updateApertureRadii"
         />
         <multi-image-input-selector
