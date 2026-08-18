@@ -951,6 +951,14 @@ function buildDisplayApertureRegion(region) {
 }
 
 function apertureRegionFromRadii(baseRegion) {
+  if (hasAperturePixelRadii()) {
+    return apertureRegionFromPixelRadii(baseRegion)
+  }
+
+  return apertureRegionFromRadii(baseRegion)
+}
+
+function apertureRegionFromRadii(baseRegion) {
   const maxRadius = maxImageRadius(baseRegion)
   if (hasAperturePixelRadii()) {
     return apertureRegionFromPixelRadii(baseRegion)
@@ -973,6 +981,19 @@ function apertureRegionFromPixelRadii(baseRegion) {
     radius: Math.min(props.aperturePixelRadii.apertureRadius, maxRadius),
     r_back1: Math.min(props.aperturePixelRadii.annulusInnerRadius, maxRadius),
     r_back2: Math.min(props.aperturePixelRadii.annulusOuterRadius, maxRadius),
+  }
+}
+
+function hasApertureValues() {
+  return hasAperturePixelRadii() || hasApertureRadii()
+}
+
+function apertureRegionFromPixelRadii(baseRegion) {
+  return {
+    ...baseRegion,
+    radius: props.aperturePixelRadii.apertureRadius,
+    r_back1: props.aperturePixelRadii.annulusInnerRadius,
+    r_back2: props.aperturePixelRadii.annulusOuterRadius,
   }
 }
 
