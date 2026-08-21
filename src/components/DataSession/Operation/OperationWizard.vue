@@ -560,6 +560,27 @@ function updateAperturePixelRadii(radii) {
   movingAperturePixelRadii.value = { ...radii }
 }
 
+function updateCentroidRegion(key, region) {
+  centroidRegions.value[key] = region
+}
+
+function updateTargetCentroidRegion(preview, region) {
+  const key = centroidRegionKey(preview)
+  updateCentroidRegion(key, region)
+}
+
+function targetPositionSource(preview) {
+  return operationInputs.value[preview.inputKey][preview.index]
+}
+
+function updateTargetPositionSource(preview, source) {
+  operationInputs.value[preview.inputKey][preview.index] = source
+}
+
+function centroidRegionKey(preview) {
+  return preview.inputKey + '-' + preview.index
+}
+
 function addColorChannel() {
   const colorChannels = operationInputs.value.color_channels
   if (colorChannels.length < MAX_COLOR_CHANNELS)
