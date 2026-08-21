@@ -119,7 +119,9 @@ const sourceInfo = computed(() => {
 
 const sourceCoordinates = computed(() => {
   const source = props.variableStarData?.source
-  return source?.name ? null : {
+  if (!source || source.name) return null
+
+  return {
     ra: coordinateInputToDegrees(source.ra, raSexagesimalToDegrees),
     dec: coordinateInputToDegrees(source.dec, decSexagesimalToDegrees),
   }
