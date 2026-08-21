@@ -29,7 +29,7 @@ const thumbnailsStore = useThumbnailsStore()
 const source = defineModel({
   type: Object,
   required: true,
-}{
+}, {
   type: Object,
   required: true,
 })
@@ -91,14 +91,24 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  centroidRegion: {
+    type: Object,
+    default: null,
+  },
+  showCentroidPanel: {
+    type: Boolean,
+    default: true,
+  },
 })
-const emit = defineEmits(['updateApertureRadii', 'updateAperturePixelRadii'])
+const emit = defineEmits(['updateApertureRadii', 'updateAperturePixelRadii', 'updateCentroidRegion'])
 
 const loading = ref(false)
 const targetNameError = ref('')
+const coordinateError = ref('')
 const selectedImageUrl = ref('')
+let loadedImageBasename = ''
 const wcsSolution = ref(null)
-const centroidRegion = ref(null)
+const localCentroidRegion = ref(props.centroidRegion)
 const centroidResult = ref(null)
 const centroidToolActive = ref(false)
 const usePlaneBackground = ref(false)
@@ -162,7 +172,7 @@ watch(selectedImage, async (image) => {
   if (!image) {
     selectedImageUrl.value = ''
     wcsSolution.value = null
-    centroidRegion.value = null
+    localCentroidRegion.value = null
     centroidResult.value = null
     if (props.resetOnImageChange) {
       source.value = {}
@@ -173,9 +183,11 @@ watch(selectedImage, async (image) => {
 
   selectedImageUrl.value = await ensureLargeCachedUrl(image, thumbnailsStore.cacheImage, configStore.archiveType)
   wcsSolution.value = null
-  centroidRegion.value = null
+  localCentroidRegion.value = props.centroidRegion
   centroidResult.value = null
-  syncImageSource(image)
+  const imageChanged = loadedImageBasename && loadedImageBasename !== image.basename
+  syncImageSource(image, imageChanged)
+  loadedImageBasename = image.basename
   if (props.targetPositionAction) {
     requestAnalysis(props.targetPositionAction)
   }
@@ -196,8 +208,8 @@ watch(() => props.apertureInputEditSequence, () => {
 
 watch(wcsSolution, () => {
   syncCentroidRegionRadii()
-  if (centroidRegion.value && !props.preserveApertureRadiiOnSelect) {
-    updateApertureInputs(centroidRegion.value)
+  if (localCentroidRegion.value && !props.preserveApertureRadiiOnSelect) {
+    updateApertureInputs(localCentroidRegion.value)
   }
 })
 
@@ -239,19 +251,21 @@ function handleAnalysisOutput(response, action) {
     source.value.ra = response.ra
     source.value.dec = response.dec
     const region = {
-      ...centroidRegion.value,
+      ...localCentroidRegion.value,
       x: response.x,
       y: response.y,
       ra: response.ra,
       dec: response.dec,
     }
-    centroidRegion.value = region
+    localCentroidRegion.value = region
+    emit('updateCentroidRegion', region)
     updateApertureInputs(region)
   }
 }
 
 function updateCentroidRegion(region, reason) {
-  centroidRegion.value = region
+  localCentroidRegion.value = region
+  emit('updateCentroidRegion', region)
   centroidResult.value = null
 
   if (!props.coordinateReadOnly && region.ra != null && region.dec != null) {
@@ -271,15 +285,26 @@ function updateCentroidRegion(region, reason) {
   }
 }
 
+function updateCoordinateValidation(validation) {
+  coordinateError.value = validation?.error || ''
+  if (!validation?.region) return
+
+  localCentroidRegion.value = {
+    ...localCentroidRegion.value,
+    ...validation.region,
+  }
+  emit('updateCentroidRegion', localCentroidRegion.value)
+}
+
 function requestCentroid() {
   requestAnalysis('centroiding', {
-    x: centroidRegion.value.x,
-    y: centroidRegion.value.y,
-    width: centroidRegion.value.width,
-    height: centroidRegion.value.height,
-    radius: centroidRegion.value.radius,
-    r_back1: centroidRegion.value.r_back1,
-    r_back2: centroidRegion.value.r_back2,
+    x: localCentroidRegion.value.x,
+    y: localCentroidRegion.value.y,
+    width: localCentroidRegion.value.width,
+    height: localCentroidRegion.value.height,
+    radius: localCentroidRegion.value.radius,
+    r_back1: localCentroidRegion.value.r_back1,
+    r_back2: localCentroidRegion.value.r_back2,
     find_centroid: true,
     remove_background_stars: true,
     use_plane_background: usePlaneBackground.value,
@@ -293,24 +318,25 @@ function updateApertureInputs(region) {
 }
 
 function syncCentroidRegionRadii() {
-  if (!centroidRegion.value) return
+  if (!localCentroidRegion.value) return
 
   const radii = centroidPixelRadii()
   if (!radii) return
 
-  centroidRegion.value = {
-    ...centroidRegion.value,
+  localCentroidRegion.value = {
+    ...localCentroidRegion.value,
     radius: radii.apertureRadius,
     r_back1: radii.annulusInnerRadius,
     r_back2: radii.annulusOuterRadius,
   }
+  emit('updateCentroidRegion', localCentroidRegion.value)
 }
 
 function updateAperturePixels(region) {
   emit('updateAperturePixelRadii', pixelRadiiFromRegion(region))
 }
 
-function updateSharedPixelRadii(region = centroidRegion.value) {
+function updateSharedPixelRadii(region = localCentroidRegion.value) {
   if (!props.syncPixelRadii || !region || !props.apertureRadii || !wcsSolution.value) return
 
   emit('updateAperturePixelRadii', aperturePixelRadiiFromInputs(region))
@@ -323,7 +349,7 @@ function centroidPixelRadii() {
   if (!props.apertureRadii || !wcsSolution.value) {
     return null
   }
-  return aperturePixelRadiiFromInputs(centroidRegion.value)
+  return aperturePixelRadiiFromInputs(localCentroidRegion.value)
 }
 
 function apertureRadiiFromRegion(region) {
@@ -362,8 +388,8 @@ function pixelScale(region) {
   return imagePixelScaleArcsec(wcsSolution.value, region.width, region.height)
 }
 
-function syncImageSource(image) {
-  if (props.resetOnImageChange) {
+function syncImageSource(image, imageChanged) {
+  if (props.resetOnImageChange && imageChanged) {
     source.value = props.includeMjd ? { mjd: dateToMjd(image.observation_date) } : {}
     return
   }
@@ -429,13 +455,20 @@ function syncImageSource(image) {
         />
       </v-col>
     </v-row>
+    <v-alert
+      v-if="coordinateError"
+      class="mb-3"
+      density="compact"
+      type="warning"
+      :text="coordinateError"
+    />
     <v-row
-      v-if="props.hasImageInputs || fitsImages.value.length > 0"
+      v-if="props.hasImageInputs || fitsImages.length > 0"
       class="source-picker-row"
     >
       <v-col
         cols="12"
-        :md="props.enableCentroiding || imageScaleReady.value ? 8 : 12"
+        :md="props.enableCentroiding || imageScaleReady ? 8 : 12"
       >
         <v-alert
           v-if="!selectedImage"
@@ -454,22 +487,23 @@ function syncImageSource(image) {
           :image-url="displayImageUrl"
           :reload-on-image-url-change="false"
           :wcs-solution="wcsSolution"
-          :centroid-region="centroidRegion"
+          :centroid-region="localCentroidRegion"
           :aperture-radii="apertureRadii"
           :aperture-pixel-radii="aperturePixelRadii"
           :aperture-center-coordinate="apertureCenterCoordinate"
           :preserve-aperture-radii-on-select="preserveApertureRadiiOnSelect"
           @analysis-action="requestAnalysis"
           @centroid-region-updated="updateCentroidRegion"
+          @coordinate-validation-updated="updateCoordinateValidation"
         />
       </v-col>
       <v-col
-        v-if="props.enableCentroiding || imageScaleReady.value"
+        v-if="(props.enableCentroiding && props.showCentroidPanel) || imageScaleReady"
         cols="12"
         md="4"
       >
         <v-sheet
-          v-if="enableCentroiding"
+          v-if="enableCentroiding && showCentroidPanel"
           class="source-side-panel"
         >
           <div class="d-flex align-center ga-2 mb-3">
@@ -477,12 +511,12 @@ function syncImageSource(image) {
             <b>Centroiding</b>
           </div>
           <div
-            v-if="centroidRegion"
+            v-if="localCentroidRegion?.radius != null && localCentroidRegion?.r_back1 != null && localCentroidRegion?.r_back2 != null"
             class="centroid-meta"
           >
-            <span>Radius: {{ centroidRegion.radius.toFixed(2) }} px</span>
-            <span>Inner annulus: {{ centroidRegion.r_back1.toFixed(2) }} px</span>
-            <span>Outer annulus: {{ centroidRegion.r_back2.toFixed(2) }} px</span>
+            <span>Radius: {{ localCentroidRegion.radius.toFixed(2) }} px</span>
+            <span>Inner annulus: {{ localCentroidRegion.r_back1.toFixed(2) }} px</span>
+            <span>Outer annulus: {{ localCentroidRegion.r_back2.toFixed(2) }} px</span>
           </div>
           <v-checkbox
             v-if="!coordinateReadOnly"
@@ -496,7 +530,7 @@ function syncImageSource(image) {
             v-if="!coordinateReadOnly"
             class="mt-3"
             color="var(--primary-interactive)"
-            :disabled="!centroidRegion?.ready"
+            :disabled="!localCentroidRegion?.ready"
             @click="requestCentroid"
           >
             Get Centroid
