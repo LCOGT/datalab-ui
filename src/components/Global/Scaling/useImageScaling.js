@@ -28,8 +28,16 @@ function useImageScaling() {
   async function loadScaledImage(image, imageUrl) {
     resetImageScaling()
     imageScaleLoading.value = true
-    await loadImageDimensions(imageUrl)
-    await loadRawData(image)
+    const hasImageDimensions = await loadImageDimensions(imageUrl)
+    if (!hasImageDimensions) {
+      imageScaleLoading.value = false
+      return
+    }
+    const hasRawData = await loadRawData(image)
+    if (!hasRawData) {
+      imageScaleLoading.value = false
+      return
+    }
     createWorker()
     imageScaleLoading.value = false
   }
@@ -48,8 +56,13 @@ function useImageScaling() {
 
   async function loadImageDimensions(url) {
     const img = await loadImage(url)
+    if (img.width <= 0 || img.height <= 0) {
+      return false
+    }
+
     imageWidth.value = Math.min(img.width, MAX_IMAGE_DIMENSION)
     imageHeight.value = Math.min(img.height, MAX_IMAGE_DIMENSION)
+    return true
   }
 
   async function loadRawData(image) {
@@ -63,10 +76,13 @@ function useImageScaling() {
       },
     })
 
+    if (!response?.data) return false
+
     response.data = markRaw(response.data)
     rawData.value = response
     zmin.value = response.zmin
     zmax.value = response.zmax
+    return true
   }
 
   function createWorker() {
