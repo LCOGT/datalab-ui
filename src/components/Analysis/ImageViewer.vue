@@ -84,7 +84,7 @@ const centroidToolActive = defineModel('centroidToolActive', {
   default: false,
 })
 
-const emit = defineEmits(['analysisAction', 'centroidRegionUpdated'])
+const emit = defineEmits(['analysisAction', 'centroidRegionUpdated', 'coordinateValidationUpdated'])
 
 const CENTROID_DEFAULTS = {
   radius: 6,
@@ -196,11 +196,13 @@ watch(() => props.aperturePixelRadii, () => {
 
 watch(() => props.apertureCenterCoordinate, () => {
   syncCentroidOverlay(props.centroidRegion)
+  updateCoordinateValidation()
 }, { deep: true })
 
 watch(() => props.wcsSolution, () => {
   wcs = null
   syncCentroidOverlay(props.centroidRegion)
+  updateCoordinateValidation()
 })
 
 watch(centroidToolActive, (newValue) => {
@@ -945,6 +947,7 @@ function buildDisplayApertureRegion(region) {
 }
 
 function apertureRegionFromRadii(baseRegion) {
+  const maxRadius = maxImageRadius(baseRegion)
   if (hasAperturePixelRadii()) {
     return apertureRegionFromPixelRadii(baseRegion)
   }
@@ -953,18 +956,19 @@ function apertureRegionFromRadii(baseRegion) {
 
   return {
     ...baseRegion,
-    radius: props.apertureRadii.apertureRadius / pixelScale,
-    r_back1: props.apertureRadii.annulusInnerRadius / pixelScale,
-    r_back2: props.apertureRadii.annulusOuterRadius / pixelScale,
+    radius: Math.min(props.apertureRadii.apertureRadius / pixelScale, maxRadius),
+    r_back1: Math.min(props.apertureRadii.annulusInnerRadius / pixelScale, maxRadius),
+    r_back2: Math.min(props.apertureRadii.annulusOuterRadius / pixelScale, maxRadius),
   }
 }
 
 function apertureRegionFromPixelRadii(baseRegion) {
+  const maxRadius = maxImageRadius(baseRegion)
   return {
     ...baseRegion,
-    radius: props.aperturePixelRadii.apertureRadius,
-    r_back1: props.aperturePixelRadii.annulusInnerRadius,
-    r_back2: props.aperturePixelRadii.annulusOuterRadius,
+    radius: Math.min(props.aperturePixelRadii.apertureRadius, maxRadius),
+    r_back1: Math.min(props.aperturePixelRadii.annulusInnerRadius, maxRadius),
+    r_back2: Math.min(props.aperturePixelRadii.annulusOuterRadius, maxRadius),
   }
 }
 
@@ -999,6 +1003,56 @@ function apertureCenterRegion() {
     height: imageDimensions.value.height,
     ready: true,
   }
+}
+
+function updateCoordinateValidation() {
+  if (!props.apertureCenterCoordinate || !props.wcsSolution || !imageDimensions.value.width) {
+    emit('coordinateValidationUpdated', null)
+    return
+  }
+
+  if (props.centroidRegion?.ready &&
+    props.centroidRegion.ra === props.apertureCenterCoordinate.ra &&
+    props.centroidRegion.dec === props.apertureCenterCoordinate.dec) {
+    emit('coordinateValidationUpdated', { valid: true, region: props.centroidRegion })
+    return
+  }
+
+  const center = raDecToImageLatLng(props.apertureCenterCoordinate)
+  if (!latLngInsideImage(center)) {
+    emit('coordinateValidationUpdated', { error: 'invalid RA and Dec values' })
+    return
+  }
+
+  const region = {
+    x: center.lng,
+    y: center.lat,
+    ra: props.apertureCenterCoordinate.ra,
+    dec: props.apertureCenterCoordinate.dec,
+    width: imageDimensions.value.width,
+    height: imageDimensions.value.height,
+    ready: true,
+  }
+  if (apertureOuterRadius() > maxImageRadius(region)) {
+    emit('coordinateValidationUpdated', { error: 'try modifying your aperture radii', region })
+    return
+  }
+
+  emit('coordinateValidationUpdated', { valid: true, region })
+}
+
+function apertureOuterRadius() {
+  if (hasAperturePixelRadii()) {
+    return props.aperturePixelRadii.annulusOuterRadius
+  }
+  if (hasApertureRadii()) {
+    return props.apertureRadii.annulusOuterRadius / imagePixelScaleArcsec(
+      props.wcsSolution,
+      imageDimensions.value.width,
+      imageDimensions.value.height,
+    )
+  }
+  return 0
 }
 
 </script>
