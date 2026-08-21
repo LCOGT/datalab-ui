@@ -842,6 +842,10 @@ function maxImageRadius(region) {
 }
 
 function findApertureRadiusHandle(latlng, pointerType) {
+  if (!hasApertureValues()) {
+    return null
+  }
+
   const region = buildDisplayApertureRegion(props.centroidRegion)
   if (!region) {
     return null
