@@ -68,6 +68,7 @@ const filterOptionsMap = computed(() => {
 
 onMounted(() => {
   imageDetails.value = reloadImages(props.images)
+  updateSelectedFilter()
 })
 
 // When inputDescriptions is set, update initial selectedFilter if need be
