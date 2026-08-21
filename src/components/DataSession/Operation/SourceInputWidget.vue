@@ -30,6 +30,7 @@ const source = defineModel({
   type: Object,
   required: true,
 }, {
+}, {
   type: Object,
   required: true,
 })
@@ -101,7 +102,6 @@ const props = defineProps({
   },
 })
 const emit = defineEmits(['updateApertureRadii', 'updateAperturePixelRadii', 'updateCentroidRegion'])
-
 
 const loading = ref(false)
 const targetNameError = ref('')
@@ -187,9 +187,11 @@ watch(selectedImage, async (image) => {
   localCentroidRegion.value = props.centroidRegion
   centroidResult.value = null
   const imageChanged = loadedImageBasename && loadedImageBasename !== image.basename
+  const imageChanged = loadedImageBasename && loadedImageBasename !== image.basename
   syncImageSource(image, imageChanged)
   loadedImageBasename = image.basename
-  syncImageSource(image)
+  syncImageSource(image, imageChanged)
+  loadedImageBasename = image.basename
   if (props.targetPositionAction) {
     requestAnalysis(props.targetPositionAction)
   }
@@ -210,6 +212,8 @@ watch(() => props.apertureInputEditSequence, () => {
 
 watch(wcsSolution, () => {
   syncCentroidRegionRadii()
+  if (localCentroidRegion.value && !props.preserveApertureRadiiOnSelect) {
+    updateApertureInputs(localCentroidRegion.value)
   if (localCentroidRegion.value && !props.preserveApertureRadiiOnSelect) {
     updateApertureInputs(localCentroidRegion.value)
   }
@@ -332,10 +336,17 @@ function syncCentroidRegionRadii() {
     r_back2: radii.annulusOuterRadius,
   }
   emit('updateCentroidRegion', localCentroidRegion.value)
+  emit('updateCentroidRegion', localCentroidRegion.value)
 }
 
 function updateAperturePixels(region) {
   emit('updateAperturePixelRadii', pixelRadiiFromRegion(region))
+}
+
+function updateSharedPixelRadii(region = localCentroidRegion.value) {
+  if (!props.syncPixelRadii || !region || !props.apertureRadii || !wcsSolution.value) return
+
+  emit('updateAperturePixelRadii', aperturePixelRadiiFromInputs(region))
 }
 
 function centroidPixelRadii() {
@@ -345,6 +356,7 @@ function centroidPixelRadii() {
   if (!props.apertureRadii || !wcsSolution.value) {
     return null
   }
+  return aperturePixelRadiiFromInputs(localCentroidRegion.value)
   return aperturePixelRadiiFromInputs(localCentroidRegion.value)
 }
 
@@ -391,8 +403,8 @@ function pixelScale(region) {
   return imagePixelScaleArcsec(wcsSolution.value, region.width, region.height)
 }
 
-function syncImageSource(image, imageChanged) {
-  if (props.resetOnImageChange && imageChanged) {
+function syncImageSource(image, imageChanged, imageChanged) {
+  if (props.resetOnImageChange && imageChanged && imageChanged) {
     source.value = props.includeMjd ? { mjd: dateToMjd(image.observation_date) } : {}
     return
   }
