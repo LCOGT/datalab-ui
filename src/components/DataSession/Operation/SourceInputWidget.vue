@@ -577,7 +577,7 @@ function syncImageSource(image, imageChanged, imageChanged) {
         </v-sheet>
       </v-col>
     </v-row>
-  </div>
+gi  </div>
 </template>
 
 <style scoped>
