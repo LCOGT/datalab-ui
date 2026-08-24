@@ -33,9 +33,107 @@ const lightCurveSparkline = computed(() => {
 
 const diagnosticsDialog = ref(false)
 
-// The diagnostics dialog is a generic shell; its body comes from whichever component the
-// operation that produced this output registered in components/Global/diagnostics.
-const diagnosticsView = computed(() => diagnosticsViewFor(props.operationOutput))
+const diagnosticSections = computed(() => {
+  return Object.entries(props.operationOutput?.diagnostics || {}).map(([fileName, sectionDiagnostics]) => {
+    return buildDiagnosticSection(fileName, sectionDiagnostics)
+  })
+})
+
+const hasDiagnostics = computed(() => {
+  return diagnosticSections.value.some(section => {
+    return section.rows.length || section.notes.length || section.diagnosticImage
+  })
+})
+
+const normalizedLightCurveRows = computed(() => normalizeLightCurveRows(props.operationOutput?.light_curve))
+
+function buildDiagnosticSection(fileName, sectionDiagnostics) {
+  const rows = sectionDiagnostics
+    .filter(diagnostic => typeof diagnostic === 'string' && diagnostic.startsWith('comparison-star validation row:'))
+    .map(parseComparisonValidationRow)
+    .filter(Boolean)
+
+  const notes = sectionDiagnostics.filter(diagnostic => {
+    if (typeof diagnostic !== 'string') return true
+    return !diagnostic.startsWith('comparison-star validation row:') &&
+      !diagnostic.startsWith('comparison star identifier |')
+  })
+
+  return {
+    fileName,
+    rows,
+    notes,
+    target: targetForFile(fileName),
+    diagnosticImage: diagnosticImageForFile(fileName),
+  }
+}
+
+function diagnosticImageForFile(fileName) {
+  const images = props.operationOutput?.diagnostic_images
+  if (!images || Array.isArray(images) || typeof images !== 'object') return null
+
+  const imageUrl = images[fileName] || Object.entries(images).find(([imageFileName]) => {
+    return fitsPathMatches(imageFileName, fileName)
+  })?.[1]
+  return imageUrl || null
+}
+
+function targetForFile(fileName) {
+  const lightCurveRow = normalizedLightCurveRows.value.find(row => fitsPathMatches(row.fits_path, fileName))
+  if (!lightCurveRow) return null
+  return {
+    magnitude: lightCurveRow.mag,
+    flux: lightCurveRow.target_net_source_counts,
+  }
+}
+
+function fitsPathMatches(fitsPath, fileName) {
+  if (!fitsPath || !fileName) return false
+  const fitsText = String(fitsPath)
+  const fileText = String(fileName)
+  return fitsText === fileText || fitsText.endsWith(fileText) || fileText.endsWith(fitsText.split('/').pop())
+}
+
+function parseComparisonValidationRow(diagnostic) {
+  const rowText = diagnostic.replace('comparison-star validation row:', '').trim()
+  const fields = rowText.split('|').map(field => field.trim())
+  if (fields.length !== 7) return null
+
+  return {
+    identifier: fields[0],
+    ra: fields[1],
+    dec: fields[2],
+    calculatedFlux: fields[3],
+    catalogFlux: fields[4],
+    calculatedMagnitude: fields[5],
+    catalogMagnitude: fields[6],
+  }
+}
+
+function formatDiagnosticTitle(diagnostic) {
+  if (diagnostic === null || diagnostic === undefined) return 'No diagnostic detail'
+  if (typeof diagnostic === 'string') return diagnostic
+  if (typeof diagnostic !== 'object') return String(diagnostic)
+  return diagnostic.message || diagnostic.title || diagnostic.name || 'Diagnostic'
+}
+
+function formatDiagnosticDetails(diagnostic) {
+  if (!diagnostic || typeof diagnostic !== 'object') return ''
+  return Object.entries(diagnostic)
+    .filter(([key]) => !['message', 'title', 'name'].includes(key))
+    .map(([key, value]) => `${formatDiagnosticKey(key)}: ${formatDiagnosticValue(value)}`)
+    .join('\n')
+}
+
+function formatDiagnosticKey(key) {
+  return key.replaceAll('_', ' ')
+}
+
+function formatDiagnosticValue(value) {
+  if (value === null || value === undefined) return 'N/A'
+  if (typeof value === 'object') return JSON.stringify(value)
+  return String(value)
+}
 
 const periodogramSparkline = computed(() => {
   if (props.operationOutput.power) {
@@ -136,7 +234,7 @@ const emit = defineEmits(['selectOperationOutput', 'launchAnalysis', 'removeOper
         {{ title }}
       </p>
       <v-icon
-        v-if="diagnosticsView"
+        v-if="hasDiagnostics"
         icon="mdi-information-outline"
         color="var(--info)"
         title="View diagnostics"
@@ -149,7 +247,7 @@ const emit = defineEmits(['selectOperationOutput', 'launchAnalysis', 'removeOper
       />
     </div>
     <v-dialog
-      v-if="diagnosticsView"
+      v-if="hasDiagnostics"
       v-model="diagnosticsDialog"
       max-width="1200"
     >
@@ -248,6 +346,7 @@ const emit = defineEmits(['selectOperationOutput', 'launchAnalysis', 'removeOper
                     <img
                       :src="section.diagnosticImage"
                       :alt="`${section.fileName} candidate star overlay`"
+                      crossorigin="anonymous"
                       class="diagnostic-overlay-image"
                     >
                   </div>
@@ -327,6 +426,80 @@ const emit = defineEmits(['selectOperationOutput', 'launchAnalysis', 'removeOper
 
 .diagnostics-title {
   color: var(--text);
+}
+
+.diagnostics-section {
+  margin-bottom: 1rem;
+}
+
+.diagnostics-panels {
+  background: transparent;
+}
+
+.diagnostics-panel {
+  background-color: var(--secondary-background);
+  color: var(--text);
+}
+
+.diagnostics-file-title {
+  color: var(--text);
+  font-family: monospace;
+  font-size: 0.85rem;
+}
+
+.diagnostics-section-title {
+  color: var(--text);
+  font-family: var(--font-stack);
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem;
+  text-transform: none;
+}
+
+.diagnostics-table {
+  background-color: var(--secondary-background);
+  color: var(--text);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.diagnostic-overlay {
+  margin-top: 1rem;
+}
+
+.diagnostic-overlay-image {
+  display: block;
+  max-width: 100%;
+  max-height: 360px;
+  margin: 0 auto;
+  border-radius: 8px;
+  background: #000;
+}
+
+.diagnostics-table :deep(th) {
+  color: var(--text);
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+  text-align: center !important;
+  vertical-align: middle;
+}
+
+.diagnostics-table :deep(td) {
+  color: var(--text);
+  font-family: monospace;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.numeric-column {
+  text-align: center;
+}
+
+.diagnostic-item {
+  white-space: pre-line;
 }
 
 .annotated-output {
