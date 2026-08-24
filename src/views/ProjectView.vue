@@ -325,7 +325,11 @@ onMounted(() => {
       bg-color="var(--card-background)"
       variant="solo-filled"
     />
-    <span v-for="filter in Object.values(filters).filter(f => f.label && f.type !='hidden')" :key="filter.label" :class="filter.class || 'filter-field'">
+    <span
+      v-for="filter in Object.values(filters).filter(f => f.label && f.type !='hidden')"
+      :key="filter.label"
+      :class="filter.class || 'filter-field'"
+    >
       <v-select
         v-if="filter.options"
         v-model="filter.value"
