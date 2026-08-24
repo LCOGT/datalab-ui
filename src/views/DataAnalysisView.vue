@@ -5,6 +5,7 @@ import HRDiagramOutput from '@/components/Analysis/HRDiagramOutput.vue'
 import LightCurvePlot from '@/components/Analysis/LightCurvePlot.vue'
 import PeriodogramPlot from '@/components/Analysis/PeriodogramPlot.vue'
 import PhasedLightCurvePlot from '@/components/Analysis/PhasedLightCurvePlot.vue'
+import { dateToMjd } from '@/utils/formatDate.js'
 
 const props = defineProps({
   data: {
@@ -23,14 +24,17 @@ const selectedPoints = ref([])
 // each output type has its own detection key, dispatching to the right set of plots
 const hasCMD = computed(() => Array.isArray(props.data?.cmd))
 const hasLightCurve = computed(() => Array.isArray(props.data?.light_curve) && props.data.light_curve.length > 0)
-const hasPeriodogram = computed(() => Array.isArray(periodogramData.value.frequencies) && periodogramData.value.frequencies.length > 0)
+const isAperturePhotometry = computed(() => props.data?.operationName?.toLowerCase().includes('aperture photometry'))
+const hasPeriodogram = computed(() => !isAperturePhotometry.value && Array.isArray(periodogramData.value.frequencies) && periodogramData.value.frequencies.length > 0)
 
 function foldPeriod(magTimeSeries, period) {
   const frequency = 1.0 / period
 
   for (let i = 0; i < magTimeSeries.length; i++) {
     const mts = magTimeSeries[i]
-    mts.phase = (mts.julian_date % period) * frequency
+    const mjd = Number(mts.mjd ?? mts.modified_julian_date ?? mts.julian_date)
+    const observationMjd = Number.isFinite(mjd) ? mjd : dateToMjd(mts.observation_date)
+    mts.phase = (observationMjd % period) * frequency
   }
 }
 
@@ -50,6 +54,7 @@ function assignVariableStarData() {
       fluxFallback: data.flux_fallback,
       excludedImages: data.excluded_images || [],
       source: data.operationInputData?.source || data.source,
+      targetPositions: data.target_positions,
       aperture: {
         apertureRadius: data.aperture_radius || data.operationInputData?.aperture_radius,
         annulusInnerRadius: data.annulus_inner_radius || data.operationInputData?.annulus_inner_radius,

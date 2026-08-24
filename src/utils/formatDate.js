@@ -3,7 +3,7 @@ const ms_per_day = 24 * 60 * 60 * 1000
 
 function dateToMjd(date) {
   const time = new Date(date).getTime()
-  return (time / ms_per_day) + mjd_unix_epoch
+  return time ? (time / ms_per_day) + mjd_unix_epoch : null
 }
 
 function formatMjd(value, mjd_decimal_places) {

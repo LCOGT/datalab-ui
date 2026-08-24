@@ -1,5 +1,5 @@
 {
-  "datalabApiBaseUrl": "https://datalab.lco.earth/api/",
+  "datalabApiBaseUrl": "http://127.0.0.1:8081/api/",
   "datalabArchiveApiUrl": "https://archive-api.lco.global/",
   "observationPortalUrl": "https://observe.lco.global/api/",
   "thumbnailServiceUrl": "https://thumbnails.lco.global/",

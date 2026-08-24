@@ -57,4 +57,15 @@ class WCS {
   }
 }
 
+function imagePixelScaleArcsec(wcsSolution, imageWidth, imageHeight) {
+  const { cd1, cd2, fits_dimensions } = wcsSolution
+  const fitsPixelScaleX = Math.hypot(cd1[0], cd2[0])
+  const fitsPixelScaleY = Math.hypot(cd1[1], cd2[1])
+  const imageToFitsScaleX = fits_dimensions[0] / imageWidth
+  const imageToFitsScaleY = fits_dimensions[1] / imageHeight
+
+  return ((fitsPixelScaleX * imageToFitsScaleX) + (fitsPixelScaleY * imageToFitsScaleY)) * 1800
+}
+
+export { imagePixelScaleArcsec }
 export default WCS

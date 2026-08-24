@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed} from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { fetchApiCall, handleError } from '@/utils/api'
 import { rgbFilterMap, colorRGBMap } from '@/utils/color'
 import MultiImageInputSelector from '@/components/DataSession/Operation/MultiImageInputSelector.vue'
@@ -30,9 +30,37 @@ const dataSessionsUrl = store.datalabApiBaseUrl
 const availableOperations = ref({})
 const selectedOperation = ref('')
 const operationInputs = ref({})
+const coordinatePreviewBasename = ref('')
+const movingAperturePixelRadii = ref(null)
+const apertureInputEditSequence = ref(0)
+const centroidRegions = ref({})
+const nonSiderealPreviewSource = ref({})
 const MAX_COLOR_CHANNELS = 6
 const MIN_COLOR_CHANNELS = 1
 const FRONTEND_HIDDEN_INPUT_KEYS = new Set(['min_comparisons', 'max_comparisons'])
+const CENTROID_TEXT_HINTS = ['photometry', 'aperture', 'centroid']
+const CENTROID_INPUT_HINTS = new Set([
+  'aperture_radius',
+  'annulus_inner_radius',
+  'annulus_outer_radius',
+  'r_back1',
+  'r_back2',
+])
+const APERTURE_INPUT_KEYS = {
+  apertureRadius: 'aperture_radius',
+  annulusInnerRadius: 'annulus_inner_radius',
+  annulusOuterRadius: 'annulus_outer_radius',
+}
+const APERTURE_INPUT_NAMES = new Set(Object.values(APERTURE_INPUT_KEYS))
+const TARGET_POSITIONS_TYPE = 'target_positions'
+const NON_SIDEREAL_APERTURE_PHOTOMETRY_NAME = 'Non-Sidereal Aperture Photometry'
+const TARGET_POSITION_ACTION = 'target-position'
+const NON_SIDEREAL_TARGET_KEY = 'non-sidereal-target'
+const APERTURE_PHOTOMETRY_NAME = 'aperture photometry'
+const CONFIGURE_TABS = {
+  SELECT_IMAGES: 'select-images',
+  CONFIGURATION: 'configuration',
+}
 
 const WIZARD_PAGES = {
   SELECT: 'select',
@@ -41,9 +69,14 @@ const WIZARD_PAGES = {
 }
 // Start on the select operation page
 const page = ref(WIZARD_PAGES.SELECT)
+const activeConfigureTab = ref(CONFIGURE_TABS.SELECT_IMAGES)
 
 const images = computed(() => {
   return props.data.filter(image => image.basename)
+})
+
+const selectableFitsImages = computed(() => {
+  return images.value.filter(isFitsImage)
 })
 
 const inputDescriptions = computed(() => { return selectedOperation.value.inputs })
@@ -81,6 +114,18 @@ const sourceInputDescriptions = computed(() => {
     }
   }
   return sourceDescriptions
+})
+
+const targetPositionInputDescriptions = computed(() => {
+  let targetDescriptions = {}
+  if (inputDescriptions.value) {
+    for ( const [inputKey, inputDescription] of Object.entries(inputDescriptions.value)) {
+      if (shouldRenderInput(inputKey, inputDescription) && inputDescription.type == TARGET_POSITIONS_TYPE) {
+        targetDescriptions[inputKey] = {...inputDescription}
+      }
+    }
+  }
+  return targetDescriptions
 })
 
 // Text for the forward button changes based on the current page
@@ -141,6 +186,9 @@ const isInputComplete = computed(() => {
         return false
       }
     }
+    if (inputDescription.type == TARGET_POSITIONS_TYPE && !isTargetPositionsComplete(input, inputDescription)) {
+      return false
+    }
     if (['float', 'int'].includes(inputDescription.type)) {
       if (!isValidNumberInput(input, inputDescription.type)) {
         return false
@@ -173,6 +221,127 @@ const imageInputDescriptions = computed(() => {
     }))
   }
   return {}
+})
+
+const selectedFitsInputImages = computed(() => {
+  const selectedImages = []
+  const seenBasenames = new Set()
+
+  for (const inputKey in imageInputDescriptions.value) {
+    collectInputImages(operationInputs.value[inputKey], selectedImages, seenBasenames)
+  }
+
+  return selectedImages
+})
+
+const selectedFitsInputImagesByObservationDate = computed(() => {
+  return [...selectedFitsInputImages.value].sort((a, b) => new Date(a.observation_date) - new Date(b.observation_date))
+})
+
+const coordinatePreviewImages = computed(() => {
+  const previewImage = selectedFitsInputImages.value.find((image) => image.basename === coordinatePreviewBasename.value) || selectedFitsInputImages.value[0]
+  return previewImage ? [previewImage] : []
+})
+
+const targetPositionPreviews = computed(() => {
+  const previews = []
+  for (const [inputKey, inputDescription] of Object.entries(targetPositionInputDescriptions.value)) {
+    const isTrack = (inputDescription.minimum || 1) > 1
+    const images = isTrack ? firstAndLastSelectedImages.value : [coordinatePreviewImages.value[0]]
+    const title = isTrack
+      ? ['First Image Aperture Settings', 'Last Image Aperture Settings']
+      : [isAperturePhotometryOperation.value ? 'Aperture Settings' : inputDescription.name]
+    images.forEach((image, index) => {
+      previews.push({
+        inputKey,
+        index,
+        image,
+        inputDescription,
+        isTrack,
+        title: title[index],
+      })
+    })
+  }
+
+  return previews
+})
+
+const firstAndLastSelectedImages = computed(() => {
+  const sortedImages = selectedFitsInputImagesByObservationDate.value
+  if (sortedImages.length < 2) {
+    return [sortedImages[0], null]
+  }
+  return [sortedImages[0], sortedImages[sortedImages.length - 1]]
+})
+
+const firstSelectedPreviewImages = computed(() => {
+  const firstImage = firstAndLastSelectedImages.value[0] || selectedFitsInputImages.value[0]
+  return firstImage ? [firstImage] : []
+})
+
+const sourceInputTabs = computed(() => {
+  if (isNonSiderealAperturePhotometry.value) return []
+
+  return Object.entries(sourceInputDescriptions.value).map(([inputKey, inputDescription]) => ({
+    inputKey,
+    inputDescription,
+    title: isAperturePhotometryOperation.value ? 'Aperture Settings' : '',
+    value: 'source-position-' + inputKey,
+  }))
+})
+
+const targetPositionTabs = computed(() => {
+  return targetPositionPreviews.value.map((preview) => ({
+    preview,
+    title: preview.title,
+    value: 'target-position-' + preview.inputKey + '-' + preview.index,
+  }))
+})
+
+const nonSiderealTargetTab = computed(() => ({
+  value: 'target-position-' + NON_SIDEREAL_TARGET_KEY,
+  title: 'Aperture Settings',
+}))
+
+const aperturePhotometryTabs = computed(() => {
+  return [
+    { value: CONFIGURE_TABS.SELECT_IMAGES, title: 'Select Images' },
+    ...sourceInputTabs.value,
+    ...targetPositionTabs.value,
+    ...(isNonSiderealAperturePhotometry.value ? [nonSiderealTargetTab.value] : []),
+    { value: CONFIGURE_TABS.CONFIGURATION, title: 'Manual Aperture Settings' },
+  ]
+})
+
+const apertureRadii = computed(() => {
+  return Object.fromEntries(
+    Object.entries(APERTURE_INPUT_KEYS).map(([radiusKey, inputKey]) => [radiusKey, operationInputs.value[inputKey]])
+  )
+})
+
+const operationSupportsCentroiding = computed(() => {
+  const operation = selectedOperation.value
+  const descriptions = inputDescriptions.value || {}
+
+  return hasCentroidTextHint(operation.name) ||
+    hasCentroidTextHint(operation.description) ||
+    Object.entries(descriptions).some(([key, description]) => {
+      return CENTROID_INPUT_HINTS.has(key) ||
+        hasCentroidTextHint(description.name) ||
+        hasCentroidTextHint(description.description)
+    })
+})
+
+const isLightCurveOperation = computed(() => {
+  return selectedOperation.value.name.toLowerCase().includes('light curve')
+})
+
+const isAperturePhotometryOperation = computed(() => {
+  return hasAperturePhotometryName(selectedOperation.value.name)
+})
+
+const isNonSiderealAperturePhotometry = computed(() => {
+  return selectedOperation.value.name === NON_SIDEREAL_APERTURE_PHOTOMETRY_NAME
 })
 
 onMounted(async () => {
@@ -249,6 +418,12 @@ function operationInputDataForRequest() {
 function selectOperation(name) {
   selectedOperation.value = availableOperations.value[name]
   operationInputs.value = {}
+  coordinatePreviewBasename.value = ''
+  movingAperturePixelRadii.value = null
+  apertureInputEditSequence.value = 0
+  centroidRegions.value = {}
+  nonSiderealPreviewSource.value = {}
+  activeConfigureTab.value = CONFIGURE_TABS.SELECT_IMAGES
   for (const [key, value] of Object.entries(inputDescriptions.value)) {
     if (!shouldRenderInput(key, value)) continue
     if ('default' in value) {
@@ -274,10 +449,13 @@ function selectOperation(name) {
       })
     }
     else if (value.type == 'fits') {
-      operationInputs.value[key] = []
+      operationInputs.value[key] = selectableFitsImagesForInput(value)
     }
     else if (value.type == 'source') {
       operationInputs.value[key] = {}
+    }
+    else if (value.type == TARGET_POSITIONS_TYPE) {
+      operationInputs.value[key] = Array.from({ length: value.minimum || 1 }, () => ({}))
     }
     else if (value.type == 'select') {
       if ('default' in value) {
@@ -340,6 +518,43 @@ function removeImage(inputKey, image, inputIndex=0) {
   }
 }
 
+function selectCoordinatePreviewImage(image) {
+  coordinatePreviewBasename.value = image.basename
+}
+
+function updateApertureRadii(radii) {
+  for (const [radiusKey, inputKey] of Object.entries(APERTURE_INPUT_KEYS)) {
+    if (inputKey in operationInputs.value && radiusKey in radii) {
+      operationInputs.value[inputKey] = Math.round(radii[radiusKey] * 100) / 100
+    }
+  }
+}
+
+function updateAperturePixelRadii(radii) {
+  movingAperturePixelRadii.value = { ...radii }
+}
+
+function updateCentroidRegion(key, region) {
+  centroidRegions.value[key] = region
+}
+
+function updateTargetCentroidRegion(preview, region) {
+  const key = centroidRegionKey(preview)
+  updateCentroidRegion(key, region)
+}
+
+function targetPositionSource(preview) {
+  return operationInputs.value[preview.inputKey][preview.index]
+}
+
+function updateTargetPositionSource(preview, source) {
+  operationInputs.value[preview.inputKey][preview.index] = source
+}
+
+function centroidRegionKey(preview) {
+  return preview.inputKey + '-' + preview.index
+}
+
 function addColorChannel() {
   const colorChannels = operationInputs.value.color_channels
   if (colorChannels.length < MAX_COLOR_CHANNELS)
@@ -369,6 +584,11 @@ function setNumberInput(inputKey, value, type) {
     return
   }
   const number = Number(value)
+  if (APERTURE_INPUT_NAMES.has(inputKey)) {
+    operationInputs.value[inputKey] = Math.round(number * 100) / 100
+    apertureInputEditSequence.value += 1
+    return
+  }
   operationInputs.value[inputKey] = type == 'int' ? Math.trunc(number) : number
 }
 
@@ -383,8 +603,85 @@ function isMissingCoordinate(value) {
   return value === undefined || value === null || value === ''
 }
 
+function isTargetPositionsComplete(input, inputDescription) {
+  const minimum = inputDescription.minimum || 1
+  if (!Array.isArray(input) || input.length < minimum) return false
+
+  return input.slice(0, minimum).every((position) => {
+    return position &&
+      !isMissingCoordinate(position.ra) &&
+      !isMissingCoordinate(position.dec) &&
+      (minimum === 1 || !isMissingCoordinate(position.mjd))
+  })
+}
+
 function shouldRenderInput(inputKey, inputDescription) {
   return Boolean(inputDescription) && !FRONTEND_HIDDEN_INPUT_KEYS.has(inputKey)
+}
+
+function isFitsImage(image) {
+  return image.type == null || image.type == 'fits'
+}
+
+function selectableFitsImagesForInput(inputDescription) {
+  const inputImages = selectableFitsImages.value.filter((image) => fitsImageMatchesInput(inputDescription, image))
+
+  if (inputDescription.single_filter) {
+    const selectedFilter = mostFrequentFilter(inputImages)
+    return inputImages.filter((image) => imageFilter(image) === selectedFilter)
+  }
+
+  if (inputDescription.maximum) {
+    return inputImages.slice(0, inputDescription.maximum)
+  }
+
+  return inputImages
+}
+
+function fitsImageMatchesInput(inputDescription, image) {
+  if (!inputDescription.filter_options) return true
+
+  return inputDescription.filter_options.includes(imageFilter(image))
+}
+
+function mostFrequentFilter(inputImages) {
+  const filterCounts = new Map()
+  let selectedFilter = undefined
+  let selectedFilterCount = 0
+
+  inputImages.forEach((image) => {
+    const filter = imageFilter(image)
+    const count = (filterCounts.get(filter) || 0) + 1
+    filterCounts.set(filter, count)
+    if (count > selectedFilterCount) {
+      selectedFilter = filter
+      selectedFilterCount = count
+    }
+  })
+
+  return selectedFilter
+}
+
+function imageFilter(image) {
+  return image.filter || image.primary_optical_element
+}
+
+function collectInputImages(inputValue, selectedImages, seenBasenames) {
+  for (const image of inputValue) {
+    if (image?.basename && !seenBasenames.has(image.basename)) {
+      selectedImages.push(image)
+      seenBasenames.add(image.basename)
+    }
+  }
+}
+
+function hasCentroidTextHint(value = '') {
+  const text = value.toLowerCase()
+  return CENTROID_TEXT_HINTS.some((hint) => text.includes(hint))
+}
+
+function hasAperturePhotometryName(value = '') {
+  return value.toLowerCase().includes(APERTURE_PHOTOMETRY_NAME)
 }
 </script>
 <template>
@@ -437,82 +734,289 @@ function shouldRenderInput(inputKey, inputDescription) {
         v-show="page == WIZARD_PAGES.CONFIGURE"
         class="wizard-card"
       >
-        <v-row
-          v-for="(group, index) in groupedInputDescriptions"
-          :key="'input-row-' + index"
+        <div
+          v-if="isAperturePhotometryOperation"
+          class="tab-bar"
         >
-          <v-col
-            v-for="(inputDescription, inputKey) in group"
-            :key="'input-col-' + inputKey"
-            cols="6"
-            class="pb-0"
+          <v-tabs
+            v-model="activeConfigureTab"
+            class="tabs mb-0"
+            grow
+          >
+            <v-tab
+              v-for="tab in aperturePhotometryTabs"
+              :key="tab.value"
+              :value="tab.value"
+              :class="{ 'configure-tab-active': activeConfigureTab === tab.value }"
+            >
+              {{ tab.title }}
+            </v-tab>
+          </v-tabs>
+        </div>
+        <div
+          v-if="isAperturePhotometryOperation"
+          class="configure-tab-panel"
+        >
+          <template v-if="activeConfigureTab === CONFIGURE_TABS.SELECT_IMAGES">
+            <multi-image-input-selector
+              :input-descriptions="imageInputDescriptions"
+              :input-images="operationInputs"
+              :images="images"
+              :max-inputs="MAX_COLOR_CHANNELS"
+              :min-inputs="MIN_COLOR_CHANNELS"
+              @set-images="setImages"
+              @insert-image="insertImage"
+              @remove-image="removeImage"
+              @select-image="selectCoordinatePreviewImage"
+              @add-channel="addColorChannel"
+              @remove-channel="removeColorChannel"
+              @update-channel-color="updateColorChannel"
+            />
+          </template>
+          <template v-if="activeConfigureTab === nonSiderealTargetTab.value">
+            <source-input-widget
+              v-model="nonSiderealPreviewSource"
+              :title="nonSiderealTargetTab.title"
+              :images="coordinatePreviewImages"
+              :enable-centroiding="operationSupportsCentroiding"
+              :show-centroid-panel="!isLightCurveOperation"
+              :has-image-inputs="Object.keys(imageInputDescriptions).length > 0"
+              :aperture-radii="apertureRadii"
+              :centroid-region="centroidRegions[NON_SIDEREAL_TARGET_KEY]"
+              :name-lookup="false"
+              :coordinate-read-only="true"
+              :target-position-action="TARGET_POSITION_ACTION"
+              @update-aperture-radii="updateApertureRadii"
+              @update-centroid-region="updateCentroidRegion(NON_SIDEREAL_TARGET_KEY, $event)"
+            />
+          </template>
+          <template
+            v-for="tab in sourceInputTabs"
+            :key="'source-input-widget-' + tab.inputKey"
           >
             <source-input-widget
-              v-if="inputDescription.type == 'source'"
-              v-model="operationInputs[inputKey]"
+              v-if="activeConfigureTab === tab.value"
+              v-model="operationInputs[tab.inputKey]"
+              :title="tab.title"
+              :images="firstSelectedPreviewImages"
+              :enable-centroiding="operationSupportsCentroiding"
+              :show-centroid-panel="!isLightCurveOperation"
+              :has-image-inputs="Object.keys(imageInputDescriptions).length > 0"
+              :aperture-radii="apertureRadii"
+              :centroid-region="centroidRegions[tab.inputKey]"
+              :name-lookup="tab.inputDescription.name_lookup !== false"
+              :coordinate-read-only="isNonSiderealAperturePhotometry"
+              :target-position-action="isNonSiderealAperturePhotometry ? TARGET_POSITION_ACTION : ''"
+              @update-aperture-radii="updateApertureRadii"
+              @update-centroid-region="updateCentroidRegion(tab.inputKey, $event)"
             />
-            <v-text-field
-              v-else-if="inputDescription.type == 'string' && !inputDescription.options"
-              v-model="operationInputs[inputKey]"
-              :label="inputDescription.name"
-              type="text"
-              class="operation-input"
+          </template>
+          <template
+            v-for="tab in targetPositionTabs"
+            :key="'target-position-widget-' + tab.preview.inputKey + '-' + tab.preview.index"
+          >
+            <source-input-widget
+              v-if="activeConfigureTab === tab.value"
+              :model-value="targetPositionSource(tab.preview)"
+              :title="tab.title"
+              :images="tab.preview.image ? [tab.preview.image] : []"
+              :enable-centroiding="operationSupportsCentroiding"
+              :show-centroid-panel="!isLightCurveOperation"
+              :has-image-inputs="Object.keys(imageInputDescriptions).length > 0"
+              :aperture-radii="apertureRadii"
+              :centroid-region="centroidRegions[centroidRegionKey(tab.preview)]"
+              :aperture-pixel-radii="tab.preview.isTrack ? movingAperturePixelRadii : null"
+              :sync-pixel-radii="tab.preview.isTrack && tab.preview.index === 0"
+              :aperture-input-edit-sequence="tab.preview.isTrack ? apertureInputEditSequence : 0"
+              :name-lookup="tab.preview.inputDescription.name_lookup === true"
+              :include-mjd="tab.preview.isTrack"
+              :reset-on-image-change="tab.preview.isTrack"
+              :preserve-aperture-radii-on-select="tab.preview.isTrack"
+              :coordinate-read-only="isNonSiderealAperturePhotometry"
+              :target-position-action="isNonSiderealAperturePhotometry ? TARGET_POSITION_ACTION : ''"
+              @update:model-value="updateTargetPositionSource(tab.preview, $event)"
+              @update-aperture-radii="updateApertureRadii"
+              @update-aperture-pixel-radii="updateAperturePixelRadii"
+              @update-centroid-region="updateTargetCentroidRegion(tab.preview, $event)"
             />
-            <v-select
-              v-else-if="inputDescription.type == 'string' && inputDescription.options"
-              v-model="operationInputs[inputKey]"
-              return-object
-              :label="inputDescription.name"
-              :items="inputDescription.options"
+          </template>
+          <template v-if="activeConfigureTab === CONFIGURE_TABS.CONFIGURATION">
+            <v-row
+              v-for="(group, index) in groupedInputDescriptions"
+              :key="'input-row-' + index"
+            >
+              <v-col
+                v-for="(inputDescription, inputKey) in group"
+                :key="'input-col-' + inputKey"
+                cols="6"
+                class="pb-0"
+              >
+                <source-input-widget
+                  v-if="inputDescription.type == 'source'"
+                  v-model="operationInputs[inputKey]"
+                />
+                <v-text-field
+                  v-else-if="inputDescription.type == 'string' && !inputDescription.options"
+                  v-model="operationInputs[inputKey]"
+                  :label="inputDescription.name"
+                  type="text"
+                  class="operation-input"
+                />
+                <v-select
+                  v-else-if="inputDescription.type == 'string' && inputDescription.options"
+                  v-model="operationInputs[inputKey]"
+                  return-object
+                  :label="inputDescription.name"
+                  :items="inputDescription.options"
+                />
+                <v-text-field
+                  v-else-if="inputDescription.type == 'int'"
+                  :model-value="operationInputs[inputKey]"
+                  :label="inputDescription.name"
+                  :hint="inputDescription.description"
+                  :persistent-hint="Boolean(inputDescription.description)"
+                  type="number"
+                  step="1"
+                  class="operation-input"
+                  @update:model-value="setNumberInput(inputKey, $event, inputDescription.type)"
+                />
+                <v-text-field
+                  v-else-if="inputDescription.type == 'float'"
+                  :model-value="operationInputs[inputKey]"
+                  :label="inputDescription.name"
+                  :hint="inputDescription.description"
+                  :persistent-hint="Boolean(inputDescription.description)"
+                  type="number"
+                  :step="APERTURE_INPUT_NAMES.has(inputKey) ? 0.01 : 'any'"
+                  class="operation-input"
+                  @update:model-value="setNumberInput(inputKey, $event, inputDescription.type)"
+                />
+                <v-select
+                  v-else-if="inputDescription.type == 'select'"
+                  v-model="operationInputs[inputKey]"
+                  :label="inputDescription.name"
+                  :items="inputDescription.options"
+                />
+              </v-col>
+            </v-row>
+          </template>
+        </div>
+        <div
+          v-else
+          class="configure-sections"
+        >
+          <div class="configure-section">
+            <v-row
+              v-for="(group, index) in groupedInputDescriptions"
+              :key="'input-row-' + index"
+            >
+              <v-col
+                v-for="(inputDescription, inputKey) in group"
+                :key="'input-col-' + inputKey"
+                cols="6"
+                class="pb-0"
+              >
+                <source-input-widget
+                  v-if="inputDescription.type == 'source'"
+                  v-model="operationInputs[inputKey]"
+                />
+                <v-text-field
+                  v-else-if="inputDescription.type == 'string' && !inputDescription.options"
+                  v-model="operationInputs[inputKey]"
+                  :label="inputDescription.name"
+                  type="text"
+                  class="operation-input"
+                />
+                <v-select
+                  v-else-if="inputDescription.type == 'string' && inputDescription.options"
+                  v-model="operationInputs[inputKey]"
+                  return-object
+                  :label="inputDescription.name"
+                  :items="inputDescription.options"
+                />
+                <v-text-field
+                  v-else-if="inputDescription.type == 'int'"
+                  :model-value="operationInputs[inputKey]"
+                  :label="inputDescription.name"
+                  :hint="inputDescription.description"
+                  :persistent-hint="Boolean(inputDescription.description)"
+                  type="number"
+                  step="1"
+                  class="operation-input"
+                  @update:model-value="setNumberInput(inputKey, $event, inputDescription.type)"
+                />
+                <v-text-field
+                  v-else-if="inputDescription.type == 'float'"
+                  :model-value="operationInputs[inputKey]"
+                  :label="inputDescription.name"
+                  :hint="inputDescription.description"
+                  :persistent-hint="Boolean(inputDescription.description)"
+                  type="number"
+                  :step="APERTURE_INPUT_NAMES.has(inputKey) ? 0.01 : 'any'"
+                  class="operation-input"
+                  @update:model-value="setNumberInput(inputKey, $event, inputDescription.type)"
+                />
+                <v-select
+                  v-else-if="inputDescription.type == 'select'"
+                  v-model="operationInputs[inputKey]"
+                  :label="inputDescription.name"
+                  :items="inputDescription.options"
+                />
+              </v-col>
+            </v-row>
+          </div>
+          <source-input-widget
+            v-for="tab in sourceInputTabs"
+            :key="'source-input-widget-' + tab.inputKey"
+            v-model="operationInputs[tab.inputKey]"
+            :title="tab.title"
+            :images="coordinatePreviewImages"
+            :enable-centroiding="operationSupportsCentroiding"
+            :show-centroid-panel="!isLightCurveOperation"
+            :has-image-inputs="Object.keys(imageInputDescriptions).length > 0"
+            :aperture-radii="apertureRadii"
+            :name-lookup="tab.inputDescription.name_lookup !== false"
+            class="configure-section"
+            @update-aperture-radii="updateApertureRadii"
+          />
+          <source-input-widget
+            v-for="tab in targetPositionTabs"
+            :key="'target-position-widget-' + tab.preview.inputKey + '-' + tab.preview.index"
+            v-model="operationInputs[tab.preview.inputKey][tab.preview.index]"
+            :title="tab.title"
+            :images="tab.preview.image ? [tab.preview.image] : []"
+            :enable-centroiding="operationSupportsCentroiding"
+            :show-centroid-panel="!isLightCurveOperation"
+            :has-image-inputs="Object.keys(imageInputDescriptions).length > 0"
+            :aperture-radii="apertureRadii"
+            :aperture-pixel-radii="tab.preview.isTrack ? movingAperturePixelRadii : null"
+            :sync-pixel-radii="tab.preview.isTrack && tab.preview.index === 0"
+            :aperture-input-edit-sequence="tab.preview.isTrack ? apertureInputEditSequence : 0"
+            :name-lookup="tab.preview.inputDescription.name_lookup === true"
+            :include-mjd="tab.preview.isTrack"
+            :reset-on-image-change="tab.preview.isTrack"
+            :preserve-aperture-radii-on-select="tab.preview.isTrack"
+            class="configure-section"
+            @update-aperture-radii="updateApertureRadii"
+            @update-aperture-pixel-radii="updateAperturePixelRadii"
+          />
+          <div class="configure-section">
+            <multi-image-input-selector
+              :input-descriptions="imageInputDescriptions"
+              :input-images="operationInputs"
+              :images="images"
+              :max-inputs="MAX_COLOR_CHANNELS"
+              :min-inputs="MIN_COLOR_CHANNELS"
+              @set-images="setImages"
+              @insert-image="insertImage"
+              @remove-image="removeImage"
+              @select-image="selectCoordinatePreviewImage"
+              @add-channel="addColorChannel"
+              @remove-channel="removeColorChannel"
+              @update-channel-color="updateColorChannel"
             />
-            <v-text-field
-              v-else-if="inputDescription.type == 'int'"
-              :model-value="operationInputs[inputKey]"
-              :label="inputDescription.name"
-              :hint="inputDescription.description"
-              :persistent-hint="Boolean(inputDescription.description)"
-              type="number"
-              step="1"
-              class="operation-input"
-              @update:model-value="setNumberInput(inputKey, $event, inputDescription.type)"
-            />
-            <v-text-field
-              v-else-if="inputDescription.type == 'float'"
-              :model-value="operationInputs[inputKey]"
-              :label="inputDescription.name"
-              :hint="inputDescription.description"
-              :persistent-hint="Boolean(inputDescription.description)"
-              type="number"
-              step="any"
-              class="operation-input"
-              @update:model-value="setNumberInput(inputKey, $event, inputDescription.type)"
-            />
-            <v-select
-              v-else-if="inputDescription.type == 'select'"
-              v-model="operationInputs[inputKey]"
-              :label="inputDescription.name"
-              :items="inputDescription.options"
-            />
-          </v-col>
-        </v-row>
-        <source-input-widget
-          v-for="(inputDescription, inputKey) in sourceInputDescriptions"
-          :key="'source-input-widget-' + inputKey"
-          v-model="operationInputs[inputKey]"
-        />
-        <multi-image-input-selector
-          :input-descriptions="imageInputDescriptions"
-          :input-images="operationInputs"
-          :images="images"
-          :max-inputs="MAX_COLOR_CHANNELS"
-          :min-inputs="MIN_COLOR_CHANNELS"
-          @set-images="setImages"
-          @insert-image="insertImage"
-          @remove-image="removeImage"
-          @add-channel="addColorChannel"
-          @remove-channel="removeColorChannel"
-          @update-channel-color="updateColorChannel"
-        />
+          </div>
+        </div>
       </v-card-text>
     </v-slide-y-reverse-transition>
     <v-slide-y-reverse-transition hide-on-leave>
@@ -585,6 +1089,45 @@ function shouldRenderInput(inputKey, inputDescription) {
 .operation-input {
   margin-top: 2rem;
   width: 12rem;
+}
+
+.tab-bar {
+  color: var(--text);
+  background-color: var(--header);
+  border-bottom: 0.1rem solid var(--primary-interactive);
+}
+
+.tabs {
+  min-width: 0;
+}
+
+.tabs :deep(.v-tab) {
+  color: var(--text);
+  opacity: 0.8;
+  border-radius: 0.25rem 0.25rem 0 0;
+}
+
+.tabs :deep(.v-tab--selected) {
+  background-color: var(--primary-interactive);
+  color: var(--primary-background);
+  font-weight: 700;
+  opacity: 1;
+}
+
+.tabs :deep(.configure-tab-active) {
+  background-color: var(--primary-interactive);
+  color: var(--primary-background);
+  font-weight: 700;
+  opacity: 1;
+}
+
+.tabs :deep(.v-tab--selected .v-tab__slider) {
+  opacity: 0;
+}
+
+.configure-tab-panel,
+.configure-section {
+  padding: 1rem 0;
 }
 
 .buttons-container {
