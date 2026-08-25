@@ -522,6 +522,28 @@ function catalogCoordinateValue(value, axis) {
   return span
 }
 
+function catalogCoordinateValue(value, axis) {
+  let sexagesimal = false
+  const span = document.createElement('span')
+  span.className = 'coordinate-popup-value'
+
+  function updateText() {
+    const degrees = axis === 'ra'
+      ? coordinateInputToDegrees(value, raSexagesimalToDegrees)
+      : coordinateInputToDegrees(value, decSexagesimalToDegrees)
+    span.textContent = sexagesimal
+      ? axis === 'ra' ? raDegreesToSexagesimal(degrees) : decDegreesToSexagesimal(degrees)
+      : `${degrees.toFixed(6)}°`
+  }
+
+  span.addEventListener('click', () => {
+    sexagesimal = !sexagesimal
+    updateText()
+  })
+  updateText()
+  return span
+}
+
 function toggleCentroidTool() {
   if (!props.enableCentroidTool) return
 
@@ -951,6 +973,14 @@ function buildDisplayApertureRegion(region) {
 }
 
 function apertureRegionFromRadii(baseRegion) {
+  if (hasAperturePixelRadii()) {
+    return apertureRegionFromPixelRadii(baseRegion)
+  }
+
+  return apertureRegionFromRadii(baseRegion)
+}
+
+function apertureRegionFromRadii(baseRegion) {
   const maxRadius = maxImageRadius(baseRegion)
   if (hasAperturePixelRadii()) {
     return apertureRegionFromPixelRadii(baseRegion)
@@ -973,6 +1003,19 @@ function apertureRegionFromPixelRadii(baseRegion) {
     radius: Math.min(props.aperturePixelRadii.apertureRadius, maxRadius),
     r_back1: Math.min(props.aperturePixelRadii.annulusInnerRadius, maxRadius),
     r_back2: Math.min(props.aperturePixelRadii.annulusOuterRadius, maxRadius),
+  }
+}
+
+function hasApertureValues() {
+  return hasAperturePixelRadii() || hasApertureRadii()
+}
+
+function apertureRegionFromPixelRadii(baseRegion) {
+  return {
+    ...baseRegion,
+    radius: props.aperturePixelRadii.apertureRadius,
+    r_back1: props.aperturePixelRadii.annulusInnerRadius,
+    r_back2: props.aperturePixelRadii.annulusOuterRadius,
   }
 }
 
@@ -1193,6 +1236,10 @@ function apertureOuterRadius() {
   height: 520px;
   max-height: 62vh;
   min-height: 420px;
+}
+
+.coordinate-popup-value {
+  cursor: pointer;
 }
 
 .coordinate-popup-value {

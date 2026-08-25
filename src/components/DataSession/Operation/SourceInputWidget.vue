@@ -102,6 +102,7 @@ const props = defineProps({
 })
 const emit = defineEmits(['updateApertureRadii', 'updateAperturePixelRadii', 'updateCentroidRegion'])
 
+
 const loading = ref(false)
 const targetNameError = ref('')
 const coordinateError = ref('')
@@ -188,6 +189,7 @@ watch(selectedImage, async (image) => {
   const imageChanged = loadedImageBasename && loadedImageBasename !== image.basename
   syncImageSource(image, imageChanged)
   loadedImageBasename = image.basename
+  syncImageSource(image)
   if (props.targetPositionAction) {
     requestAnalysis(props.targetPositionAction)
   }
@@ -336,12 +338,6 @@ function updateAperturePixels(region) {
   emit('updateAperturePixelRadii', pixelRadiiFromRegion(region))
 }
 
-function updateSharedPixelRadii(region = localCentroidRegion.value) {
-  if (!props.syncPixelRadii || !region || !props.apertureRadii || !wcsSolution.value) return
-
-  emit('updateAperturePixelRadii', aperturePixelRadiiFromInputs(region))
-}
-
 function centroidPixelRadii() {
   if (props.aperturePixelRadii) {
     return props.aperturePixelRadii
@@ -375,6 +371,13 @@ function aperturePixelRadiiFromInputs(region) {
     })
   )
 }
+
+function updateSharedPixelRadii(region = localCentroidRegion.value) {
+  if (!props.syncPixelRadii || !region || !props.apertureRadii || !wcsSolution.value) return
+
+  emit('updateAperturePixelRadii', aperturePixelRadiiFromInputs(region))
+}
+
 
 function arcsecRadius(radius, region) {
   return Math.round(radius * pixelScale(region) * 100) / 100
