@@ -30,6 +30,7 @@ const source = defineModel({
   type: Object,
   required: true,
 }, {
+}, {
   type: Object,
   required: true,
 })
@@ -101,7 +102,6 @@ const props = defineProps({
   },
 })
 const emit = defineEmits(['updateApertureRadii', 'updateAperturePixelRadii', 'updateCentroidRegion'])
-
 
 const loading = ref(false)
 const targetNameError = ref('')
@@ -189,7 +189,8 @@ watch(selectedImage, async (image) => {
   const imageChanged = loadedImageBasename && loadedImageBasename !== image.basename
   syncImageSource(image, imageChanged)
   loadedImageBasename = image.basename
-  syncImageSource(image)
+  syncImageSource(image, imageChanged)
+  loadedImageBasename = image.basename
   if (props.targetPositionAction) {
     requestAnalysis(props.targetPositionAction)
   }
@@ -214,6 +215,7 @@ watch(wcsSolution, () => {
     updateApertureInputs(localCentroidRegion.value)
   }
 })
+
 
 function requestAnalysis(action, input={}) {
   const url = configStore.datalabApiBaseUrl + 'analysis/' + action + '/'
@@ -338,6 +340,12 @@ function updateAperturePixels(region) {
   emit('updateAperturePixelRadii', pixelRadiiFromRegion(region))
 }
 
+function updateSharedPixelRadii(region = localCentroidRegion.value) {
+  if (!props.syncPixelRadii || !region || !props.apertureRadii || !wcsSolution.value) return
+
+  emit('updateAperturePixelRadii', aperturePixelRadiiFromInputs(region))
+}
+
 function centroidPixelRadii() {
   if (props.aperturePixelRadii) {
     return props.aperturePixelRadii
@@ -371,13 +379,6 @@ function aperturePixelRadiiFromInputs(region) {
     })
   )
 }
-
-function updateSharedPixelRadii(region = localCentroidRegion.value) {
-  if (!props.syncPixelRadii || !region || !props.apertureRadii || !wcsSolution.value) return
-
-  emit('updateAperturePixelRadii', aperturePixelRadiiFromInputs(region))
-}
-
 
 function arcsecRadius(radius, region) {
   return Math.round(radius * pixelScale(region) * 100) / 100
@@ -565,7 +566,7 @@ function syncImageSource(image, imageChanged) {
         </v-sheet>
       </v-col>
     </v-row>
-  </div>
+gi  </div>
 </template>
 
 <style scoped>

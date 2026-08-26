@@ -7,8 +7,7 @@ import { telescope_colors, telescope_labels } from '@/utils/color.js'
 import { dateToMjd, formatMjd, formatDayOffset } from '@/utils/formatDate.js'
 import CoordinateValue from '@/components/Global/CoordinateValue.vue'
 import { coordinateInputToDegrees, raSexagesimalToDegrees, decSexagesimalToDegrees } from '@/utils/coordinates'
-import CoordinateValue from '@/components/Global/CoordinateValue.vue'
-import { coordinateInputToDegrees, raSexagesimalToDegrees, decSexagesimalToDegrees } from '@/utils/coordinates'
+
 
 const props = defineProps({
   variableStarData: {
@@ -119,7 +118,9 @@ const sourceInfo = computed(() => {
 
 const sourceCoordinates = computed(() => {
   const source = props.variableStarData?.source
-  return source?.name ? null : {
+  if (!source || source.name) return null
+
+  return {
     ra: coordinateInputToDegrees(source.ra, raSexagesimalToDegrees),
     dec: coordinateInputToDegrees(source.dec, decSexagesimalToDegrees),
   }
@@ -136,10 +137,6 @@ const apertureInfo = computed(() => {
 
 const chartSubtitleText = computed(() => {
   return [sourceInfo.value, apertureInfo.value].filter(Boolean)
-})
-
-const displaySubtitleText = computed(() => {
-  return [sourceCoordinates.value ? '' : sourceInfo.value, apertureInfo.value].filter(Boolean)
 })
 
 const displaySubtitleText = computed(() => {
