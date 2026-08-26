@@ -187,7 +187,6 @@ watch(selectedImage, async (image) => {
   localCentroidRegion.value = props.centroidRegion
   centroidResult.value = null
   const imageChanged = loadedImageBasename && loadedImageBasename !== image.basename
-  const imageChanged = loadedImageBasename && loadedImageBasename !== image.basename
   syncImageSource(image, imageChanged)
   loadedImageBasename = image.basename
   syncImageSource(image, imageChanged)
@@ -214,10 +213,9 @@ watch(wcsSolution, () => {
   syncCentroidRegionRadii()
   if (localCentroidRegion.value && !props.preserveApertureRadiiOnSelect) {
     updateApertureInputs(localCentroidRegion.value)
-  if (localCentroidRegion.value && !props.preserveApertureRadiiOnSelect) {
-    updateApertureInputs(localCentroidRegion.value)
   }
 })
+
 
 function requestAnalysis(action, input={}) {
   const url = configStore.datalabApiBaseUrl + 'analysis/' + action + '/'
@@ -336,7 +334,6 @@ function syncCentroidRegionRadii() {
     r_back2: radii.annulusOuterRadius,
   }
   emit('updateCentroidRegion', localCentroidRegion.value)
-  emit('updateCentroidRegion', localCentroidRegion.value)
 }
 
 function updateAperturePixels(region) {
@@ -356,7 +353,6 @@ function centroidPixelRadii() {
   if (!props.apertureRadii || !wcsSolution.value) {
     return null
   }
-  return aperturePixelRadiiFromInputs(localCentroidRegion.value)
   return aperturePixelRadiiFromInputs(localCentroidRegion.value)
 }
 
@@ -384,13 +380,6 @@ function aperturePixelRadiiFromInputs(region) {
   )
 }
 
-function updateSharedPixelRadii(region = localCentroidRegion.value) {
-  if (!props.syncPixelRadii || !region || !props.apertureRadii || !wcsSolution.value) return
-
-  emit('updateAperturePixelRadii', aperturePixelRadiiFromInputs(region))
-}
-
-
 function arcsecRadius(radius, region) {
   return Math.round(radius * pixelScale(region) * 100) / 100
 }
@@ -403,8 +392,8 @@ function pixelScale(region) {
   return imagePixelScaleArcsec(wcsSolution.value, region.width, region.height)
 }
 
-function syncImageSource(image, imageChanged, imageChanged) {
-  if (props.resetOnImageChange && imageChanged && imageChanged) {
+function syncImageSource(image, imageChanged) {
+  if (props.resetOnImageChange && imageChanged) {
     source.value = props.includeMjd ? { mjd: dateToMjd(image.observation_date) } : {}
     return
   }

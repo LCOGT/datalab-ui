@@ -85,7 +85,6 @@ const centroidToolActive = defineModel('centroidToolActive', {
 })
 
 const emit = defineEmits(['analysisAction', 'centroidRegionUpdated', 'coordinateValidationUpdated'])
-const emit = defineEmits(['analysisAction', 'centroidRegionUpdated', 'coordinateValidationUpdated'])
 
 const CENTROID_DEFAULTS = {
   radius: 6,
@@ -499,28 +498,6 @@ function createCatalogLayer(){
     catalogLayerGroup = new L.LayerGroup(sourceCatalogMarkers)
     catalogLayerGroup.addTo(imageMap)
   }
-}
-
-function catalogCoordinateValue(value, axis) {
-  let sexagesimal = false
-  const span = document.createElement('span')
-  span.className = 'coordinate-popup-value'
-
-  function updateText() {
-    const degrees = axis === 'ra'
-      ? coordinateInputToDegrees(value, raSexagesimalToDegrees)
-      : coordinateInputToDegrees(value, decSexagesimalToDegrees)
-    span.textContent = sexagesimal
-      ? axis === 'ra' ? raDegreesToSexagesimal(degrees) : decDegreesToSexagesimal(degrees)
-      : `${degrees.toFixed(6)}°`
-  }
-
-  span.addEventListener('click', () => {
-    sexagesimal = !sexagesimal
-    updateText()
-  })
-  updateText()
-  return span
 }
 
 function catalogCoordinateValue(value, axis) {
@@ -979,63 +956,14 @@ function apertureRegionFromRadii(baseRegion) {
     return apertureRegionFromPixelRadii(baseRegion)
   }
 
-  return apertureRegionFromRadii(baseRegion)
-}
-
-function apertureRegionFromRadii(baseRegion) {
-  const maxRadius = maxImageRadius(baseRegion)
-  if (hasAperturePixelRadii()) {
-    return apertureRegionFromPixelRadii(baseRegion)
-  }
-
-  return apertureRegionFromRadii(baseRegion)
-}
-
-function apertureRegionFromRadii(baseRegion) {
-  const maxRadius = maxImageRadius(baseRegion)
-  if (hasAperturePixelRadii()) {
-    return apertureRegionFromPixelRadii(baseRegion)
-  }
-
   const pixelScale = imagePixelScaleArcsec(props.wcsSolution, imageDimensions.value.width, imageDimensions.value.height)
 
   return {
     ...baseRegion,
     radius: Math.min(props.apertureRadii.apertureRadius / pixelScale, maxRadius),
     r_back1: Math.min(props.apertureRadii.annulusInnerRadius / pixelScale, maxRadius),
-    r_back2: Math.min(props.apertureRadii.annulusOuterRadius / pixelScale, maxRadius),
-    radius: Math.min(props.apertureRadii.apertureRadius / pixelScale, maxRadius),
-    r_back1: Math.min(props.apertureRadii.annulusInnerRadius / pixelScale, maxRadius),
-    r_back2: Math.min(props.apertureRadii.annulusOuterRadius / pixelScale, maxRadius),
+    r_back2: Math.min(props.apertureRadii.annulusOuterRadius / pixelScale, maxRadius)
   }
-}
-
-function apertureRegionFromPixelRadii(baseRegion) {
-  const maxRadius = maxImageRadius(baseRegion)
-  return {
-    ...baseRegion,
-    radius: Math.min(props.aperturePixelRadii.apertureRadius, maxRadius),
-    r_back1: Math.min(props.aperturePixelRadii.annulusInnerRadius, maxRadius),
-    r_back2: Math.min(props.aperturePixelRadii.annulusOuterRadius, maxRadius),
-  }
-}
-
-function hasApertureValues() {
-  return hasAperturePixelRadii() || hasApertureRadii()
-}
-
-function apertureRegionFromPixelRadii(baseRegion) {
-  const maxRadius = maxImageRadius(baseRegion)
-  return {
-    ...baseRegion,
-    radius: Math.min(props.aperturePixelRadii.apertureRadius, maxRadius),
-    r_back1: Math.min(props.aperturePixelRadii.annulusInnerRadius, maxRadius),
-    r_back2: Math.min(props.aperturePixelRadii.annulusOuterRadius, maxRadius),
-  }
-}
-
-function hasApertureValues() {
-  return hasAperturePixelRadii() || hasApertureRadii()
 }
 
 function apertureRegionFromPixelRadii(baseRegion) {
@@ -1081,42 +1009,6 @@ function apertureCenterRegion() {
   }
 }
 
-function updateCoordinateValidation() {
-  if (!props.apertureCenterCoordinate || !props.wcsSolution || !imageDimensions.value.width) {
-    emit('coordinateValidationUpdated', null)
-    return
-  }
-
-  if (props.centroidRegion?.ready &&
-    props.centroidRegion.ra === props.apertureCenterCoordinate.ra &&
-    props.centroidRegion.dec === props.apertureCenterCoordinate.dec) {
-    emit('coordinateValidationUpdated', { valid: true, region: props.centroidRegion })
-    return
-  }
-
-  const center = raDecToImageLatLng(props.apertureCenterCoordinate)
-  if (!latLngInsideImage(center)) {
-    emit('coordinateValidationUpdated', { error: 'invalid RA and Dec values' })
-    return
-  }
-
-  const region = {
-    x: center.lng,
-    y: center.lat,
-    ra: props.apertureCenterCoordinate.ra,
-    dec: props.apertureCenterCoordinate.dec,
-    width: imageDimensions.value.width,
-    height: imageDimensions.value.height,
-    ready: true,
-  }
-  if (apertureOuterRadius() > maxImageRadius(region)) {
-    emit('coordinateValidationUpdated', { error: 'try modifying your aperture radii', region })
-    return
-  }
-
-  emit('coordinateValidationUpdated', { valid: true, region })
-}
-
 function apertureOuterRadius() {
   if (hasAperturePixelRadii()) {
     return props.aperturePixelRadii.annulusOuterRadius
@@ -1165,20 +1057,6 @@ function updateCoordinateValidation() {
   }
 
   emit('coordinateValidationUpdated', { valid: true, region })
-}
-
-function apertureOuterRadius() {
-  if (hasAperturePixelRadii()) {
-    return props.aperturePixelRadii.annulusOuterRadius
-  }
-  if (hasApertureRadii()) {
-    return props.apertureRadii.annulusOuterRadius / imagePixelScaleArcsec(
-      props.wcsSolution,
-      imageDimensions.value.width,
-      imageDimensions.value.height,
-    )
-  }
-  return 0
 }
 
 </script>

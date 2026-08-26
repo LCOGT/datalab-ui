@@ -7,7 +7,7 @@ import WizardScalingPage from '@/components/Global/Scaling/WizardScalingPage.vue
 import SourceInputWidget from './SourceInputWidget.vue'
 import { useConfigurationStore } from '@/stores/configuration'
 import { coordinateInputToDegrees, raSexagesimalToDegrees, decSexagesimalToDegrees } from '@/utils/coordinates'
-import { coordinateInputToDegrees, raSexagesimalToDegrees, decSexagesimalToDegrees } from '@/utils/coordinates'
+
 /*
   This component is a step wizard for configuring the input of a new operation to the data session.
   It has three main pages:
@@ -556,30 +556,6 @@ function centroidRegionKey(preview) {
   return preview.inputKey + '-' + preview.index
 }
 
-function updateAperturePixelRadii(radii) {
-  movingAperturePixelRadii.value = { ...radii }
-}
-
-function updateCentroidRegion(key, region) {
-  centroidRegions.value[key] = region
-}
-
-function updateTargetCentroidRegion(preview, region) {
-  const key = centroidRegionKey(preview)
-  updateCentroidRegion(key, region)
-}
-
-function targetPositionSource(preview) {
-  return operationInputs.value[preview.inputKey][preview.index]
-}
-
-function updateTargetPositionSource(preview, source) {
-  operationInputs.value[preview.inputKey][preview.index] = source
-}
-
-function centroidRegionKey(preview) {
-  return preview.inputKey + '-' + preview.index
-}
 
 function addColorChannel() {
   const colorChannels = operationInputs.value.color_channels
@@ -641,17 +617,6 @@ function isTargetPositionsComplete(input, inputDescription) {
   })
 }
 
-function isTargetPositionsComplete(input, inputDescription) {
-  const minimum = inputDescription.minimum || 1
-  if (!Array.isArray(input) || input.length < minimum) return false
-
-  return input.slice(0, minimum).every((position) => {
-    return position &&
-      !isMissingCoordinate(position.ra) &&
-      !isMissingCoordinate(position.dec) &&
-      (minimum === 1 || !isMissingCoordinate(position.mjd))
-  })
-}
 
 function shouldRenderInput(inputKey, inputDescription) {
   return Boolean(inputDescription) && !FRONTEND_HIDDEN_INPUT_KEYS.has(inputKey)
