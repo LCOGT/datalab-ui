@@ -156,11 +156,9 @@ function rowMjd(row) {
   const mjd = Number(row.mjd ?? row.modified_julian_date)
   if (Number.isFinite(mjd)) return mjd
 
-  const numericObservationDate = Number(row.observation_date)
-  if (Number.isFinite(numericObservationDate) && numericObservationDate > 10000) {
-    return numericObservationDate
-  }
-
+  const mjdDate = Number(row.observation_date)
+  if (Number.isFinite(mjdDate)) return mjdDate
+  
   return dateToMjd(row.observation_date)
 }
 
