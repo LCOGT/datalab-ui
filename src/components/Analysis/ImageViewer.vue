@@ -4,10 +4,18 @@ import L from 'leaflet'
 import '@geoman-io/leaflet-geoman-free'
 import '@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css'
 import 'leaflet/dist/leaflet.css'
+import '@/assets/css/image-viewer.css'
 import { useAlertsStore } from '@/stores/alerts'
 import { useAnalysisStore } from '@/stores/analysis'
-import { loadImage, scalePoint } from '@/utils/common'
-import WCS from '@/utils/wcs'
+import { useImageMap } from '@/composables/useImageMap'
+import {
+  apertureRingAtPoint,
+  constrainApertureRadii,
+  createApertureRadii,
+  imagePointDistance,
+  maximumRadiusAtImagePoint,
+  resizeApertureRegion,
+} from '@/utils/apertureRegion'
 import CoordinateValue from '@/components/Global/CoordinateValue.vue'
 import {
   coordinateInputToDegrees,
@@ -54,11 +62,11 @@ let imageMap = null
 let imageBounds = null
 let imageOverlay = null
 let lineLayer = null
-let wcs = null
 let catalogLayerGroup = null
 let centroidOverlay = null
 let centroidDrawStart = null
 let wasMapDraggingEnabled = false
+let activeApertureRing = null
 let imageDimensions = ref({ width: 0, height: 0 })
 const leafletDiv = ref(null)
 const isHoveringLeaflet = ref(false)
@@ -66,7 +74,14 @@ const raDec = ref({ ra: 0, dec: 0 })
 const isLeafletDrawToolActive = ref(false)
 const alerts = useAlertsStore()
 const analysisStore = useAnalysisStore()
-let viewerInstanceId = 0
+const {
+  addImageOverlay,
+  createImageMap,
+  fitImageOverlay,
+  imagePointToRaDec,
+  removeImageMap,
+  setWcsSolution,
+} = useImageMap()
 
 onMounted(() => {
   // Initialize the map and its event listeners before adding the image overlay
@@ -83,18 +98,14 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
-  viewerInstanceId += 1
-
   if (imageMap) {
-    imageMap.off()
-    imageMap.remove()
+    removeImageMap(imageMap)
   }
 
   imageMap = null
   imageBounds = null
   imageOverlay = null
   lineLayer = null
-  wcs = null
   catalogLayerGroup = null
   centroidOverlay = null
   centroidDrawStart = null
@@ -106,6 +117,12 @@ watch(() => props.catalog, () => createCatalogLayer())
 watch(() => props.centroidRegion, (newRegion) => {
   syncCentroidOverlay(newRegion)
 }, { deep: true })
+
+watch(() => props.wcsSolution, (solution) => {
+  if (solution) {
+    setWcsSolution(solution)
+  }
+}, { immediate: true })
 
 watch(centroidToolActive, (newValue) => {
   if (!newValue) {
@@ -125,12 +142,11 @@ watch(() => analysisStore.imageUrl, (newImageUrl) => {
 async function initImageOverlay(imgSrc) {
   if (!imgSrc || !imageMap) return
 
-  const instanceId = viewerInstanceId
-  const img = await loadImage(imgSrc)
-
-  if (instanceId !== viewerInstanceId || !imageMap) return
-
-  imageDimensions.value = { width: img.width, height: img.height }
+  const overlay = await addImageOverlay(imageMap, imgSrc)
+  imageBounds = overlay.imageBounds
+  imageDimensions.value = overlay.imageDimensions
+  imageOverlay = overlay.imageOverlay
+  fitImageOverlay(imageMap, imageBounds)
 
   // Fetch catalog only if empty
   if (!props.catalog?.length){
@@ -144,34 +160,10 @@ async function initImageOverlay(imgSrc) {
   // Fetch WCS data for pix to world transformation
   emit('analysisAction', 'wcs')
 
-  imageBounds = [[0, 0], [imageDimensions.value.height, imageDimensions.value.width]]
-  imageOverlay = L.imageOverlay(imgSrc, imageBounds).addTo(imageMap)
-
-  /**
-   * Fills map space with image, set max/min zoom
-   * Next tick is used here otherwise the bounds will update before the ImageOverlay is added to the map
-   */
-  nextTick(() => {
-    if (!imageMap) return
-
-    imageMap.invalidateSize()
-    imageMap.fitBounds(imageBounds)
-    imageMap.setMaxBounds(imageBounds)
-    imageMap.setMinZoom(imageMap.getZoom())
-  })
 }
 
 function createMap(){
-  // Create leaflet map (here referred to as imageMap)
-  imageMap = L.map(leafletDiv.value, {
-    maxZoom: 5,
-    minZoom: -3,
-    zoomSnap: 0, // disable snap for smooth zoom
-    zoomDelta: 0.5,
-    crs: L.CRS.Simple,
-    attributionControl: false,
-    maxBoundsViscosity: 1.0, // Prevents panning outside of image
-  })
+  imageMap = createImageMap(leafletDiv.value)
 
   // Create custom control to reset view after zooming in
   imageMap.pm.Toolbar.createCustomControl({
@@ -253,35 +245,21 @@ function addMapHandlers() {
 
   // Handler for displaying ra, dec coordinates when hovering over the image
   imageMap.on('mousemove', (e) => {
-    handleCentroidDrag(e)
+    if (activeApertureRing) {
+      resizeApertureRing(e.latlng)
+    } else {
+      handleCentroidDrag(e)
+    }
 
     // If we don't have a WCS solution, we can't display coordinates
     if(!props.wcsSolution) return
 
-    // Initialize WCS helper class if not already done
-    if(!wcs){
-      const { crval, crpix, cd1, cd2, fits_dimensions } = props.wcsSolution
-      wcs = new WCS(crval[0], crval[1], crpix[0], crpix[1], cd1[0], cd1[1], cd2[0], cd2[1], fits_dimensions)
-    }
-
-    const fitsWidth = wcs.fits_dimensions[0]
-    const fitsHeight = wcs.fits_dimensions[1]
-
-    // TODO: up to here might be able to be moved outside of the mousemove event
-
-    const imageX = e.latlng.lng
-    const imageY = e.latlng.lat
-
-    const {x, y} = scalePoint(imageDimensions.value.width, imageDimensions.value.height, fitsWidth, fitsHeight, imageX, imageY)
-
-    const ra = wcs.pixelToRa(x, y)
-    const dec = wcs.pixelToDec(x, y)
-    raDec.value = { ra, dec }
+    raDec.value = imagePointToRaDec(e.latlng, imageDimensions.value)
   })
 
-  imageMap.on('mousedown', handleCentroidStart)
-  imageMap.on('mouseup', handleCentroidEnd)
-  imageMap.on('mouseout', handleCentroidEnd)
+  imageMap.on('mousedown', handleMapPointerStart)
+  imageMap.on('mouseup', handleMapPointerEnd)
+  imageMap.on('mouseout', handleMapPointerEnd)
   mapContainer.addEventListener('touchstart', handleCentroidTouchStart, { passive: false })
   mapContainer.addEventListener('touchmove', handleCentroidTouchMove, { passive: false })
   mapContainer.addEventListener('touchend', handleCentroidTouchEnd, { passive: false })
@@ -399,12 +377,6 @@ function emitCentroidRegionUpdated(region) {
   emit('centroidRegionUpdated', region ? { ...region } : null)
 }
 
-function centroidDistance(center, point) {
-  const dx = point.lng - center.lng
-  const dy = point.lat - center.lat
-  return Math.sqrt(dx * dx + dy * dy)
-}
-
 function latLngFromTouchEvent(event) {
   const touch = event.touches[0] || event.changedTouches[0]
   if (!touch || !imageMap) {
@@ -417,16 +389,16 @@ function latLngFromTouchEvent(event) {
 }
 
 function buildCentroidRegion(center, rawRadius) {
-  const radius = Math.max(rawRadius, MIN_CENTROID_RADIUS)
+  const apertureRadii = createApertureRadii(rawRadius, CENTROID_DEFAULTS, MIN_CENTROID_RADIUS)
+  const maximumOuterRadius = maximumRadiusAtImagePoint(center, imageDimensions.value)
+  const constrainedRadii = constrainApertureRadii(apertureRadii, maximumOuterRadius)
 
   return {
     x: center.lng,
     y: center.lat,
     ra: null,
     dec: null,
-    radius,
-    r_back1: radius * (CENTROID_DEFAULTS.r_back1 / CENTROID_DEFAULTS.radius),
-    r_back2: radius * (CENTROID_DEFAULTS.r_back2 / CENTROID_DEFAULTS.radius),
+    ...constrainedRadii,
     width: imageDimensions.value.width,
     height: imageDimensions.value.height,
     ready: true,
@@ -435,6 +407,10 @@ function buildCentroidRegion(center, rawRadius) {
 
 function handleCentroidStart(event) {
   if (!centroidToolActive.value || isLeafletDrawToolActive.value || !imageMap || !imageBounds) {
+    return
+  }
+
+  if (props.centroidRegion && props.centroidRegion.r_back2 > maximumRadiusAtImagePoint(event.latlng, imageDimensions.value)) {
     return
   }
 
@@ -457,7 +433,7 @@ function handleCentroidDrag(event) {
 
   const region = buildCentroidRegion(
     centroidDrawStart,
-    centroidDistance(centroidDrawStart, event.latlng),
+    imagePointDistance(centroidDrawStart, event.latlng),
   )
 
   syncCentroidOverlay(region)
@@ -474,6 +450,47 @@ function handleCentroidEnd() {
     imageMap.dragging.enable()
   }
   wasMapDraggingEnabled = false
+}
+
+function handleMapPointerStart(event) {
+  const ring = props.centroidRegion && !isLeafletDrawToolActive.value
+    ? apertureRingAtPoint(props.centroidRegion, event.latlng, 8)
+    : null
+
+  if (ring) {
+    activeApertureRing = ring
+    wasMapDraggingEnabled = imageMap.dragging.enabled()
+    if (wasMapDraggingEnabled) {
+      imageMap.dragging.disable()
+    }
+    return
+  }
+
+  handleCentroidStart(event)
+}
+
+function handleMapPointerEnd() {
+  if (activeApertureRing) {
+    activeApertureRing = null
+    if (wasMapDraggingEnabled) {
+      imageMap.dragging.enable()
+    }
+    wasMapDraggingEnabled = false
+    return
+  }
+
+  handleCentroidEnd()
+}
+
+function resizeApertureRing(point) {
+  const resizedRegion = resizeApertureRegion(
+    props.centroidRegion,
+    activeApertureRing,
+    point,
+    imageDimensions.value,
+  )
+  syncCentroidOverlay(resizedRegion)
+  emitCentroidRegionUpdated(resizedRegion)
 }
 
 function handleCentroidTouchStart(event) {
@@ -599,101 +616,3 @@ function syncCentroidOverlay(region) {
     </v-fade-transition>
   </div>
 </template>
-<style>
-
-/* Custom icons for leaflet-geoman */
-.leaflet-top.leaflet-left{
-  display: flex !important;
-  flex-direction: row !important;
-  flex-wrap: wrap;
-  width: max-content;
-  max-width: calc(100% - 1rem);
-  margin: 0.5rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
-}
-
-.leaflet-control-zoom {
-  display: flex;
-  flex-direction: row-reverse
-}
-
-.custom-reset-zoom-icon {
-  background-image: url('../../assets/images/resize.svg');
-  filter: invert(1);
-}
-
-.custom-centroid-tool-icon {
-  background-image: url('../../assets/images/vector-circle.svg');
-  filter: invert(1);
-}
-
-.leaflet-pm-toolbar .leaflet-pm-icon-polyline {
-  background-image: url('../../assets/images/vector-line.svg');
-  filter: invert(1);
-}
-/* Custom styling for toolbar */
-
-.leaflet-bar a{
-  background-color: var(--primary-interactive);
-  color: var(--text);
-  border-bottom: none;
-}
-
-.leaflet-bar a:hover{
-  background-color: var(--secondary-interactive);
-}
-
-.leaflet-bar a:focus{
-  background-color: var(--secondary-interactive);
-}
-
-.leaflet-bar a.leaflet-disabled{
-  background-color: var(--secondary-background);
-  color: var(--disabled-text);
-}
-
-.button-container.custom-tool-container {
-  width: auto !important;
-  display: inline-flex;
-}
-
-.leaflet-bar a.custom-centroid-tool-icon {
-  background-color: var(--primary-interactive);
-}
-
-.leaflet-bar a.custom-centroid-tool-icon.centroid-tool-active,
-.leaflet-bar a.custom-centroid-tool-icon.active,
-.button-container.centroid-tool-active a.custom-centroid-tool-icon {
-  background-color: var(--warning);
-}
-
-.leaflet-top.leaflet-left .leaflet-pm-toolbar.leaflet-bar a {
-  border-bottom: none;
-  border-right: 1px solid var(--secondary-background);
-}
-
-.leaflet-top.leaflet-left .leaflet-pm-toolbar.leaflet-bar a:last-child {
-  border-right: none;
-}
-
-.button-container .leaflet-pm-actions-container .leaflet-pm-action:hover{
-  background-color: var(--secondary-interactive);
-}
-
-.button-container .leaflet-pm-actions-container .leaflet-pm-action{
-  background-color: var(--primary-interactive);
-  color: var(--text);
-}
-
-.leaflet-container {
-  background-color: var(--primary-background);
-  border-radius: 0.25rem;
-  user-select: none;
-  -webkit-user-select: none;
-}
-
-.coordinate-popup-value {
-  cursor: pointer;
-}
-
-</style>
