@@ -17,6 +17,9 @@ onmessage = function(job) {
     // Init worker with the canvas, width, height, imageData, and sharedArrayBuffer
     canvas = payload.canvas
     context = canvas.getContext('2d')
+    if (canvas.width <= 0 || canvas.height <= 0) {
+      return
+    }
     outputImage = new ImageData(payload.canvas.width, payload.canvas.height)
 
     // Used for RGB stack, not used in grayscale scaling
