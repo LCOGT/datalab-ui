@@ -98,8 +98,14 @@ const chartTitle = computed(() => {
   return `${userTitle.value.trim() || DEFAULT_CHART_TITLE} - Light Curve`
 })
 
+const targetPositionsInfo = computed(() => {
+  const positions = props.variableStarData?.targetPositions
+  return positions?.length ? `Moving target: ${positions.length} positions` : ''
+})
+
 const sourceInfo = computed(() => {
   const source = props.variableStarData?.source
+  if (!source) return targetPositionsInfo.value
   if (source.name) return `Source: ${source.name}`
 
   const ra = coordinateInputToDegrees(source.ra, raSexagesimalToDegrees).toFixed(3)
