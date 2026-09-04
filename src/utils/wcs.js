@@ -57,4 +57,13 @@ class WCS {
   }
 }
 
+function imagePixelScaleArcsec(wcsSolution, imageWidth, imageHeight) {
+  const fitsWidth = wcsSolution.fits_dimensions[0]
+  const fitsHeight = wcsSolution.fits_dimensions[1]
+  const fitsPixelsPerImagePixel = Math.sqrt((fitsWidth / imageWidth) * (fitsHeight / imageHeight))
+  const degreesPerFitsPixel = Math.sqrt(Math.abs(wcsSolution.cd1[0] * wcsSolution.cd2[1] - wcsSolution.cd1[1] * wcsSolution.cd2[0]))
+  return degreesPerFitsPixel * fitsPixelsPerImagePixel * 3600
+}
+
 export default WCS
+export { imagePixelScaleArcsec }
