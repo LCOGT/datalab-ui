@@ -603,7 +603,7 @@ async function onModeChange(val) {
               :max-value="maxPixelValue"
               :z-min="Number(zmin)"
               :z-max="Number(zmax)"
-              :color="{ r: 255, g: 255, b: 255 }"
+              :color="{ r: 0, g: 173, b: 239 }"
               @update-scaling="updateScaling"
             />
           </v-sheet>
