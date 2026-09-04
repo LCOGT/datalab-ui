@@ -3,6 +3,7 @@ import { ref, onMounted, computed} from 'vue'
 import { fetchApiCall, handleError } from '@/utils/api'
 import { rgbFilterMap, colorRGBMap } from '@/utils/color'
 import MultiImageInputSelector from '@/components/DataSession/Operation/MultiImageInputSelector.vue'
+import AperturePhotometryConfiguration from '@/components/DataSession/Operation/AperturePhotometryConfiguration.vue'
 import WizardScalingPage from '@/components/Global/Scaling/WizardScalingPage.vue'
 import SourceInputWidget from './SourceInputWidget.vue'
 import { useConfigurationStore } from '@/stores/configuration'
@@ -33,6 +34,8 @@ const operationInputs = ref({})
 const MAX_COLOR_CHANNELS = 6
 const MIN_COLOR_CHANNELS = 1
 const FRONTEND_HIDDEN_INPUT_KEYS = new Set(['min_comparisons', 'max_comparisons'])
+const APERTURE_INPUT_KEYS = ['aperture_radius', 'annulus_inner_radius', 'annulus_outer_radius']
+const TARGET_POSITIONS_TYPE = 'target_positions'
 
 const WIZARD_PAGES = {
   SELECT: 'select',
@@ -137,9 +140,12 @@ const isInputComplete = computed(() => {
       return false
     }
     if (inputDescription.type == 'source') {
-      if (isMissingCoordinate(input.ra) || isMissingCoordinate(input.dec)) {
+      if (hasInvalidCoordinates(input)) {
         return false
       }
+    }
+    if (inputDescription.type == TARGET_POSITIONS_TYPE && !isTargetPositionsComplete(input, inputDescription)) {
+      return false
     }
     if (['float', 'int'].includes(inputDescription.type)) {
       if (!isValidNumberInput(input, inputDescription.type)) {
@@ -173,6 +179,11 @@ const imageInputDescriptions = computed(() => {
     }))
   }
   return {}
+})
+
+const isAperturePhotometryConfiguration = computed(() => {
+  const descriptions = inputDescriptions.value || {}
+  return APERTURE_INPUT_KEYS.every(inputKey => inputKey in descriptions)
 })
 
 onMounted(async () => {
@@ -235,15 +246,23 @@ function submitOperation() {
 
 function operationInputDataForRequest() {
   const inputData = { ...operationInputs.value }
-  Object.keys(sourceInputDescriptions.value).forEach(inputKey => {
-    const source = inputData[inputKey]
-    inputData[inputKey] = {
-      ...source,
-      ra: coordinateInputToDegrees(source.ra, raSexagesimalToDegrees),
-      dec: coordinateInputToDegrees(source.dec, decSexagesimalToDegrees),
+  Object.entries(inputDescriptions.value).forEach(([inputKey, description]) => {
+    if (description.type === 'source') {
+      inputData[inputKey] = coordinateInputForRequest(inputData[inputKey])
+    }
+    if (description.type === TARGET_POSITIONS_TYPE) {
+      inputData[inputKey] = inputData[inputKey].map(coordinateInputForRequest)
     }
   })
   return inputData
+}
+
+function coordinateInputForRequest(source) {
+  return {
+    ...source,
+    ra: coordinateInputToDegrees(source.ra, raSexagesimalToDegrees),
+    dec: coordinateInputToDegrees(source.dec, decSexagesimalToDegrees),
+  }
 }
 
 function selectOperation(name) {
@@ -278,6 +297,9 @@ function selectOperation(name) {
     }
     else if (value.type == 'source') {
       operationInputs.value[key] = {}
+    }
+    else if (value.type == TARGET_POSITIONS_TYPE) {
+      operationInputs.value[key] = Array.from({ length: value.minimum }, () => ({}))
     }
     else if (value.type == 'select') {
       if ('default' in value) {
@@ -383,6 +405,30 @@ function isMissingCoordinate(value) {
   return value === undefined || value === null || value === ''
 }
 
+function isInvalidCoordinate(value, converter) {
+  if (isMissingCoordinate(value)) {
+    return true
+  }
+
+  return !Number.isFinite(coordinateInputToDegrees(value, converter))
+}
+
+function hasInvalidCoordinates(source) {
+  return isInvalidCoordinate(source.ra, raSexagesimalToDegrees) ||
+    isInvalidCoordinate(source.dec, decSexagesimalToDegrees)
+}
+
+function isTargetPositionsComplete(input, inputDescription) {
+  if (!Array.isArray(input) || input.length < inputDescription.minimum) {
+    return false
+  }
+
+  return input.every(position => {
+    return !hasInvalidCoordinates(position) &&
+      (inputDescription.minimum === 1 || !isMissingCoordinate(position.mjd))
+  })
+}
+
 function shouldRenderInput(inputKey, inputDescription) {
   return Boolean(inputDescription) && !FRONTEND_HIDDEN_INPUT_KEYS.has(inputKey)
 }
@@ -437,82 +483,93 @@ function shouldRenderInput(inputKey, inputDescription) {
         v-show="page == WIZARD_PAGES.CONFIGURE"
         class="wizard-card"
       >
-        <v-row
-          v-for="(group, index) in groupedInputDescriptions"
-          :key="'input-row-' + index"
-        >
-          <v-col
-            v-for="(inputDescription, inputKey) in group"
-            :key="'input-col-' + inputKey"
-            cols="6"
-            class="pb-0"
-          >
-            <source-input-widget
-              v-if="inputDescription.type == 'source'"
-              v-model="operationInputs[inputKey]"
-            />
-            <v-text-field
-              v-else-if="inputDescription.type == 'string' && !inputDescription.options"
-              v-model="operationInputs[inputKey]"
-              :label="inputDescription.name"
-              type="text"
-              class="operation-input"
-            />
-            <v-select
-              v-else-if="inputDescription.type == 'string' && inputDescription.options"
-              v-model="operationInputs[inputKey]"
-              return-object
-              :label="inputDescription.name"
-              :items="inputDescription.options"
-            />
-            <v-text-field
-              v-else-if="inputDescription.type == 'int'"
-              :model-value="operationInputs[inputKey]"
-              :label="inputDescription.name"
-              :hint="inputDescription.description"
-              :persistent-hint="Boolean(inputDescription.description)"
-              type="number"
-              step="1"
-              class="operation-input"
-              @update:model-value="setNumberInput(inputKey, $event, inputDescription.type)"
-            />
-            <v-text-field
-              v-else-if="inputDescription.type == 'float'"
-              :model-value="operationInputs[inputKey]"
-              :label="inputDescription.name"
-              :hint="inputDescription.description"
-              :persistent-hint="Boolean(inputDescription.description)"
-              type="number"
-              step="any"
-              class="operation-input"
-              @update:model-value="setNumberInput(inputKey, $event, inputDescription.type)"
-            />
-            <v-select
-              v-else-if="inputDescription.type == 'select'"
-              v-model="operationInputs[inputKey]"
-              :label="inputDescription.name"
-              :items="inputDescription.options"
-            />
-          </v-col>
-        </v-row>
-        <source-input-widget
-          v-for="(inputDescription, inputKey) in sourceInputDescriptions"
-          :key="'source-input-widget-' + inputKey"
-          v-model="operationInputs[inputKey]"
-        />
-        <multi-image-input-selector
-          :input-descriptions="imageInputDescriptions"
-          :input-images="operationInputs"
+        <aperture-photometry-configuration
+          v-if="isAperturePhotometryConfiguration"
+          :key="selectedOperation.name"
+          v-model="operationInputs"
+          :input-descriptions="inputDescriptions"
           :images="images"
           :max-inputs="MAX_COLOR_CHANNELS"
           :min-inputs="MIN_COLOR_CHANNELS"
-          @set-images="setImages"
-          @insert-image="insertImage"
-          @remove-image="removeImage"
-          @add-channel="addColorChannel"
-          @remove-channel="removeColorChannel"
-          @update-channel-color="updateColorChannel"
         />
+        <template v-else>
+          <v-row
+            v-for="(group, index) in groupedInputDescriptions"
+            :key="'input-row-' + index"
+          >
+            <v-col
+              v-for="(inputDescription, inputKey) in group"
+              :key="'input-col-' + inputKey"
+              cols="6"
+              class="pb-0"
+            >
+              <source-input-widget
+                v-if="inputDescription.type == 'source'"
+                v-model="operationInputs[inputKey]"
+              />
+              <v-text-field
+                v-else-if="inputDescription.type == 'string' && !inputDescription.options"
+                v-model="operationInputs[inputKey]"
+                :label="inputDescription.name"
+                type="text"
+                class="operation-input"
+              />
+              <v-select
+                v-else-if="inputDescription.type == 'string' && inputDescription.options"
+                v-model="operationInputs[inputKey]"
+                return-object
+                :label="inputDescription.name"
+                :items="inputDescription.options"
+              />
+              <v-text-field
+                v-else-if="inputDescription.type == 'int'"
+                :model-value="operationInputs[inputKey]"
+                :label="inputDescription.name"
+                :hint="inputDescription.description"
+                :persistent-hint="Boolean(inputDescription.description)"
+                type="number"
+                step="1"
+                class="operation-input"
+                @update:model-value="setNumberInput(inputKey, $event, inputDescription.type)"
+              />
+              <v-text-field
+                v-else-if="inputDescription.type == 'float'"
+                :model-value="operationInputs[inputKey]"
+                :label="inputDescription.name"
+                :hint="inputDescription.description"
+                :persistent-hint="Boolean(inputDescription.description)"
+                type="number"
+                step="any"
+                class="operation-input"
+                @update:model-value="setNumberInput(inputKey, $event, inputDescription.type)"
+              />
+              <v-select
+                v-else-if="inputDescription.type == 'select'"
+                v-model="operationInputs[inputKey]"
+                :label="inputDescription.name"
+                :items="inputDescription.options"
+              />
+            </v-col>
+          </v-row>
+          <source-input-widget
+            v-for="(inputDescription, inputKey) in sourceInputDescriptions"
+            :key="'source-input-widget-' + inputKey"
+            v-model="operationInputs[inputKey]"
+          />
+          <multi-image-input-selector
+            :input-descriptions="imageInputDescriptions"
+            :input-images="operationInputs"
+            :images="images"
+            :max-inputs="MAX_COLOR_CHANNELS"
+            :min-inputs="MIN_COLOR_CHANNELS"
+            @set-images="setImages"
+            @insert-image="insertImage"
+            @remove-image="removeImage"
+            @add-channel="addColorChannel"
+            @remove-channel="removeColorChannel"
+            @update-channel-color="updateColorChannel"
+          />
+        </template>
       </v-card-text>
     </v-slide-y-reverse-transition>
     <v-slide-y-reverse-transition hide-on-leave>
