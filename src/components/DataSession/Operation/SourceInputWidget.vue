@@ -1,5 +1,5 @@
 <script setup>
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useConfigurationStore } from '@/stores/configuration'
 import {
   coordinateInputToDegrees,
@@ -15,8 +15,23 @@ const source = defineModel({
   type: Object,
   required: true,
 })
+
+const props = defineProps({
+  nameLookup: {
+    type: Boolean,
+    default: true,
+  },
+  coordinateReadOnly: {
+    type: Boolean,
+    default: false,
+  },
+})
+
 const loading = ref(false)
 const targetNameError = ref('')
+const coordinateColumnWidth = computed(() => {
+  return props.nameLookup ? 4 : 6
+})
 
 async function performTargetLookup() {
   if (source.value.name) {
@@ -53,6 +68,7 @@ async function performTargetLookup() {
 <template>
   <v-row>
     <v-col
+      v-if="props.nameLookup"
       cols="12"
       md="4"
       class="pb-0"
@@ -69,24 +85,26 @@ async function performTargetLookup() {
     </v-col>
     <v-col
       cols="12"
-      md="4"
+      :md="coordinateColumnWidth"
       class="pb-0"
     >
       <v-text-field
         v-model="source.ra"
         label="Right Ascension"
         type="text"
+        :readonly="props.coordinateReadOnly"
       />
     </v-col>
     <v-col
       cols="12"
-      md="4"
+      :md="coordinateColumnWidth"
       class="pb-0"
     >
       <v-text-field
         v-model="source.dec"
         label="Declination"
         type="text"
+        :readonly="props.coordinateReadOnly"
       />
     </v-col>
   </v-row>
