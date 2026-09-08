@@ -1,0 +1,90 @@
+/* Custom icons for leaflet-geoman */
+.leaflet-top.leaflet-left {
+  display: flex !important;
+  flex-direction: row !important;
+  flex-wrap: wrap;
+  width: max-content;
+  max-width: calc(100% - 1rem);
+  margin: 0.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+}
+
+.leaflet-control-zoom {
+  display: flex;
+  flex-direction: row-reverse;
+}
+
+.custom-reset-zoom-icon {
+  background-image: url('../images/resize.svg');
+  filter: invert(1);
+}
+
+.custom-centroid-tool-icon {
+  background-image: url('../images/vector-circle.svg');
+  filter: invert(1);
+}
+
+.leaflet-pm-toolbar .leaflet-pm-icon-polyline {
+  background-image: url('../images/vector-line.svg');
+  filter: invert(1);
+}
+
+.leaflet-bar a {
+  background-color: var(--primary-interactive);
+  color: var(--text);
+  border-bottom: none;
+}
+
+.leaflet-bar a:hover,
+.leaflet-bar a:focus {
+  background-color: var(--secondary-interactive);
+}
+
+.leaflet-bar a.leaflet-disabled {
+  background-color: var(--secondary-background);
+  color: var(--disabled-text);
+}
+
+.button-container.custom-tool-container {
+  width: auto !important;
+  display: inline-flex;
+}
+
+.leaflet-bar a.custom-centroid-tool-icon {
+  background-color: var(--primary-interactive);
+}
+
+.leaflet-bar a.custom-centroid-tool-icon.centroid-tool-active,
+.leaflet-bar a.custom-centroid-tool-icon.active,
+.button-container.centroid-tool-active a.custom-centroid-tool-icon {
+  background-color: var(--warning);
+}
+
+.leaflet-top.leaflet-left .leaflet-pm-toolbar.leaflet-bar a {
+  border-bottom: none;
+  border-right: 1px solid var(--secondary-background);
+}
+
+.leaflet-top.leaflet-left .leaflet-pm-toolbar.leaflet-bar a:last-child {
+  border-right: none;
+}
+
+.button-container .leaflet-pm-actions-container .leaflet-pm-action:hover {
+  background-color: var(--secondary-interactive);
+}
+
+.button-container .leaflet-pm-actions-container .leaflet-pm-action {
+  background-color: var(--primary-interactive);
+  color: var(--text);
+}
+
+.leaflet-container {
+  background-color: var(--primary-background);
+  border-radius: 0.25rem;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.coordinate-popup-value {
+  cursor: pointer;
+}

@@ -5,6 +5,8 @@ import { downloadChartAsPNG } from '@/utils/downloadChart.js'
 import { normalizeLightCurveRows } from '@/utils/lightCurve.js'
 import { telescope_colors, telescope_labels } from '@/utils/color.js'
 import { dateToMjd, formatMjd, formatDayOffset } from '@/utils/formatDate.js'
+import CoordinateValue from '@/components/Global/CoordinateValue.vue'
+import { coordinateInputToDegrees, raSexagesimalToDegrees, decSexagesimalToDegrees } from '@/utils/coordinates'
 
 const props = defineProps({
   variableStarData: {
@@ -26,8 +28,6 @@ const MJD_DECIMAL_PLACES = 4
 const DAY_OFFSET_DECIMAL_PLACES = 2
 const MAGNITUDE_TICK_STEP = 0.25
 const ERROR_BAR_CAP_WIDTH = 8
-const X_AXIS_LEFT_PADDING_RATIO = 0.05
-const MIN_X_AXIS_LEFT_PADDING_DAYS = 1 / 24
 
 const errorBarPlugin = {
   id: 'lightCurveErrorBars',
@@ -98,13 +98,29 @@ const chartTitle = computed(() => {
   return `${userTitle.value.trim() || DEFAULT_CHART_TITLE} - Light Curve`
 })
 
+const targetPositionsInfo = computed(() => {
+  const positions = props.variableStarData?.targetPositions
+  return positions?.length ? `Moving target: ${positions.length} positions` : ''
+})
+
 const sourceInfo = computed(() => {
   const source = props.variableStarData?.source
+  if (!source) return targetPositionsInfo.value
   if (source.name) return `Source: ${source.name}`
 
-  const ra = Number(source.ra).toFixed(3)
-  const dec = Number(source.dec).toFixed(3)
+  const ra = coordinateInputToDegrees(source.ra, raSexagesimalToDegrees).toFixed(3)
+  const dec = coordinateInputToDegrees(source.dec, decSexagesimalToDegrees).toFixed(3)
   return ra && dec ? `RA: ${ra}, Dec: ${dec}` : ''
+})
+
+const sourceCoordinates = computed(() => {
+  const source = props.variableStarData?.source
+  if (!source || source.name) return null
+
+  return {
+    ra: coordinateInputToDegrees(source.ra, raSexagesimalToDegrees),
+    dec: coordinateInputToDegrees(source.dec, decSexagesimalToDegrees),
+  }
 })
 
 const apertureInfo = computed(() => {
@@ -118,6 +134,10 @@ const apertureInfo = computed(() => {
 
 const chartSubtitleText = computed(() => {
   return [sourceInfo.value, apertureInfo.value].filter(Boolean)
+})
+
+const displaySubtitleText = computed(() => {
+  return [sourceCoordinates.value ? '' : sourceInfo.value, apertureInfo.value].filter(Boolean)
 })
 
 const downloadTitle = computed(() => {
@@ -138,10 +158,20 @@ function visiblePoint(point) {
   return !point.telescopeSize || !hiddenTelescopeSizes.value.has(point.telescopeSize)
 }
 
+function rowMjd(row) {
+  const mjd = Number(row.mjd ?? row.modified_julian_date)
+  if (Number.isFinite(mjd)) return mjd
+
+  const mjdDate = Number(row.observation_date)
+  if (Number.isFinite(mjdDate)) return mjdDate
+  
+  return dateToMjd(row.observation_date)
+}
+
 // Chart data for brightness over linear time
 const chartData = computed(() => {
   const magTimeSeries = normalizeLightCurveRows(props.variableStarData.magnitudeTimeSeries)
-    .map(row => ({ ...row, mjd: dateToMjd(row.observation_date) }))
+    .map(row => ({ ...row, mjd: rowMjd(row) }))
     .filter(row => Number.isFinite(row.mjd))
     .sort((a, b) => a.mjd - b.mjd)
   if (!magTimeSeries.length) {
@@ -154,6 +184,7 @@ const chartData = computed(() => {
       chartMin: 0,
       chartMax: 1,
       chartMinMjd: 0,
+      chartMaxMjd: 1,
     }
   }
 
@@ -193,13 +224,12 @@ const chartData = computed(() => {
       errors: [],
       chartMin: 0,
       chartMax: 1,
-      chartMinMjd: minMjd - Math.max((maxMjd - minMjd) * X_AXIS_LEFT_PADDING_RATIO, MIN_X_AXIS_LEFT_PADDING_DAYS),
+      chartMinMjd: minMjd,
+      chartMaxMjd: maxMjd,
     }
   }
   const minMagnitude = Math.min(...plotValues)
   const maxMagnitude = Math.max(...plotValues)
-  const leftTimePadding = Math.max((maxMjd - minMjd) * X_AXIS_LEFT_PADDING_RATIO, MIN_X_AXIS_LEFT_PADDING_DAYS)
-  
   // Formatted dict for the chart to use
   return {
     baseMjd: baseMjd,
@@ -209,7 +239,8 @@ const chartData = computed(() => {
     errors: errors,
     chartMin: minMagnitude - CHART_PADDING,
     chartMax: maxMagnitude + CHART_PADDING,
-    chartMinMjd: minMjd - leftTimePadding,
+    chartMinMjd: minMjd,
+    chartMaxMjd: maxMjd,
   }
 })
 
@@ -224,12 +255,12 @@ watch(() => props.variableStarData, () => {
 
 function updateChart() {
   // Set all the new data
-  const { magnitudePoints, pointColors, errors, chartMin, chartMax, chartMinMjd } = chartData.value
+  const { magnitudePoints, pointColors, errors, chartMin, chartMax, chartMinMjd, chartMaxMjd } = chartData.value
   lightCurveChart.data.datasets[0].data = magnitudePoints
   lightCurveChart.data.datasets[0].borderColor = pointColors
   lightCurveChart.data.datasets[0].backgroundColor = pointColors
   lightCurveChart.options.scales.x.min = chartMinMjd
-  lightCurveChart.options.scales.x.max = undefined
+  lightCurveChart.options.scales.x.max = chartMaxMjd
   lightCurveChart.options.plugins.lightCurveErrorBars.errors = errors
   lightCurveChart.options.scales.y.min = chartMin
   lightCurveChart.options.scales.y.max = chartMax
@@ -245,7 +276,7 @@ function createChart() {
   const background = style.getPropertyValue('--secondary-background')
   const info = style.getPropertyValue('--info')
 
-  const { magnitudePoints, pointColors, errors, chartMin, chartMax, chartMinMjd } = chartData.value
+  const { magnitudePoints, pointColors, errors, chartMin, chartMax, chartMinMjd, chartMaxMjd } = chartData.value
   if (!magnitudePoints.length) return
 
   lightCurveChart = new Chart(lightCurveCanvas.value, {
@@ -276,6 +307,7 @@ function createChart() {
         x: {
           type: 'linear',
           min: chartMinMjd,
+          max: chartMaxMjd,
           title: { display: true, text: 'Modified Julian Date (days since first observation)', color: text },
           border: { color: text, width: 2 },
           ticks: {
@@ -380,11 +412,26 @@ onMounted(() => {
         </v-btn>
       </div>
       <span
-        v-for="line in chartSubtitleText"
+        v-for="line in displaySubtitleText"
         :key="line"
         class="subtitle-lc"
       >
         {{ line }}
+      </span>
+      <span
+        v-if="sourceCoordinates"
+        class="subtitle-lc"
+      >
+        RA:
+        <coordinate-value
+          :value="sourceCoordinates.ra"
+          axis="ra"
+        />,
+        Dec:
+        <coordinate-value
+          :value="sourceCoordinates.dec"
+          axis="dec"
+        />
       </span>
       <v-btn
         icon="mdi-download"

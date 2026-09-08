@@ -5,8 +5,7 @@ import '@geoman-io/leaflet-geoman-free'
 import '@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css'
 import 'leaflet/dist/leaflet.css'
 import '@/assets/css/image-viewer.css'
-import { useAlertsStore } from '@/stores/alerts'
-import { useAnalysisStore } from '@/stores/analysis'
+import { imagePixelScaleArcsec } from '@/utils/wcs'
 import { useImageMap } from '@/composables/useImageMap'
 import {
   apertureRingAtPoint,
@@ -17,19 +16,11 @@ import {
   resizeApertureRegion,
 } from '@/utils/apertureRegion'
 import CoordinateValue from '@/components/Global/CoordinateValue.vue'
-import {
-  coordinateInputToDegrees,
-  raDegreesToSexagesimal,
-  decDegreesToSexagesimal,
-  raSexagesimalToDegrees,
-  decSexagesimalToDegrees,
-} from '@/utils/coordinates'
 
 const props = defineProps({
-  catalog: {
-    type: Array,
-    required: false,
-    default: null,
+  imageUrl: {
+    type: String,
+    default: '',
   },
   wcsSolution: {
     type: Object,
@@ -40,7 +31,27 @@ const props = defineProps({
     type: Object,
     required: false,
     default: null,
-  }
+  },
+  apertureRadii: {
+    type: Object,
+    default: null,
+  },
+  aperturePixelRadii: {
+    type: Object,
+    default: null,
+  },
+  apertureCenterCoordinate: {
+    type: Object,
+    default: null,
+  },
+  enableCentroidTool: {
+    type: Boolean,
+    default: true,
+  },
+  preserveApertureRadiiOnSelect: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 const centroidToolActive = defineModel('centroidToolActive', {
@@ -48,7 +59,7 @@ const centroidToolActive = defineModel('centroidToolActive', {
   default: false,
 })
 
-const emit = defineEmits(['analysisAction', 'centroidRegionUpdated'])
+const emit = defineEmits(['analysisAction', 'centroidRegionUpdated', 'coordinateValidationUpdated'])
 
 const CENTROID_DEFAULTS = {
   radius: 6,
@@ -61,8 +72,6 @@ const MIN_CENTROID_RADIUS = 3
 let imageMap = null
 let imageBounds = null
 let imageOverlay = null
-let lineLayer = null
-let catalogLayerGroup = null
 let centroidOverlay = null
 let centroidDrawStart = null
 let wasMapDraggingEnabled = false
@@ -71,14 +80,12 @@ let imageDimensions = ref({ width: 0, height: 0 })
 const leafletDiv = ref(null)
 const isHoveringLeaflet = ref(false)
 const raDec = ref({ ra: 0, dec: 0 })
-const isLeafletDrawToolActive = ref(false)
-const alerts = useAlertsStore()
-const analysisStore = useAnalysisStore()
 const {
   addImageOverlay,
   createImageMap,
   fitImageOverlay,
   imagePointToRaDec,
+  raDecToImagePoint,
   removeImageMap,
   setWcsSolution,
 } = useImageMap()
@@ -88,12 +95,8 @@ onMounted(() => {
   createMap()
   addMapHandlers()
 
-  if (analysisStore.imageUrl) {
-    initImageOverlay(analysisStore.imageUrl)
-  }
-
-  if (props.catalog?.length) {
-    createCatalogLayer()
+  if (props.imageUrl) {
+    initImageOverlay(props.imageUrl)
   }
 })
 
@@ -105,24 +108,35 @@ onUnmounted(() => {
   imageMap = null
   imageBounds = null
   imageOverlay = null
-  lineLayer = null
-  catalogLayerGroup = null
   centroidOverlay = null
   centroidDrawStart = null
 })
-
-// When the catalog is updated we want to recreate the catalog layer
-watch(() => props.catalog, () => createCatalogLayer())
 
 watch(() => props.centroidRegion, (newRegion) => {
   syncCentroidOverlay(newRegion)
 }, { deep: true })
 
-watch(() => props.wcsSolution, (solution) => {
-  if (solution) {
-    setWcsSolution(solution)
+watch(() => props.apertureRadii, () => {
+  validateApertureCenter()
+  syncCentroidOverlay(props.centroidRegion)
+}, { deep: true })
+
+watch(() => props.aperturePixelRadii, () => {
+  validateApertureCenter()
+  syncCentroidOverlay(props.centroidRegion)
+}, { deep: true })
+watch(() => props.apertureCenterCoordinate, () => {
+  validateApertureCenter()
+  syncCentroidOverlay(props.centroidRegion)
+}, { deep: true })
+
+watch(() => props.wcsSolution, () => {
+  if (props.wcsSolution) {
+    setWcsSolution(props.wcsSolution)
   }
-}, { immediate: true })
+  validateApertureCenter()
+  syncCentroidOverlay(props.centroidRegion)
+}, { deep: true, immediate: true })
 
 watch(centroidToolActive, (newValue) => {
   if (!newValue) {
@@ -132,7 +146,7 @@ watch(centroidToolActive, (newValue) => {
 }, { immediate: true })
 
 // update url property of the ImageOverlay Layer or create it
-watch(() => analysisStore.imageUrl, (newImageUrl) => {
+watch(() => props.imageUrl, (newImageUrl) => {
   if (!newImageUrl || !imageMap) return
 
   imageOverlay ? imageOverlay.setUrl(newImageUrl) : initImageOverlay(newImageUrl)
@@ -147,15 +161,7 @@ async function initImageOverlay(imgSrc) {
   imageDimensions.value = overlay.imageDimensions
   imageOverlay = overlay.imageOverlay
   fitImageOverlay(imageMap, imageBounds)
-
-  // Fetch catalog only if empty
-  if (!props.catalog?.length){
-    const catalogInput = {
-      width: imageDimensions.value.width,
-      height: imageDimensions.value.height,
-    }
-    emit('analysisAction', 'source-catalog', catalogInput)
-  }
+  validateApertureCenter()
 
   // Fetch WCS data for pix to world transformation
   emit('analysisAction', 'wcs')
@@ -200,6 +206,7 @@ function createMap(){
   // Geoman controls
   imageMap.pm.addControls({
     position: 'topleft',
+    drawPolyline: false,
     drawMarker: false,
     drawCircle: false,
     drawCircleMarker: false,
@@ -216,32 +223,6 @@ function createMap(){
 
 function addMapHandlers() {
   const mapContainer = imageMap.getContainer()
-
-  // Remove last drawn line when starting new one
-  imageMap.on('pm:drawstart', ({ workingLayer }) => {
-    isLeafletDrawToolActive.value = true
-    centroidDrawStart = null
-    if (lineLayer && imageMap.hasLayer(lineLayer)) {
-      imageMap.removeLayer(lineLayer)
-    }
-    // Limit line to 2 points
-    workingLayer.on('pm:vertexadded', () => {
-      if (imageMap.pm.Draw.Line._markers.length === 2) {
-        imageMap.pm.Draw.Line._finishShape()
-      }
-    })
-  })
-
-  // Requests a Line Profile when a line is drawn/edited
-  imageMap.on('pm:create', (e) => {
-    isLeafletDrawToolActive.value = false
-    lineLayer = e.layer
-    requestLineProfile(lineLayer.getLatLngs())
-  })
-
-  imageMap.on('pm:drawend', () => {
-    isLeafletDrawToolActive.value = false
-  })
 
   // Handler for displaying ra, dec coordinates when hovering over the image
   imageMap.on('mousemove', (e) => {
@@ -266,89 +247,8 @@ function addMapHandlers() {
   mapContainer.addEventListener('touchcancel', handleCentroidTouchEnd, { passive: false })
 }
 
-// Event handler for drawn lines, emits an action that will trigger an api call in the parent
-function requestLineProfile(latLngs) {
-  // Check that there are two points to calculate the line length
-  if (latLngs.length != 2){
-    alerts.setAlert('error', 'Cannot calculate line profile without two points')
-    return
-  }
-
-  const lineProfileInput = {
-    x1: latLngs[0].lat,
-    y1: latLngs[0].lng,
-    x2: latLngs[1].lat,
-    y2: latLngs[1].lng,
-    ...imageDimensions.value
-  }
-
-  emit('analysisAction', 'line-profile', lineProfileInput)
-}
-
-// When we get the catalog data this creates a layer of circles on the map
-function createCatalogLayer(){
-  if (!imageMap || !Array.isArray(props.catalog) || !props.catalog.length) {
-    return
-  }
-
-  // Function to create a marker for a source
-  function createSourceMarker(source){
-    const div = document.createElement('div')
-    div.append('Flux: ', `${source.flux} counts`)
-    div.append(document.createElement('br'))
-    div.append('RA: ', catalogCoordinateValue(source.ra, 'ra'))
-    div.append(document.createElement('br'))
-    div.append('Dec: ', catalogCoordinateValue(source.dec, 'dec'))
-    div.append(document.createElement('br'))
-    if (source.flux_fallback !== true) {
-      div.append('Magnitude: ', Number(source.mag).toFixed(3))
-      div.append(document.createElement('br'))
-    }
-    // Create a circle marker for the source
-    return new L.Circle([source.y_win, source.x_win], {
-      color: 'var(--info)',
-      fillOpacity: 0.2,
-      radius: 3,
-      pmIgnore: true, // Ignore this layer for editing
-      snapIgnore: false, // Allow snapping to this layer
-    }).bindPopup(div)
-  }
-
-  const sourceCatalogMarkers = props.catalog.map(createSourceMarker)
-
-  // update or create the catalog layer group
-  if (catalogLayerGroup) {
-    catalogLayerGroup.clearLayers()
-    sourceCatalogMarkers.forEach((marker) => catalogLayerGroup.addLayer(marker))
-  } else {
-    catalogLayerGroup = new L.LayerGroup(sourceCatalogMarkers)
-    catalogLayerGroup.addTo(imageMap)
-  }
-}
-
-function catalogCoordinateValue(value, axis) {
-  let sexagesimal = false
-  const span = document.createElement('span')
-  span.className = 'coordinate-popup-value'
-
-  function updateText() {
-    const degrees = axis === 'ra'
-      ? coordinateInputToDegrees(value, raSexagesimalToDegrees)
-      : coordinateInputToDegrees(value, decSexagesimalToDegrees)
-    span.textContent = sexagesimal
-      ? axis === 'ra' ? raDegreesToSexagesimal(degrees) : decDegreesToSexagesimal(degrees)
-      : `${degrees.toFixed(6)}°`
-  }
-
-  span.addEventListener('click', () => {
-    sexagesimal = !sexagesimal
-    updateText()
-  })
-  updateText()
-  return span
-}
-
 function toggleCentroidTool() {
+  if (!props.enableCentroidTool) return
   centroidToolActive.value = !centroidToolActive.value
   centroidDrawStart = null
   imageMap?.pm?.disableDraw?.()
@@ -371,10 +271,11 @@ function syncCentroidToolControl() {
   centroidToolContainer?.classList.add('custom-tool-container')
   centroidToolContainer?.classList.toggle('centroid-tool-active', centroidToolActive.value)
   centroidToolContainer?.classList.toggle('active', centroidToolActive.value)
+  centroidToolContainer?.classList.toggle('d-none', !props.enableCentroidTool)
 }
 
-function emitCentroidRegionUpdated(region) {
-  emit('centroidRegionUpdated', region ? { ...region } : null)
+function emitCentroidRegionUpdated(region, reason) {
+  emit('centroidRegionUpdated', region ? { ...region } : null, reason)
 }
 
 function latLngFromTouchEvent(event) {
@@ -389,15 +290,25 @@ function latLngFromTouchEvent(event) {
 }
 
 function buildCentroidRegion(center, rawRadius) {
-  const apertureRadii = createApertureRadii(rawRadius, CENTROID_DEFAULTS, MIN_CENTROID_RADIUS)
+  const pixelRadii = props.preserveApertureRadiiOnSelect && props.aperturePixelRadii
+    ? props.aperturePixelRadii
+    : null
+  const apertureRadii = pixelRadii
+    ? {
+      radius: pixelRadii.apertureRadius,
+      r_back1: pixelRadii.annulusInnerRadius,
+      r_back2: pixelRadii.annulusOuterRadius,
+    }
+    : createApertureRadii(rawRadius, CENTROID_DEFAULTS, MIN_CENTROID_RADIUS)
   const maximumOuterRadius = maximumRadiusAtImagePoint(center, imageDimensions.value)
   const constrainedRadii = constrainApertureRadii(apertureRadii, maximumOuterRadius)
 
+  const coordinates = imageLatLngToRaDec(center)
   return {
     x: center.lng,
     y: center.lat,
-    ra: null,
-    dec: null,
+    ra: coordinates.ra,
+    dec: coordinates.dec,
     ...constrainedRadii,
     width: imageDimensions.value.width,
     height: imageDimensions.value.height,
@@ -405,12 +316,17 @@ function buildCentroidRegion(center, rawRadius) {
   }
 }
 
+function imageLatLngToRaDec(latlng) {
+  if (!props.wcsSolution) return { ra: null, dec: null }
+  return imagePointToRaDec(latlng, imageDimensions.value)
+}
+
 function handleCentroidStart(event) {
-  if (!centroidToolActive.value || isLeafletDrawToolActive.value || !imageMap || !imageBounds) {
+  if (!props.enableCentroidTool || !centroidToolActive.value || !imageMap || !imageBounds) {
     return
   }
 
-  if (props.centroidRegion && props.centroidRegion.r_back2 > maximumRadiusAtImagePoint(event.latlng, imageDimensions.value)) {
+  if (props.centroidRegion && apertureOuterRadius() > maximumRadiusAtImagePoint(event.latlng, imageDimensions.value)) {
     return
   }
 
@@ -422,12 +338,12 @@ function handleCentroidStart(event) {
 
   centroidDrawStart = event.latlng
   const region = buildCentroidRegion(event.latlng, MIN_CENTROID_RADIUS)
-  syncCentroidOverlay(region)
+  syncCentroidOverlay(region, false)
   emitCentroidRegionUpdated(region)
 }
 
 function handleCentroidDrag(event) {
-  if (!centroidToolActive.value || isLeafletDrawToolActive.value || !centroidDrawStart) {
+  if (!centroidToolActive.value || !centroidDrawStart) {
     return
   }
 
@@ -436,7 +352,7 @@ function handleCentroidDrag(event) {
     imagePointDistance(centroidDrawStart, event.latlng),
   )
 
-  syncCentroidOverlay(region)
+  syncCentroidOverlay(region, false)
   emitCentroidRegionUpdated(region)
 }
 
@@ -453,44 +369,35 @@ function handleCentroidEnd() {
 }
 
 function handleMapPointerStart(event) {
-  const ring = props.centroidRegion && !isLeafletDrawToolActive.value
-    ? apertureRingAtPoint(props.centroidRegion, event.latlng, 8)
+  const region = apertureDisplayRegion(props.centroidRegion)
+  const ring = region && (props.apertureRadii || props.aperturePixelRadii)
+    ? apertureRingAtPoint(region, event.latlng, 8)
     : null
-
   if (ring) {
     activeApertureRing = ring
     wasMapDraggingEnabled = imageMap.dragging.enabled()
-    if (wasMapDraggingEnabled) {
-      imageMap.dragging.disable()
-    }
+    if (wasMapDraggingEnabled) imageMap.dragging.disable()
     return
   }
-
   handleCentroidStart(event)
 }
 
 function handleMapPointerEnd() {
   if (activeApertureRing) {
     activeApertureRing = null
-    if (wasMapDraggingEnabled) {
-      imageMap.dragging.enable()
-    }
+    if (wasMapDraggingEnabled) imageMap.dragging.enable()
     wasMapDraggingEnabled = false
     return
   }
-
   handleCentroidEnd()
 }
 
 function resizeApertureRing(point) {
-  const resizedRegion = resizeApertureRegion(
-    props.centroidRegion,
-    activeApertureRing,
-    point,
-    imageDimensions.value,
-  )
-  syncCentroidOverlay(resizedRegion)
-  emitCentroidRegionUpdated(resizedRegion)
+  const region = apertureDisplayRegion(props.centroidRegion)
+  const resized = resizeApertureRegion(region, activeApertureRing, point, imageDimensions.value)
+
+  syncCentroidOverlay(resized, false)
+  emitCentroidRegionUpdated(resized, 'resize')
 }
 
 function handleCentroidTouchStart(event) {
@@ -526,12 +433,13 @@ function handleCentroidTouchEnd(event) {
   handleCentroidEnd()
 }
 
-function syncCentroidOverlay(region) {
+function syncCentroidOverlay(region, useInputRadii = true) {
   if (!imageMap) {
     return
   }
 
-  if (!region) {
+  const displayRegion = useInputRadii ? apertureDisplayRegion(region) : region
+  if (!displayRegion) {
     if (centroidOverlay && imageMap.hasLayer(centroidOverlay)) {
       imageMap.removeLayer(centroidOverlay)
     }
@@ -539,7 +447,7 @@ function syncCentroidOverlay(region) {
     return
   }
 
-  const center = [region.y, region.x]
+  const center = [displayRegion.y, displayRegion.x]
   const layers = [
     L.circleMarker(center, {
       radius: 4,
@@ -550,14 +458,14 @@ function syncCentroidOverlay(region) {
       pmIgnore: true,
     }),
     L.circle(center, {
-      radius: region.radius,
+      radius: displayRegion.radius,
       color: 'var(--cancel)',
       fill: false,
       weight: 2,
       pmIgnore: true,
     }),
     L.circle(center, {
-      radius: region.r_back1,
+      radius: displayRegion.r_back1,
       color: 'var(--warning)',
       fill: false,
       dashArray: '6 4',
@@ -565,7 +473,7 @@ function syncCentroidOverlay(region) {
       pmIgnore: true,
     }),
     L.circle(center, {
-      radius: region.r_back2,
+      radius: displayRegion.r_back2,
       color: 'var(--warning)',
       fill: false,
       dashArray: '3 4',
@@ -584,12 +492,93 @@ function syncCentroidOverlay(region) {
   centroidOverlay.addTo(imageMap)
 }
 
+function apertureDisplayRegion(region) {
+  const baseRegion = apertureCenterRegion() || region
+  if (!baseRegion || !props.wcsSolution || (!props.apertureRadii && !props.aperturePixelRadii)) return baseRegion
+
+  const scale = imagePixelScaleArcsec(props.wcsSolution, imageDimensions.value.width, imageDimensions.value.height)
+  const pixelRadii = props.aperturePixelRadii || {
+    apertureRadius: props.apertureRadii.apertureRadius / scale,
+    annulusInnerRadius: props.apertureRadii.annulusInnerRadius / scale,
+    annulusOuterRadius: props.apertureRadii.annulusOuterRadius / scale,
+  }
+  const maximumOuterRadius = maximumRadiusAtImagePoint(
+    { lng: baseRegion.x, lat: baseRegion.y },
+    imageDimensions.value,
+  )
+  const constrainedRadii = constrainApertureRadii({
+    radius: pixelRadii.apertureRadius,
+    r_back1: pixelRadii.annulusInnerRadius,
+    r_back2: pixelRadii.annulusOuterRadius,
+  }, maximumOuterRadius)
+  return {
+    ...baseRegion,
+    ...constrainedRadii,
+  }
+}
+
+function apertureCenterRegion() {
+  const region = coordinateRegion()
+  if (!region || !coordinateIsInsideImage(region)) return null
+  return region
+}
+
+function coordinateRegion() {
+  if (!props.apertureCenterCoordinate || !props.wcsSolution || !imageDimensions.value.width) return null
+  const imagePoint = raDecToImagePoint(props.apertureCenterCoordinate, imageDimensions.value)
+  return {
+    x: imagePoint.x,
+    y: imagePoint.y,
+    ra: props.apertureCenterCoordinate.ra,
+    dec: props.apertureCenterCoordinate.dec,
+    width: imageDimensions.value.width,
+    height: imageDimensions.value.height,
+    ready: true,
+  }
+}
+
+function coordinateIsInsideImage(region) {
+  return region.x >= 0 && region.y >= 0 &&
+    region.x <= imageDimensions.value.width && region.y <= imageDimensions.value.height
+}
+
+function apertureOuterRadius() {
+  if (props.aperturePixelRadii) return props.aperturePixelRadii.annulusOuterRadius
+  if (!props.apertureRadii || !props.wcsSolution) return 0
+  const scale = imagePixelScaleArcsec(props.wcsSolution, imageDimensions.value.width, imageDimensions.value.height)
+  return props.apertureRadii.annulusOuterRadius / scale
+}
+
+function validateApertureCenter() {
+  if (!props.apertureCenterCoordinate) {
+    emit('coordinateValidationUpdated', null)
+    return
+  }
+
+  const region = coordinateRegion()
+  if (!region) {
+    emit('coordinateValidationUpdated', null)
+    return
+  }
+  if (!coordinateIsInsideImage(region)) {
+    emit('coordinateValidationUpdated', { error: 'invalid RA and Dec' })
+    return
+  }
+
+  const center = { lng: region.x, lat: region.y }
+  if (apertureOuterRadius() > maximumRadiusAtImagePoint(center, imageDimensions.value)) {
+    emit('coordinateValidationUpdated', { error: 'Please adjust your aperture radii', region })
+    return
+  }
+
+  emit('coordinateValidationUpdated', { region })
+}
+
 </script>
 <template>
   <div
     ref="leafletDiv"
-    class="position-relative"
-    :style="{ width: imageDimensions.width + 'px' }"
+    class="position-relative aperture-image-viewer"
     @mouseenter="isHoveringLeaflet = true"
     @mouseleave="isHoveringLeaflet = false"
   >
@@ -616,3 +605,11 @@ function syncCentroidOverlay(region) {
     </v-fade-transition>
   </div>
 </template>
+<style scoped>
+.aperture-image-viewer {
+  width: 100%;
+  height: 520px;
+  max-height: 62vh;
+  min-height: 420px;
+}
+</style>

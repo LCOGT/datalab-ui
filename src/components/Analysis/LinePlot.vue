@@ -1,6 +1,7 @@
 <script setup>
 import Chart from 'chart.js/auto'
 import { ref, watch } from 'vue'
+import CoordinateValue from '@/components/Global/CoordinateValue.vue'
 
 const chartRef = ref(null)
 let lineProfileChart = null
@@ -115,8 +116,32 @@ function distanceLabel(){
     <div class="line-details">
       <template v-if="startCoords && endCoords">
         <p>PRECISE ASTROMETRIC COORDINATES</p>
-        <p><b>Start:</b> RA {{ startCoords[0].toFixed(6) }} Dec {{ startCoords[1].toFixed(6) }}</p>
-        <p><b>End:</b> RA {{ endCoords[0].toFixed(6) }} Dec {{ endCoords[1].toFixed(6) }}</p>
+        <p>
+          <b>Start:</b>
+          RA
+          <coordinate-value
+            :value="startCoords[0]"
+            axis="ra"
+          />
+          Dec
+          <coordinate-value
+            :value="startCoords[1]"
+            axis="dec"
+          />
+        </p>
+        <p>
+          <b>End:</b>
+          RA
+          <coordinate-value
+            :value="endCoords[0]"
+            axis="ra"
+          />
+          Dec
+          <coordinate-value
+            :value="endCoords[1]"
+            axis="dec"
+          />
+        </p>
       </template>
       <p v-if="positionAngle">
         <v-tooltip

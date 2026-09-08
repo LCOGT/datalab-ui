@@ -168,8 +168,6 @@ function zScaleImage() {
         step="1"
         :ripple="false"
         track-size="0"
-        :track-color="backgroundColor"
-        :track-fill-color="colorRGBAStr"
         thumb-color="var(--secondary-interactive)"
         :max="props.bins.length-1"
         strict

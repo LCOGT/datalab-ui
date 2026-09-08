@@ -8,11 +8,13 @@ import { useUserDataStore } from '@/stores/userData'
 import FilterBadge from '@/components/Global/FilterBadge.vue'
 import NonLinearSlider from '@/components/Global/NonLinearSlider.vue'
 import HistogramSlider from '@/components/Global/Scaling/HistogramSlider.vue'
+import { useImageScaling } from '@/components/Global/Scaling/useImageScaling'
 import ImageDownloadMenu from '@/components/Global/ImageDownloadMenu.vue'
 import FitsHeaderTable from '@/components/Analysis/FitsHeaderTable.vue'
 import ImageViewer from '@/components/Analysis/ImageViewer.vue'
 import LinePlot from '@/components/Analysis/LinePlot.vue'
 import ViewMode from '@/components/Analysis/ViewMode.vue'
+import CoordinateValue from '@/components/Global/CoordinateValue.vue'
 import { getActivePinia } from 'pinia'
 
 const props = defineProps({
@@ -45,13 +47,22 @@ const usePlaneBackground = ref(false)
 const showHeaderDialog = ref(false)
 const selectedBasename = ref(props.image?.basename || '')
 const activeImage = ref(props.image)
-let imgWorker = new Worker('drawImageWorker.js')
-let imgWorkerProcessing = false
-let imgWorkerNextScale = null
-const scalerReady = ref(false)
 const touchStartX = ref(null)
 
 const selectedMode = ref(userDataStore.imageDisplayMode || 'Analysis Mode')
+const {
+  zmin,
+  zmax,
+  scalerReady,
+  scaledImageUrl,
+  imageScaleReady,
+  histogram,
+  bins,
+  maxPixelValue,
+  loadScaledImage,
+  resetImageScaling,
+  updateScaling: updateImageScaling,
+} = useImageScaling()
 
 const filteredCatalog = computed(() => {
   if (!userDataStore.catalogToggle) {
@@ -91,8 +102,8 @@ const viewModeDetails = computed(() => {
   const headerData = analysisStore.headerData || {}
 
   return [
-    { label: 'RA', value: headerData.RA || 'Unknown' },
-    { label: 'Dec', value: headerData.DEC || 'Unknown' },
+    { label: 'RA', value: headerData.RA || 'Unknown', axis: 'ra' },
+    { label: 'Dec', value: headerData.DEC || 'Unknown', axis: 'dec' },
     { label: 'Object', value: headerData.OBJECT || 'Unknown' }
   ]
 })
@@ -105,12 +116,17 @@ onMounted(async() => {
 watch(() => props.image, async (image) => {
   if (!image?.basename) return
 
-  selectedBasename.value = image.basename
   await loadActiveImage(image)
 })
 
 watch(selectedMode, (mode) => {
   userDataStore.imageDisplayMode = mode
+})
+
+watch(scaledImageUrl, (url) => {
+  if (url) {
+    analysisStore.imageUrl = url
+  }
 })
 
 onUnmounted(() => {
@@ -121,11 +137,7 @@ onUnmounted(() => {
 })
 
 function cleanupWorker() {
-  if (imgWorker) {
-    imgWorker.terminate()
-    imgWorker = null
-  }
-  scalerReady.value = false
+  resetImageScaling()
 }
 
 function resetAnalysisState() {
@@ -143,9 +155,6 @@ function resetAnalysisState() {
   centroidToolActive.value = false
   usePlaneBackground.value = false
   showHeaderDialog.value = false
-  imgWorkerProcessing = false
-  imgWorkerNextScale = null
-  scalerReady.value = false
   analysisStore.headerData = null
   analysisStore.rawData = null
   analysisStore.zmin = null
@@ -169,11 +178,10 @@ async function loadActiveImage(image) {
     resetAnalysisState()
   }
 
-  selectedBasename.value = image.basename
   activeImage.value = image
   analysisStore.image = image
-
   analysisStore.imageUrl = image.largeCachedUrl || image.large_url || image.largeThumbUrl || ''
+  selectedBasename.value = image.basename
 
   if (isFitsImage.value) {
     analysisStore.loadHeaderData()
@@ -182,8 +190,7 @@ async function loadActiveImage(image) {
       return
     }
 
-    imgWorker = new Worker('drawImageWorker.js')
-    instantiateScalerWorker()
+    await loadScaledImage(activeImage.value, analysisStore.imageUrl)
   }
 }
 
@@ -307,54 +314,12 @@ function requestCentroid() {
   })
 }
 
-async function instantiateScalerWorker(){
-  scalerReady.value = false
-
-  // Load the image scale data if it is not already loaded
-  try { await analysisStore.loadScaleData() } 
-  catch (error) { return console.error('Failed to load scale data:', error) }
-
-  if (!imgWorker || !analysisStore.imageWidth || !analysisStore.imageHeight || !analysisStore.rawData?.data) {
-    return
-  }
-
-  // Create a new offscreen canvas for the worker
-  const imgScalingCanvas = document.createElement('canvas')
-  imgScalingCanvas.width = analysisStore.imageWidth
-  imgScalingCanvas.height = analysisStore.imageHeight
-  const offscreen = imgScalingCanvas.transferControlToOffscreen()
-
-  const rawDataCopy = JSON.parse(JSON.stringify(analysisStore.rawData))
-
-  // Post the image data to the worker
-  imgWorker.postMessage({
-    canvas: offscreen,
-    imageData: rawDataCopy,
-  }, [offscreen])
-
-  scalerReady.value = true
-
-  // Image creation for leaflet map, clean up the old image url
-  imgWorker.onmessage = (event) => {
-    imgWorkerProcessing = false
-    if(event.data.blob){
-      analysisStore.imageUrl = URL.createObjectURL(event.data.blob)
-    }
-  }
-}
-
 function updateScaling(min, max){
-  if (!isFitsImage.value || selectedMode.value !== 'Analysis Mode' || !imgWorker) {
+  if (!isFitsImage.value || selectedMode.value !== 'Analysis Mode') {
     return
   }
 
-  imgWorkerNextScale = [min, max]
-
-  if (imgWorkerNextScale && !imgWorkerProcessing){
-    imgWorkerProcessing = true
-    imgWorker.postMessage({scalePoints: [...imgWorkerNextScale]})
-    imgWorkerNextScale = null
-  }
+  updateImageScaling(min, max)
 }
 
 async function onModeChange(val) {
@@ -461,7 +426,16 @@ async function onModeChange(val) {
               class="view-mode-meta-row"
             >
               <span class="view-mode-meta-label">{{ item.label }}</span>
-              <span class="view-mode-meta-value">{{ item.value }}</span>
+              <span class="view-mode-meta-value">
+                <coordinate-value
+                  v-if="item.axis && item.value !== 'Unknown'"
+                  :value="item.value"
+                  :axis="item.axis"
+                />
+                <template v-else>
+                  {{ item.value }}
+                </template>
+              </span>
             </div>
           </div>
         </v-sheet>
@@ -472,9 +446,11 @@ async function onModeChange(val) {
       class="analysis-content"
     >
       <image-viewer
+        :key="selectedBasename"
         v-model:centroid-tool-active="centroidToolActive"
         :catalog="filteredCatalog"
         :centroid-region="centroidRegion"
+        :reload-on-image-url-change="false"
         :wcs-solution="wcsSolution"
         @analysis-action="requestAnalysis"
         @centroid-region-updated="handleCentroidRegionUpdated"
@@ -510,7 +486,15 @@ async function onModeChange(val) {
                   v-if="centroidRegion.ra != null && centroidRegion.dec != null"
                   class="view-mode-meta-value"
                 >
-                  Center (RA, Dec): {{ centroidRegion.ra.toFixed(6) }}, {{ centroidRegion.dec.toFixed(6) }}
+                  Center (RA, Dec):
+                  <coordinate-value
+                    :value="centroidRegion.ra"
+                    axis="ra"
+                  />,
+                  <coordinate-value
+                    :value="centroidRegion.dec"
+                    axis="dec"
+                  />
                 </span>
                 <span class="view-mode-meta-value">
                   Radius: {{ centroidRegion.radius.toFixed(2) }} px
@@ -555,8 +539,20 @@ async function onModeChange(val) {
               <div class="view-mode-meta-row">
                 <span class="view-mode-meta-label">Result</span>
                 <template v-if="centroidResult.success">
-                  <span class="view-mode-meta-value">RA: {{ Number(centroidResult.ra) }}</span>
-                  <span class="view-mode-meta-value">Dec: {{ Number(centroidResult.dec) }}</span>
+                  <span class="view-mode-meta-value">
+                    RA:
+                    <coordinate-value
+                      :value="centroidResult.ra"
+                      axis="ra"
+                    />
+                  </span>
+                  <span class="view-mode-meta-value">
+                    Dec:
+                    <coordinate-value
+                      :value="centroidResult.dec"
+                      axis="dec"
+                    />
+                  </span>
                   <span class="view-mode-meta-value">background: {{ Number(centroidResult.background).toFixed(2) }}</span>
                   <span class="view-mode-meta-value">peak: {{ Number(centroidResult.peak).toFixed(2) }}</span>
                 </template>
@@ -597,17 +593,17 @@ async function onModeChange(val) {
         </v-expand-transition>
         <v-expand-transition>
           <v-sheet
-            v-if="analysisStore.imageScaleReady && scalerReady"
+            v-if="imageScaleReady && scalerReady"
             class="side-panel-item"
             rounded
           >
             <histogram-slider
-              :histogram="analysisStore.histogram"
-              :bins="analysisStore.bins"
-              :max-value="analysisStore.maxPixelValue"
-              :z-min="Number(analysisStore.zmin)"
-              :z-max="Number(analysisStore.zmax)"
-              :color="{ r: 255, g: 255, b: 255 }"
+              :histogram="histogram"
+              :bins="bins"
+              :max-value="maxPixelValue"
+              :z-min="Number(zmin)"
+              :z-max="Number(zmax)"
+              :color="{ r: 0, g: 173, b: 239 }"
               @update-scaling="updateScaling"
             />
           </v-sheet>
