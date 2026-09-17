@@ -87,7 +87,7 @@ function addOperationMessage(operation) {
   const message = isFailure ? operation.message || 'Failed' : operation.message
   if (!message) return
   snackbarMessages.value.push({
-    text: `${operation.name} Operation ${operation.index}: ${message}`,
+    text: `${operation.index}. ${operation.name} Operation: ${message}`,
     color: isFailure ? 'error' : 'info'
   })
 }

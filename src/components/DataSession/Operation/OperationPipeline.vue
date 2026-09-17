@@ -66,7 +66,6 @@ function itemDeleted(deletedIds) {
     <load-bar-button
       :progress="operation.operation_progress ?? 0"
       :state="operation.state"
-      :message="operation.message ?? ''"
       :index="operation.index"
       :text="operation.name"
       :status="operation.status"
