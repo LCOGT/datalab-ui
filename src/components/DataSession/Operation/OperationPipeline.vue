@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import LoadBarButton from '@/components/DataSession/LoadBarButton.vue'
 import DeleteOperationDialog from '@/components/Global/DeleteOperationDialog.vue'
 
-const emit = defineEmits(['operationCompleted', 'selectOperation', 'operationWasDeleted', 'viewGraph'])
+const emit = defineEmits(['selectOperation', 'operationWasDeleted'])
 
 const props = defineProps({
   operations: {
@@ -57,24 +57,13 @@ function itemDeleted(deletedIds) {
 
 </script>
 <template>
-  <h3 class="operations-title">
-    OPERATIONS
-    <v-btn
-      variant="plain"
-      color="var(--primary-interactive)"
-      density="compact"
-      icon="mdi-graph-outline"
-      title="View Operations Graph"
-      @click="emit('viewGraph')"
-    />
-  </h3>
   <v-row
     v-for="operation in operations"
     :key="operation.id"
     class="operation mb-2"
+    :class="{selected: operation.id == props.selectedOperation}"
   >
     <load-bar-button
-      :class="{selected: operation.id == props.selectedOperation}"
       :progress="operation.operation_progress ?? 0"
       :state="operation.state"
       :message="operation.message ?? ''"
@@ -105,11 +94,15 @@ function itemDeleted(deletedIds) {
 </template>
 
 <style scoped>
-.operations-title {
-  font-size: 1.5rem;
-  color: var(--text);
-  margin-bottom: 1.5rem;
+/* Selection is marked with an outline around the row so it frames the
+   operation and its delete button.
+*/
+.operation.selected {
+  outline: 2px solid var(--secondary-interactive);
+  outline-offset: 4px;
+  border-radius: 6px;
 }
+
 .delete-operation-button{
   margin-top: 0.5rem;
   justify-content: flex-start;
