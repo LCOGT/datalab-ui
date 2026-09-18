@@ -62,11 +62,11 @@ const centroidToolActive = defineModel('centroidToolActive', {
 const emit = defineEmits(['analysisAction', 'centroidRegionUpdated', 'coordinateValidationUpdated'])
 
 const CENTROID_DEFAULTS = {
-  radius: 6,
-  r_back1: 10,
-  r_back2: 15,
+  radius: 45,
+  r_back1: 60,
+  r_back2: 75,
 }
-const MIN_CENTROID_RADIUS = 3
+const MIN_CENTROID_RADIUS = 12
 
 // Leaflet map
 let imageMap = null
@@ -116,19 +116,18 @@ watch(() => props.centroidRegion, (newRegion) => {
   syncCentroidOverlay(newRegion)
 }, { deep: true })
 
-watch(() => props.apertureRadii, () => {
-  validateApertureCenter()
-  syncCentroidOverlay(props.centroidRegion)
-}, { deep: true })
-
-watch(() => props.aperturePixelRadii, () => {
-  validateApertureCenter()
-  syncCentroidOverlay(props.centroidRegion)
-}, { deep: true })
-watch(() => props.apertureCenterCoordinate, () => {
-  validateApertureCenter()
-  syncCentroidOverlay(props.centroidRegion)
-}, { deep: true })
+watch(
+  [
+    () => props.apertureRadii,
+    () => props.aperturePixelRadii,
+    () => props.apertureCenterCoordinate,
+  ],
+  () => {
+    validateApertureCenter()
+    syncCentroidOverlay(props.centroidRegion)
+  },
+  { deep: true },
+)
 
 watch(() => props.wcsSolution, () => {
   if (props.wcsSolution) {
