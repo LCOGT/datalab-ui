@@ -32,10 +32,14 @@ const props = defineProps({
     type: Object,
     default: null,
   },
+  // the backend takes aperture radii in arcseconds
   apertureRadii: {
     type: Object,
     required: true,
   },
+  // we need aperture radii in pixels to draw and resize the radii rings
+  // this is important for moving target aperture photomtery to keep the radii consistent
+  // between first and last images if the images have different pixel scales
   aperturePixelRadii: {
     type: Object,
     default: null,
@@ -64,10 +68,12 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  // manual change counter used to force ApertureSourceEditor components to resynchronize their pixel radii when aperture values are edited
   apertureInputEditSequence: {
     type: Number,
     default: 0,
   },
+  // it calls the target-position analysis endpoint. the response supplies the source's ra/dec (removing this comment --> backend has been updated to return the source's ra/dec directly)
   targetPositionAction: {
     type: String,
     default: '',
