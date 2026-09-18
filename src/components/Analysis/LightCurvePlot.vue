@@ -98,14 +98,12 @@ const chartTitle = computed(() => {
   return `${userTitle.value.trim() || DEFAULT_CHART_TITLE} - Light Curve`
 })
 
-const targetPositionsInfo = computed(() => {
-  const positions = props.variableStarData?.targetPositions
-  return positions?.length ? `Moving target: ${positions.length} positions` : ''
-})
-
 const sourceInfo = computed(() => {
   const source = props.variableStarData?.source
-  if (!source) return targetPositionsInfo.value
+  if (!source) {
+    const positions = props.variableStarData?.targetPositions
+    return positions?.length ? `Moving target: ${positions.length} positions` : ''
+  }
   if (source.name) return `Source: ${source.name}`
 
   const ra = coordinateInputToDegrees(source.ra, raSexagesimalToDegrees).toFixed(3)
@@ -116,10 +114,9 @@ const sourceInfo = computed(() => {
 const sourceCoordinates = computed(() => {
   const source = props.variableStarData?.source
   if (!source || source.name) return null
-
   return {
     ra: coordinateInputToDegrees(source.ra, raSexagesimalToDegrees),
-    dec: coordinateInputToDegrees(source.dec, decSexagesimalToDegrees),
+    dec: coordinateInputToDegrees(source.dec, decSexagesimalToDegrees)
   }
 })
 
