@@ -416,14 +416,21 @@ function hasInvalidCoordinates(source) {
     isInvalidCoordinate(source.dec, decSexagesimalToDegrees)
 }
 
-function isTargetPositionsComplete(input, inputDescription) {
-  if (input.length < inputDescription.minimum) {
-    return false
-  }
 
-  return input.every(position => {
-    return !hasInvalidCoordinates(position) &&
-      (inputDescription.minimum === 1 || !isMissingCoordinate(position.mjd))
+// validates target positions before allowing operation wizard to continue
+function isTargetPositionsComplete(targetPositions, { minimum }) {
+  const hasEnoughPositions = targetPositions.length >= minimum
+
+  if (!hasEnoughPositions) return false
+
+  // only needed when targetPositions has more than one entry (i.e. for now, moving target aperture photometry operation)
+  const requiresMjd = minimum > 1
+
+  return targetPositions.every(position => {
+    const hasValidCoordinates = !hasInvalidCoordinates(position)
+    const hasRequiredMjd = !requiresMjd || !isMissingCoordinate(position.mjd)
+
+    return hasValidCoordinates && hasRequiredMjd
   })
 }
 
