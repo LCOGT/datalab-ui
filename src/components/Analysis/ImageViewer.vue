@@ -55,7 +55,7 @@ const CENTROID_DEFAULTS = {
   r_back1: 10,
   r_back2: 15,
 }
-const MIN_CENTROID_RADIUS = 3
+const MIN_CENTROID_RADIUS = 12
 
 // Leaflet map
 let imageMap = null
@@ -453,12 +453,8 @@ function handleCentroidEnd() {
 }
 
 function handleMapPointerStart(event) {
-  const ring = props.centroidRegion && !isLeafletDrawToolActive.value
-    ? apertureRingAtPoint(props.centroidRegion, event.latlng, 8)
-    : null
-
-  if (ring) {
-    activeApertureRing = ring
+  if (props.centroidRegion && !isLeafletDrawToolActive.value) {
+    activeApertureRing = apertureRingAtPoint(props.centroidRegion, event.latlng, 8)
     wasMapDraggingEnabled = imageMap.dragging.enabled()
     if (wasMapDraggingEnabled) {
       imageMap.dragging.disable()
