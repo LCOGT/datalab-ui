@@ -34,9 +34,6 @@ const operationInputs = ref({})
 const MAX_COLOR_CHANNELS = 6
 const MIN_COLOR_CHANNELS = 1
 const FRONTEND_HIDDEN_INPUT_KEYS = new Set(['min_comparisons', 'max_comparisons'])
-const APERTURE_INPUT_KEYS = ['aperture_radius', 'annulus_inner_radius', 'annulus_outer_radius']
-const TARGET_POSITIONS_TYPE = 'target_positions'
-
 const WIZARD_PAGES = {
   SELECT: 'select',
   CONFIGURE: 'configure',
@@ -144,7 +141,7 @@ const isInputComplete = computed(() => {
         return false
       }
     }
-    if (inputDescription.type == TARGET_POSITIONS_TYPE && !isTargetPositionsComplete(input, inputDescription)) {
+    if (inputDescription.type == 'target_positions' && !isTargetPositionsComplete(input, inputDescription)) {
       return false
     }
     if (['float', 'int'].includes(inputDescription.type)) {
@@ -183,7 +180,8 @@ const imageInputDescriptions = computed(() => {
 
 const isAperturePhotometryConfiguration = computed(() => {
   const descriptions = inputDescriptions.value || {}
-  return APERTURE_INPUT_KEYS.every(inputKey => inputKey in descriptions)
+  return ['aperture_radius', 'annulus_inner_radius', 'annulus_outer_radius']
+    .every(inputKey => inputKey in descriptions)
 })
 
 onMounted(async () => {
@@ -250,7 +248,7 @@ function operationInputDataForRequest() {
     if (description.type === 'source') {
       inputData[inputKey] = coordinateInputForRequest(inputData[inputKey])
     }
-    if (description.type === TARGET_POSITIONS_TYPE) {
+    if (description.type === 'target_positions') {
       inputData[inputKey] = inputData[inputKey].map(coordinateInputForRequest)
     }
   })
@@ -298,7 +296,7 @@ function selectOperation(name) {
     else if (value.type == 'source') {
       operationInputs.value[key] = {}
     }
-    else if (value.type == TARGET_POSITIONS_TYPE) {
+    else if (value.type == 'target_positions') {
       operationInputs.value[key] = Array.from({ length: value.minimum }, () => ({}))
     }
     else if (value.type == 'select') {
@@ -419,7 +417,7 @@ function hasInvalidCoordinates(source) {
 }
 
 function isTargetPositionsComplete(input, inputDescription) {
-  if (!Array.isArray(input) || input.length < inputDescription.minimum) {
+  if (input.length < inputDescription.minimum) {
     return false
   }
 
