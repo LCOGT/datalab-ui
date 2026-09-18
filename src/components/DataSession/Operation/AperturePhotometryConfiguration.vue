@@ -16,7 +16,6 @@ const TABS = {
   APERTURE: 'aperture',
   FIRST_APERTURE: 'first-aperture',
   LAST_APERTURE: 'last-aperture',
-  MANUAL: 'manual',
 }
 
 const operationInputs = defineModel({
@@ -134,7 +133,6 @@ const tabs = computed(() => {
   return [
     { value: TABS.SELECT_IMAGES, title: 'Select Images' },
     ...apertureTabs,
-    { value: TABS.MANUAL, title: 'Manual Aperture Settings' },
   ]
 })
 
@@ -291,47 +289,47 @@ function setNumberInput(inputKey, value, type) {
         @update-aperture-pixel-radii="updateAperturePixelRadii"
         @update-centroid-region="updateCentroidRegion('last', $event)"
       />
-
-      <template v-if="activeTab === TABS.MANUAL">
-        <v-row
-          v-for="(group, groupIndex) in manualInputGroups"
-          :key="groupIndex"
-        >
-          <v-col
-            v-for="([inputKey, description]) in group"
-            :key="inputKey"
-            cols="6"
-            class="pb-0"
-          >
-            <v-select
-              v-if="description.type === 'select'"
-              v-model="operationInputs[inputKey]"
-              :label="description.name"
-              :items="description.options"
-            />
-            <v-text-field
-              v-else-if="description.type === 'string'"
-              v-model="operationInputs[inputKey]"
-              :label="description.name"
-              type="text"
-              class="operation-input"
-            />
-            <v-text-field
-              v-else
-              :model-value="operationInputs[inputKey]"
-              :label="description.name"
-              :hint="description.description"
-              :persistent-hint="Boolean(description.description)"
-              type="number"
-              :step="Object.values(APERTURE_INPUT_KEYS).includes(inputKey) ? 0.01 : 'any'"
-              class="operation-input"
-              @update:model-value="setNumberInput(inputKey, $event, description.type)"
-            />
-          </v-col>
-        </v-row>
-      </template>
     </div>
   </div>
+  <template v-if="activeTab !== TABS.SELECT_IMAGES">
+    <h3>Aperture Parameters</h3>
+    <v-row
+      v-for="(group, groupIndex) in manualInputGroups"
+      :key="groupIndex"
+    >
+      <v-col
+        v-for="([inputKey, description]) in group"
+        :key="inputKey"
+        cols="6"
+        class="pb-0"
+      >
+        <v-select
+          v-if="description.type === 'select'"
+          v-model="operationInputs[inputKey]"
+          :label="description.name"
+          :items="description.options"
+        />
+        <v-text-field
+          v-else-if="description.type === 'string'"
+          v-model="operationInputs[inputKey]"
+          :label="description.name"
+          type="text"
+          class="operation-input"
+        />
+        <v-text-field
+          v-else
+          :model-value="operationInputs[inputKey]"
+          :label="description.name"
+          :hint="description.description"
+          :persistent-hint="Boolean(description.description)"
+          type="number"
+          :step="Object.values(APERTURE_INPUT_KEYS).includes(inputKey) ? 0.01 : 'any'"
+          class="operation-input"
+          @update:model-value="setNumberInput(inputKey, $event, description.type)"
+        />
+      </v-col>
+    </v-row>
+  </template>
 </template>
 
 <style scoped>
