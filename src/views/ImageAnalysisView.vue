@@ -156,13 +156,6 @@ function resetAnalysisState() {
   usePlaneBackground.value = false
   showHeaderDialog.value = false
   analysisStore.headerData = null
-  analysisStore.rawData = null
-  analysisStore.zmin = null
-  analysisStore.zmax = null
-  analysisStore.imageWidth = null
-  analysisStore.imageHeight = null
-  analysisStore.imageScaleLoading = false
-  analysisStore.magTimeSeries = []
 }
 
 async function loadActiveImage(image) {
@@ -374,6 +367,8 @@ async function onModeChange(val) {
         :fits-url="activeImage?.url || activeImage?.fits_url"
         :jpg-url="activeImage?.largeCachedUrl"
         :enable-scaled-download="isFitsImage"
+        :z-min="zmin"
+        :z-max="zmax"
         @analysis-action="requestAnalysis"
       />
       <v-btn
@@ -387,13 +382,6 @@ async function onModeChange(val) {
         @click="emit('closeAnalysisDialog')"
       />
     </v-toolbar>
-    <v-progress-linear
-      v-hide="!analysisStore.loading || selectedMode !== 'View Mode'"
-      rounded
-      indeterminate
-      stream
-      color="var(--success)"
-    />
     <div
       v-if="selectedMode === 'View Mode' || selectedMode === ''"
       class="analysis-content"
@@ -610,7 +598,7 @@ async function onModeChange(val) {
         </v-expand-transition>
         <v-expand-transition>
           <v-sheet
-            v-show="lineProfile.length || analysisStore.magTimeSeries.length"
+            v-show="lineProfile.length"
             class="side-panel-item"
           >
             <line-plot
