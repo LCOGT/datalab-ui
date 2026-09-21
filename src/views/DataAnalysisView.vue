@@ -24,8 +24,7 @@ const selectedPoints = ref([])
 const hasCMD = computed(() => Array.isArray(props.data?.cmd))
 const hasLightCurve = computed(() => Array.isArray(props.data?.light_curve) && props.data.light_curve.length > 0)
 const hasPeriodogram = computed(() => {
-  return !props.data?.operationName?.includes('Aperture Photometry') &&
-    Array.isArray(periodogramData.value.frequencies) && periodogramData.value.frequencies.length > 0
+  return !('aperture_radius' in props.data) && props.data.frequency?.length > 0 && props.data.power?.length > 0
 })
 
 function foldPeriod(magTimeSeries, period) {
