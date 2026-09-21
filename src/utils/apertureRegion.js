@@ -33,14 +33,20 @@ function constrainApertureRadii(radii, maximumOuterRadius) {
   }
 }
 
+// region[key] is a numeric radius
 function apertureRingAtPoint(region, point, tolerance) {
+  // region coordinates and leaflet pointer coordinates are image-pixel coords
   const center = { lng: region.x, lat: region.y }
   const distance = imagePointDistance(center, point)
+  // each ring is represented by its radius in pixels rather than tangent points
   const closestRing = APERTURE_RING_KEYS.reduce((closestKey, ringKey) => {
     const closestDistance = Math.abs(distance - region[closestKey])
     const ringDistance = Math.abs(distance - region[ringKey])
     return ringDistance < closestDistance ? ringKey : closestKey
   })
+  // only select the ring when the click is within the allowed pixel tolerance
+  // for a circle centered at (x,y) every point on that circle is exactly radius pixels away from the center
+  // so math.abs(distanceFromCenter - radius) is the shortest distance from the clicked point to that circle
   return Math.abs(distance - region[closestRing]) < tolerance ? closestRing : null
 }
 
