@@ -230,7 +230,7 @@ function updateSelectedImagesForFilter(inputKey, filter) {
               <drag
                 :key="inputKey + '-' + item.basename"
                 :data="item"
-                class="m-1 w-100"
+                class="ma-1 w-100"
                 @cut="remove(inputKey, index, item)"
               >
                 <thumbnail-image
@@ -319,7 +319,7 @@ function updateSelectedImagesForFilter(inputKey, filter) {
               <drag
                 :key="'all-' + item.basename"
                 :data="item"
-                class="m-2 list-image"
+                class="ma-2 list-image"
                 @cut="remove('all', item)"
               >
                 <thumbnail-image

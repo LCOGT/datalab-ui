@@ -83,7 +83,7 @@ const emit = defineEmits(['selectOperationOutput', 'launchAnalysis', 'removeOper
           {{ props.operationOutput.operationName }}
         </p>
       </v-card-title>
-      <v-card-text class="p-1">
+      <v-card-text class="pa-1">
         <v-sparkline
           v-if="props.operationOutput.light_curve"
           v-model="lightCurveSparkline"
@@ -131,7 +131,7 @@ const emit = defineEmits(['selectOperationOutput', 'launchAnalysis', 'removeOper
       v-if="props.enableCards"
       class="d-flex flex-row ga-2 align-center mt-2"
     >
-      <p class="text-subtitle-2 mr-auto prevent-select single-line-text">
+      <p class="text-title-small mr-auto prevent-select single-line-text">
         {{ title }}
       </p>
       <v-icon
