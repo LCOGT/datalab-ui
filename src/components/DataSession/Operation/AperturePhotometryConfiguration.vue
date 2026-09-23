@@ -8,7 +8,6 @@ const APERTURE_INPUT_KEYS = {
   annulusInnerRadius: 'annulus_inner_radius',
   annulusOuterRadius: 'annulus_outer_radius',
 }
-const HIDDEN_INPUT_KEYS = new Set(['min_comparisons', 'max_comparisons'])
 const TARGET_POSITIONS_TYPE = 'target_positions'
 const TARGET_POSITION_ACTION = 'target-position'
 const TABS = {
@@ -45,7 +44,6 @@ const props = defineProps({
 const activeTab = ref(TABS.SELECT_IMAGES)
 const previewBasename = ref('')
 const movingAperturePixelRadii = ref(null)
-const apertureInputEditSequence = ref(0)
 const centroidRegions = ref({})
 const headerSource = ref({})
 
@@ -111,17 +109,6 @@ const lastImage = computed(() => {
   return sortedSelectedImages.value.at(-1)
 })
 
-const manualInputGroups = computed(() => {
-  const descriptions = Object.entries(props.inputDescriptions).filter(([inputKey, description]) => {
-    return !HIDDEN_INPUT_KEYS.has(inputKey) && ['string', 'float', 'int', 'select'].includes(description.type)
-  })
-  const groups = []
-  for (let index = 0; index < descriptions.length; index += 2) {
-    groups.push(descriptions.slice(index, index + 2))
-  }
-  return groups
-})
-
 const tabs = computed(() => {
   const apertureTabs = isMovingTarget.value
     ? [
@@ -182,19 +169,6 @@ function updateTargetPosition(index, position) {
   operationInputs.value[targetPositionKey.value][index] = position
 }
 
-function setNumberInput(inputKey, value, type) {
-  if (value === '') {
-    operationInputs.value[inputKey] = ''
-    return
-  }
-
-  const number = Number(value)
-  operationInputs.value[inputKey] = type === 'int' ? Math.trunc(number) : number
-  if (Object.values(APERTURE_INPUT_KEYS).includes(inputKey)) {
-    movingAperturePixelRadii.value = null
-    apertureInputEditSequence.value += 1
-  }
-}
 </script>
 
 <template>
@@ -262,7 +236,6 @@ function setNumberInput(inputKey, value, type) {
         :aperture-radii="apertureRadii"
         :aperture-pixel-radii="movingAperturePixelRadii"
         :centroid-region="centroidRegions.first"
-        :aperture-input-edit-sequence="apertureInputEditSequence"
         include-mjd
         preserve-aperture-radii
         sync-pixel-radii
@@ -280,7 +253,6 @@ function setNumberInput(inputKey, value, type) {
         :aperture-radii="apertureRadii"
         :aperture-pixel-radii="movingAperturePixelRadii"
         :centroid-region="centroidRegions.last"
-        :aperture-input-edit-sequence="apertureInputEditSequence"
         include-mjd
         preserve-aperture-radii
         sync-pixel-radii
@@ -291,45 +263,6 @@ function setNumberInput(inputKey, value, type) {
       />
     </div>
   </div>
-  <template v-if="activeTab !== TABS.SELECT_IMAGES">
-    <h3>Aperture Parameters</h3>
-    <v-row
-      v-for="(group, groupIndex) in manualInputGroups"
-      :key="groupIndex"
-    >
-      <v-col
-        v-for="([inputKey, description]) in group"
-        :key="inputKey"
-        cols="6"
-        class="pb-0"
-      >
-        <v-select
-          v-if="description.type === 'select'"
-          v-model="operationInputs[inputKey]"
-          :label="description.name"
-          :items="description.options"
-        />
-        <v-text-field
-          v-else-if="description.type === 'string'"
-          v-model="operationInputs[inputKey]"
-          :label="description.name"
-          type="text"
-          class="operation-input"
-        />
-        <v-text-field
-          v-else
-          :model-value="operationInputs[inputKey]"
-          :label="description.name"
-          :hint="description.description"
-          :persistent-hint="Boolean(description.description)"
-          type="number"
-          :step="Object.values(APERTURE_INPUT_KEYS).includes(inputKey) ? 0.01 : 'any'"
-          class="operation-input"
-          @update:model-value="setNumberInput(inputKey, $event, description.type)"
-        />
-      </v-col>
-    </v-row>
-  </template>
 </template>
 
 <style scoped>
@@ -344,8 +277,4 @@ function setNumberInput(inputKey, value, type) {
   color: var(--text);
 }
 
-.operation-input {
-  margin-top: 2rem;
-  width: 12rem;
-}
 </style>
