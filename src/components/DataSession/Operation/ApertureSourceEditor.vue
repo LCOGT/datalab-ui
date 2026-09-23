@@ -68,11 +68,6 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
-  // manual change counter used to force ApertureSourceEditor components to resynchronize their pixel radii when aperture values are edited
-  apertureInputEditSequence: {
-    type: Number,
-    default: 0,
-  },
   // it calls the target-position analysis endpoint. the response supplies the source's ra/dec (removing this comment --> backend has been updated to return the source's ra/dec directly)
   targetPositionAction: {
     type: String,
@@ -126,7 +121,6 @@ watch(() => props.centroidRegion, (region) => {
 
 watch(() => props.apertureRadii, syncCentroidRegionRadii, { deep: true })
 watch(() => props.aperturePixelRadii, syncCentroidRegionRadii, { deep: true })
-watch(() => props.apertureInputEditSequence, syncPixelRadiiFromInputs)
 
 async function loadImage(image) {
   if (!image) {
@@ -169,7 +163,7 @@ function handleAnalysisOutput(response, action) {
   if (action === 'wcs') {
     wcsSolution.value = response
     syncCentroidRegionRadii()
-    syncPixelRadiiFromInputs()
+    syncPixelRadiiFromInputs(props.apertureRadii)
     return
   }
 
@@ -247,6 +241,16 @@ function updateApertureInputs(region) {
   emit('updateApertureRadii', radii)
 }
 
+function updateApertureRadius(radiusKey, value) {
+  const apertureRadii = {
+    ...props.apertureRadii,
+    [radiusKey]: value === '' ? '' : Number(value),
+  }
+
+  emit('updateApertureRadii', apertureRadii)
+  syncPixelRadiiFromInputs(apertureRadii)
+}
+
 function pixelRadiiFromRegion(region) {
   const radii = {}
   Object.entries(APERTURE_RADIUS_KEYS).forEach(([inputKey, regionKey]) => {
@@ -272,13 +276,13 @@ function syncCentroidRegionRadii() {
   emit('updateCentroidRegion', localCentroidRegion.value)
 }
 
-function syncPixelRadiiFromInputs() {
+function syncPixelRadiiFromInputs(apertureRadii) {
   if (!props.syncPixelRadii || !localCentroidRegion.value || !wcsSolution.value) return
 
   const region = localCentroidRegion.value
   const scale = imagePixelScaleArcsec(wcsSolution.value, region.width, region.height)
   emit('updateAperturePixelRadii', Object.fromEntries(
-    Object.keys(APERTURE_RADIUS_KEYS).map(key => [key, props.apertureRadii[key] / scale])
+    Object.keys(APERTURE_RADIUS_KEYS).map(key => [key, apertureRadii[key] / scale])
   ))
 }
 </script>
@@ -326,6 +330,27 @@ function syncPixelRadiiFromInputs() {
         cols="12"
         md="4"
       >
+        <v-text-field
+          :model-value="props.apertureRadii.apertureRadius"
+          label="Aperture radius"
+          type="number"
+          step="0.01"
+          @update:model-value="updateApertureRadius('apertureRadius', $event)"
+        />
+        <v-text-field
+          :model-value="props.apertureRadii.annulusInnerRadius"
+          label="Annulus inner radius"
+          type="number"
+          step="0.01"
+          @update:model-value="updateApertureRadius('annulusInnerRadius', $event)"
+        />
+        <v-text-field
+          :model-value="props.apertureRadii.annulusOuterRadius"
+          label="Annulus outer radius"
+          type="number"
+          step="0.01"
+          @update:model-value="updateApertureRadius('annulusOuterRadius', $event)"
+        />
         <v-sheet class="source-side-panel">
           <b>Centroiding</b>
           <v-checkbox
