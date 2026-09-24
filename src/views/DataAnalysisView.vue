@@ -23,7 +23,9 @@ const selectedPoints = ref([])
 // each output type has its own detection key, dispatching to the right set of plots
 const hasCMD = computed(() => Array.isArray(props.data?.cmd))
 const hasLightCurve = computed(() => Array.isArray(props.data?.light_curve) && props.data.light_curve.length > 0)
-const hasPeriodogram = computed(() => Array.isArray(periodogramData.value.frequencies) && periodogramData.value.frequencies.length > 0)
+const hasPeriodogram = computed(() => {
+  return !('aperture_radius' in props.data) && props.data.frequency?.length > 0 && props.data.power?.length > 0
+})
 
 function foldPeriod(magTimeSeries, period) {
   const frequency = 1.0 / period
@@ -50,6 +52,7 @@ function assignVariableStarData() {
       fluxFallback: data.flux_fallback,
       excludedImages: data.excluded_images || [],
       source: data.operationInputData?.source || data.source,
+      targetPositions: data.operationInputData?.target_positions,
       aperture: {
         apertureRadius: data.aperture_radius || data.operationInputData?.aperture_radius,
         annulusInnerRadius: data.annulus_inner_radius || data.operationInputData?.annulus_inner_radius,

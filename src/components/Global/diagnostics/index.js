@@ -8,6 +8,8 @@ import HRDiagramDiagnostics from '@/components/Global/diagnostics/HRDiagramDiagn
 // directory taking an `operationOutput` prop, and register it below.
 const DIAGNOSTICS_VIEWS = {
   'Aperture Photometry': AperturePhotometryDiagnostics,
+  'Moving Target Aperture Photometry': AperturePhotometryDiagnostics,
+  'Non-Sidereal Aperture Photometry': AperturePhotometryDiagnostics,
   'HR Diagram': HRDiagramDiagnostics,
 }
 

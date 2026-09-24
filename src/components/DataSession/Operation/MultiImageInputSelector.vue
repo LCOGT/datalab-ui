@@ -28,7 +28,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['insertImage', 'removeImage', 'setImages', 'addChannel', 'removeChannel', 'updateChannelColor'])
+const emit = defineEmits(['insertImage', 'removeImage', 'setImages', 'addChannel', 'removeChannel', 'updateChannelColor', 'selectImage'])
 
 const thumbnailsStore = useThumbnailsStore()
 const configurationStore = useConfigurationStore()
@@ -68,6 +68,7 @@ const filterOptionsMap = computed(() => {
 
 onMounted(() => {
   imageDetails.value = reloadImages(props.images)
+  updateSelectedFilter()
 })
 
 // When inputDescriptions is set, update initial selectedFilter if need be
@@ -238,6 +239,7 @@ function updateSelectedImagesForFilter(inputKey, filter) {
                   :image-url="imageDetails[item.basename]"
                   :enable-image-cards="false"
                   :enable-removal="true"
+                  @select-image="emit('selectImage', item)"
                   @remove-image="remove(inputKey, index, $event)"
                 />
               </drag>

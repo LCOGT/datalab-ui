@@ -17,6 +17,9 @@ onmessage = function(job) {
     // Init worker with the canvas, width, height, imageData, and sharedArrayBuffer
     canvas = payload.canvas
     context = canvas.getContext('2d')
+    if (canvas.width <= 0 || canvas.height <= 0) {
+      return
+    }
     // This is a Uint8ClampedArray under the hood to it will clamp values >255 to 255
     outputImage = new ImageData(payload.canvas.width, payload.canvas.height)
     const outputImageData = outputImage.data
