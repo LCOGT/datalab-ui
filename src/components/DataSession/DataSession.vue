@@ -5,7 +5,6 @@ import OperationPipelineFlow from './OperationGraph/OperationPipelineFlow.vue'
 import { fetchApiCall, handleError } from '@/utils/api.js'
 import { calculateColumnSpan } from '@/utils/common'
 import { useConfigurationStore } from '@/stores/configuration'
-import { useAlertsStore } from '@/stores/alerts'
 import OperationOutputGrid from '@/components/Global/OperationOutputGrid.vue'
 import OperationWizard from '@/components/DataSession/Operation/OperationWizard.vue'
 import _ from 'lodash'
@@ -22,7 +21,6 @@ const props = defineProps({
 })
 
 const store = useConfigurationStore()
-const alertStore = useAlertsStore()
 
 function sortByObservationDate(items) {
   return [...items].sort((a, b) => {
@@ -36,9 +34,15 @@ const showWizardDialog = ref(false)
 const tab = ref('main')
 const operationPollingTimers = {}
 const selectedOperation = ref(-1)
+const persist = ref(props.data.persist)
 const dataSessionsUrl = store.datalabApiBaseUrl + 'datasessions/'
 const IMAGES_PER_ROW = 4
 const POLL_WAIT_TIME = 5000
+const SESSION_RETENTION_DAYS = 30
+const SNACKBAR_TIMEOUT = 5000
+
+// Transient messages drained by the snackbar queue at the bottom of the session
+const snackbarMessages = ref([])
 
 var operationMap = {}
 
@@ -51,6 +55,43 @@ const filteredImages = computed(() => {
   }
 })
 
+const persistTitle = computed(() => {
+  return persist.value
+    ? 'This session persists indefinitely'
+    : `This session will be deleted ${SESSION_RETENTION_DAYS} days after it was created`
+})
+
+// Pin/unpin the session so the cleanup job leaves it alone, reverting the icon if the update fails
+async function updatePersist(value) {
+  const previousPersist = persist.value
+  persist.value = value
+  await fetchApiCall({
+    url: dataSessionsUrl + props.data.id + '/?response_fields=id,persist',
+    method: 'PATCH',
+    body: { persist: value },
+    successCallback: (response) => {
+      persist.value = response.persist
+      snackbarMessages.value.push({ text: persistTitle.value, color: 'info' })
+    },
+    failCallback: (response, status) => {
+      persist.value = previousPersist
+      handleError(response, status)
+    }
+  })
+}
+
+// Queues an operation's current message, falling back to 'Failed' so a failure always
+// reports even when the backend sends no message. Operations with nothing to say are skipped.
+function addOperationMessage(operation) {
+  const isFailure = operation.status == 'FAILED'
+  const message = isFailure ? operation.message || 'Failed' : operation.message
+  if (!message) return
+  snackbarMessages.value.push({
+    text: `${operation.index}. ${operation.name} Operation: ${message}`,
+    color: isFailure ? 'error' : 'info'
+  })
+}
+
 // Runs when a user clicks on an operation to select/deselect it
 function selectOperation(operationId) {
   if (operationId == selectedOperation.value) {
@@ -58,6 +99,11 @@ function selectOperation(operationId) {
   }
   else {
     selectedOperation.value = operationId
+    // Re-show the message of an operation that hasn't finished or has failed to the snackbar.
+    const operation = operationMap[operationId]
+    if (operation && operation.status != 'COMPLETED') {
+      addOperationMessage(operation)
+    }
   }
 }
 
@@ -134,11 +180,20 @@ async function pollOperationCompletion(operation) {
 }
 
 function updateOperationStatus(response) {
+  const operation = operationMap[response.id]
+  const previousMessage = operation.message
+
   // Copy over the updated status into the operation
-  operationMap[response.id].status = response.status
-  operationMap[response.id].operation_progress = response.operation_progress
-  operationMap[response.id].output = response.output
-  operationMap[response.id].message = response.message
+  operation.status = response.status
+  operation.operation_progress = response.operation_progress
+  operation.output = response.output
+  operation.message = response.message
+
+  // Surface each new message as polling picks it up, so progress is visible without opening
+  // the operation. Progress messages only report when changed, but a failure always reports.
+  if (response.status == 'FAILED' || response.message !== previousMessage) {
+    addOperationMessage(operation)
+  }
 
   switch(response.status){
   case 'PENDING':
@@ -146,11 +201,11 @@ function updateOperationStatus(response) {
   case 'IN_PROGRESS':
     if (response.output){
       // This will add output as it is generated in progress
-      addCompletedOperation(operationMap[response.id])
+      addCompletedOperation(operation)
     }
     break
   case 'COMPLETED':
-    addCompletedOperation(operationMap[response.id])
+    addCompletedOperation(operation)
     stopPollingById(response.id)
     // Trigger use to attempt to start polling again for any dependent operations
     startOperationPolling()
@@ -162,7 +217,6 @@ function updateOperationStatus(response) {
       message: response.message,
       response
     })
-    alertStore.setAlert('error', response.message ? response.message : 'Failed', 'Operation Error:')
     stopPollingById(response.id)
     break
   default:
@@ -274,16 +328,34 @@ watch(
           align="center"
           class="operations-column"
         >
+          <v-btn
+            class="persist-button"
+            variant="plain"
+            color="var(--primary-interactive)"
+            density="compact"
+            :icon="persist ? 'mdi-pin' : 'mdi-pin-outline'"
+            :title="persistTitle"
+            @click="updatePersist(!persist)"
+          />
+          <h3 class="operations-title">
+            OPERATIONS
+            <v-btn
+              variant="plain"
+              color="var(--primary-interactive)"
+              density="compact"
+              icon="mdi-graph-outline"
+              title="View Operations Graph"
+              @click="tab = 'graph'"
+            />
+          </h3>
           <!-- The operations bar list goes here -->
           <operation-pipeline
             :session-id="data.id"
             :operations="operations"
             :active="props.active"
             :selected-operation="selectedOperation"
-            @operation-completed="addCompletedOperation"
             @select-operation="selectOperation"
             @operation-was-deleted="operationDeleted"
-            @view-graph="tab = 'graph'"
           />
           <v-btn
             class="addop_button"
@@ -311,6 +383,20 @@ watch(
       @add-operation="addOperation"
     />
   </v-dialog>
+  <v-snackbar-queue
+    v-model="snackbarMessages"
+    :timeout="SNACKBAR_TIMEOUT"
+  >
+    <template #actions="{ props: closeProps }">
+      <v-btn
+        variant="plain"
+        density="compact"
+        icon="mdi-close"
+        title="Dismiss"
+        v-bind="closeProps"
+      />
+    </template>
+  </v-snackbar-queue>
 </template>
 
 <style scoped>
@@ -327,10 +413,26 @@ watch(
 }
 .operations-column {
   background-color: var(--card-background);
-  padding: 2rem;
+  /* Reduced top padding so the corner pin button sits just above the title
+     rather than pushing it a full row down */
+  padding: 0.75rem 2rem 2rem;
   margin-right: 1rem;
   border-radius: 10px;
   max-width: 300px;
+  position: relative;
+}
+.operations-title {
+  font-size: 1.5rem;
+  color: var(--text);
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.persist-button {
+  position: absolute;
+  top: 0.25rem;
+  right: 0.1rem;
 }
 .addop_button {
   margin-top: 1.5rem;
