@@ -1,5 +1,6 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
+import { useAnalysisStore } from '@/stores/analysis'
 import { useConfigurationStore } from '@/stores/configuration'
 import { useThumbnailsStore } from '@/stores/thumbnails'
 import ApertureImageViewer from '@/components/DataSession/Operation/ApertureImageViewer.vue'
@@ -68,14 +69,10 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
-  // it calls the target-position analysis endpoint. the response supplies the source's ra/dec (removing this comment --> backend has been updated to return the source's ra/dec directly)
-  targetPositionAction: {
-    type: String,
-    default: '',
-  },
 })
 
 const emit = defineEmits(['updateApertureRadii', 'updateAperturePixelRadii', 'updateCentroidRegion'])
+const analysisStore = useAnalysisStore()
 const configStore = useConfigurationStore()
 const thumbnailsStore = useThumbnailsStore()
 const coordinateError = ref('')
@@ -114,6 +111,7 @@ const apertureCenterCoordinate = computed(() => {
 })
 
 watch(() => props.image, loadImage, { immediate: true })
+watch(() => analysisStore.headerData, updateHeaderSource, { deep: true, immediate: true })
 
 watch(() => props.centroidRegion, (region) => {
   localCentroidRegion.value = region
@@ -139,11 +137,25 @@ async function loadImage(image) {
   localCentroidRegion.value = props.centroidRegion
   centroidResult.value = null
 
-  if (props.targetPositionAction) {
-    requestAnalysis(props.targetPositionAction)
+  if (props.coordinateReadOnly) {
+    if (analysisStore.image?.basename !== image.basename) {
+      analysisStore.headerData = null
+    }
+    analysisStore.image = image
+    analysisStore.loadHeaderData()
   }
 
   await loadScaledImage(image, imageUrl.value)
+}
+
+function updateHeaderSource(headerData) {
+  if (props.coordinateReadOnly && headerData) {
+    source.value = {
+      ...source.value,
+      ra: headerData['CAT-RA'],
+      dec: headerData['CAT-DEC'],
+    }
+  }
 }
 
 function requestAnalysis(action, input = {}) {
@@ -164,11 +176,6 @@ function handleAnalysisOutput(response, action) {
     wcsSolution.value = response
     syncCentroidRegionRadii()
     syncPixelRadiiFromInputs(props.apertureRadii)
-    return
-  }
-
-  if (action === props.targetPositionAction) {
-    source.value = { ...source.value, ra: response.ra, dec: response.dec }
     return
   }
 
