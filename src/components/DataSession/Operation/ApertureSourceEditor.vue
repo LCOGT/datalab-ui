@@ -1,6 +1,5 @@
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { useAnalysisStore } from '@/stores/analysis'
 import { useConfigurationStore } from '@/stores/configuration'
 import { useThumbnailsStore } from '@/stores/thumbnails'
 import ApertureImageViewer from '@/components/DataSession/Operation/ApertureImageViewer.vue'
@@ -72,7 +71,6 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['updateApertureRadii', 'updateAperturePixelRadii', 'updateCentroidRegion'])
-const analysisStore = useAnalysisStore()
 const configStore = useConfigurationStore()
 const thumbnailsStore = useThumbnailsStore()
 const coordinateError = ref('')
@@ -111,7 +109,6 @@ const apertureCenterCoordinate = computed(() => {
 })
 
 watch(() => props.image, loadImage, { immediate: true })
-watch(() => analysisStore.headerData, updateHeaderSource, { deep: true, immediate: true })
 
 watch(() => props.centroidRegion, (region) => {
   localCentroidRegion.value = region
@@ -138,11 +135,8 @@ async function loadImage(image) {
   centroidResult.value = null
 
   if (props.coordinateReadOnly) {
-    if (analysisStore.image?.basename !== image.basename) {
-      analysisStore.headerData = null
-    }
-    analysisStore.image = image
-    analysisStore.loadHeaderData()
+    const response = await configStore.loadHeaderData(image.id)
+    updateHeaderSource(response)
   }
 
   await loadScaledImage(image, imageUrl.value)

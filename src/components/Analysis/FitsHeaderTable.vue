@@ -1,26 +1,34 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { basenameToSequence, siteIDToName } from '@/utils/common'
-import { useAnalysisStore } from '@/stores/analysis'
 
-const analysisStore = useAnalysisStore()
+const props = defineProps({
+  headerData: {
+    type: Object,
+    required: true,
+  },
+  image: {
+    type: Object,
+    required: true,
+  },
+})
 
 const search = ref('') // v-data-table search model
-const headerDataKeyValueList = Object.entries(analysisStore.headerData)
+const headerDataKeyValueList = computed(() => Object.entries(props.headerData))
 
 const tableHeaders = [
   { title: 'Key', key:'0' },
   { title: 'Value', sortable: false, key:'1' },
 ]
 
-const basenameSequence = computed(() => basenameToSequence(analysisStore.image?.basename || ''))
+const basenameSequence = computed(() => basenameToSequence(props.image.basename))
 
 // Loopable chip dict for v-chips
 const headerChips = computed(() => [
-  { icon: 'mdi-earth', text: siteIDToName(analysisStore.headerData.SITEID) },
-  { icon: 'mdi-telescope', text: analysisStore.headerData.TELID },
-  { icon: 'mdi-camera', text: analysisStore.headerData.INSTRUME },
-  { icon: 'mdi-clock', text: new Date(analysisStore.headerData.DATE).toLocaleString() },
+  { icon: 'mdi-earth', text: siteIDToName(props.headerData.SITEID) },
+  { icon: 'mdi-telescope', text: props.headerData.TELID },
+  { icon: 'mdi-camera', text: props.headerData.INSTRUME },
+  { icon: 'mdi-clock', text: new Date(props.headerData.DATE).toLocaleString() },
   { icon: 'mdi-numeric', text: basenameSequence.value }
 ])
 
