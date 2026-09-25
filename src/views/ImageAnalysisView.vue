@@ -362,7 +362,7 @@ async function onModeChange(val) {
       <v-btn
         v-if="activeImage?.id"
         icon="mdi-information"
-        @click="showHeaderDialog = configStore.loadHeaderData()"
+        @click="showHeaderDialog = configStore.loadHeaderData(activeImage?.id)"
       />
       <v-btn
         icon="mdi-close"
