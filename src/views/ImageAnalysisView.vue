@@ -3,7 +3,6 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { fetchApiCall } from '../utils/api'
 import { basenameToSequence, siteIDToName } from '@/utils/common'
 import { useConfigurationStore } from '@/stores/configuration'
-import { useAnalysisStore } from '@/stores/analysis'
 import { useUserDataStore } from '@/stores/userData'
 import FilterBadge from '@/components/Global/FilterBadge.vue'
 import NonLinearSlider from '@/components/Global/NonLinearSlider.vue'
@@ -15,7 +14,6 @@ import ImageViewer from '@/components/Analysis/ImageViewer.vue'
 import LinePlot from '@/components/Analysis/LinePlot.vue'
 import ViewMode from '@/components/Analysis/ViewMode.vue'
 import CoordinateValue from '@/components/Global/CoordinateValue.vue'
-import { getActivePinia } from 'pinia'
 
 const props = defineProps({
   image: {
@@ -28,7 +26,6 @@ const props = defineProps({
 const emit = defineEmits(['closeAnalysisDialog', 'requestPreviousImage', 'requestNextImage'])
 
 const configStore = useConfigurationStore()
-const analysisStore = useAnalysisStore()
 const userDataStore = useUserDataStore()
 
 const lineProfile = ref([])
@@ -80,31 +77,30 @@ const isFitsImage = computed(() => {
 
 const basenameSequence = computed(() => basenameToSequence(activeImage.value?.basename || ''))
 
-const headerChips = computed(() => {
-  const headerData = analysisStore.headerData
+const headerData = ref(null)
+const imageUrl = ref('')
 
-  if (!headerData) {
+const headerChips = computed(() => {
+  if (!headerData.value) {
     return [
       { icon: 'mdi-numeric', text: basenameSequence.value }
     ]
   }
 
   return [
-    { icon: 'mdi-earth', text: siteIDToName(headerData.SITEID) },
-    { icon: 'mdi-telescope', text: headerData.TELID },
-    { icon: 'mdi-camera', text: headerData.INSTRUME },
-    { icon: 'mdi-clock', text: new Date(headerData.DATE).toLocaleString() },
+    { icon: 'mdi-earth', text: siteIDToName(headerData.value.SITEID) },
+    { icon: 'mdi-telescope', text: headerData.value.TELID },
+    { icon: 'mdi-camera', text: headerData.value.INSTRUME },
+    { icon: 'mdi-clock', text: new Date(headerData.value.DATE).toLocaleString() },
     { icon: 'mdi-numeric', text: basenameSequence.value }
   ]
 })
 
 const viewModeDetails = computed(() => {
-  const headerData = analysisStore.headerData || {}
-
   return [
-    { label: 'RA', value: headerData.RA || 'Unknown', axis: 'ra' },
-    { label: 'Dec', value: headerData.DEC || 'Unknown', axis: 'dec' },
-    { label: 'Object', value: headerData.OBJECT || 'Unknown' }
+    { label: 'RA', value: headerData.value?.RA || 'Unknown', axis: 'ra' },
+    { label: 'Dec', value: headerData.value?.DEC || 'Unknown', axis: 'dec' },
+    { label: 'Object', value: headerData.value?.OBJECT || 'Unknown' }
   ]
 })
 
@@ -125,15 +121,13 @@ watch(selectedMode, (mode) => {
 
 watch(scaledImageUrl, (url) => {
   if (url) {
-    analysisStore.imageUrl = url
+    imageUrl.value = url
   }
 })
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeydown)
   cleanupWorker()
-  analysisStore.$dispose()
-  delete getActivePinia().state.value[analysisStore.$id]
 })
 
 function cleanupWorker() {
@@ -155,15 +149,11 @@ function resetAnalysisState() {
   centroidToolActive.value = false
   usePlaneBackground.value = false
   showHeaderDialog.value = false
-  analysisStore.headerData = null
+  headerData.value = null
 }
 
 async function loadActiveImage(image) {
   if (!image) return
-
-  if (analysisStore.image?.basename !== image.basename) {
-    analysisStore.headerData = null
-  }
 
   cleanupWorker()
 
@@ -172,18 +162,16 @@ async function loadActiveImage(image) {
   }
 
   activeImage.value = image
-  analysisStore.image = image
-  analysisStore.imageUrl = image.largeCachedUrl || image.large_url || image.largeThumbUrl || ''
+  imageUrl.value = image.largeCachedUrl || image.large_url || image.largeThumbUrl || ''
   selectedBasename.value = image.basename
-
   if (isFitsImage.value) {
-    analysisStore.loadHeaderData()
+    headerData.value = await configStore.loadHeaderData(image.id)
 
     if (selectedMode.value !== 'Analysis Mode') {
       return
     }
 
-    await loadScaledImage(activeImage.value, analysisStore.imageUrl)
+    await loadScaledImage(activeImage.value, imageUrl.value)
   }
 }
 
@@ -374,7 +362,7 @@ async function onModeChange(val) {
       <v-btn
         v-if="activeImage?.id"
         icon="mdi-information"
-        @click="showHeaderDialog = analysisStore.loadHeaderData()"
+        @click="showHeaderDialog = configStore.loadHeaderData(activeImage?.id)"
       />
       <v-btn
         icon="mdi-close"
@@ -436,6 +424,7 @@ async function onModeChange(val) {
       <image-viewer
         :key="selectedBasename"
         v-model:centroid-tool-active="centroidToolActive"
+        :image-url="imageUrl"
         :catalog="filteredCatalog"
         :centroid-region="centroidRegion"
         :reload-on-image-url-change="false"
@@ -619,7 +608,10 @@ async function onModeChange(val) {
     width="600px"
     height="85vh"
   >
-    <fits-header-table />
+    <fits-header-table
+      :header-data="headerData"
+      :image="activeImage"
+    />
   </v-dialog>
 </template>
 <style scoped>
