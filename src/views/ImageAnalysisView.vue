@@ -360,9 +360,9 @@ async function onModeChange(val) {
         @analysis-action="requestAnalysis"
       />
       <v-btn
-        v-if="activeImage?.id"
+        v-if="activeImage?.id && headerData"
         icon="mdi-information"
-        @click="showHeaderDialog = configStore.loadHeaderData(activeImage?.id)"
+        @click="showHeaderDialog = headerData"
       />
       <v-btn
         icon="mdi-close"
