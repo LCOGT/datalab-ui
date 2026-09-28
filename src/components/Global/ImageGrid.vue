@@ -124,5 +124,6 @@ watch(() => props.images, () => {
 }
 .image-grid-col {
   max-width: 200px;
+  min-width: 120px;
 }
 </style>

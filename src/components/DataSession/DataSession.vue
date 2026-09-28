@@ -386,6 +386,7 @@ watch(
   <v-snackbar-queue
     v-model="snackbarMessages"
     :timeout="SNACKBAR_TIMEOUT"
+    total-visible="3"
   >
     <template #actions="{ props: closeProps }">
       <v-btn

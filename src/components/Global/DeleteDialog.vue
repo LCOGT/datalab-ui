@@ -31,7 +31,7 @@ function closeDialog() {
   >
     <v-card class="delete-card">
       <v-card-title
-        class="text-h5"
+        class="text-headline-small"
       >
         <p class="delete-item-text">
           {{ dialogTitle }}
