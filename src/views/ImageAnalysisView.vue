@@ -165,7 +165,10 @@ async function loadActiveImage(image) {
   imageUrl.value = image.largeCachedUrl || image.large_url || image.largeThumbUrl || ''
   selectedBasename.value = image.basename
   if (isFitsImage.value) {
-    headerData.value = await configStore.loadHeaderData(image.id)
+    headerData.value = null
+    configStore.loadHeaderData(image.id)
+      .then(data => { headerData.value = data })
+      .catch(error => { console.error('Failed to load header data:', error) })
 
     if (selectedMode.value !== 'Analysis Mode') {
       return
@@ -360,7 +363,8 @@ async function onModeChange(val) {
         @analysis-action="requestAnalysis"
       />
       <v-btn
-        v-if="activeImage?.id && headerData"
+        v-if="activeImage?.id"
+        :disabled="!headerData"
         icon="mdi-information"
         @click="showHeaderDialog = headerData"
       />
