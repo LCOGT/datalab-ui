@@ -364,9 +364,9 @@ async function onModeChange(val) {
       />
       <v-btn
         v-if="activeImage?.id"
-        :disabled="!headerData"
+        :disabled="headerData === null"
         icon="mdi-information"
-        @click="showHeaderDialog = headerData"
+        @click="showHeaderDialog = true"
       />
       <v-btn
         icon="mdi-close"
