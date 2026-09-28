@@ -1,6 +1,5 @@
 <script setup>
 import { useAlertsStore } from '@/stores/alerts'
-import { useAnalysisStore } from '@/stores/analysis'
 import { useThumbnailsStore } from '@/stores/thumbnails'
 import { useConfigurationStore } from '@/stores/configuration'
 
@@ -29,6 +28,14 @@ const props = defineProps({
     required: false,
     default: true,
   },
+  zMin: {
+    type: Number,
+    default: null,
+  },
+  zMax: {
+    type: Number,
+    default: null,
+  },
   speedDialLocation: {
     type: String,
     required: false,
@@ -39,7 +46,6 @@ const props = defineProps({
 defineEmits(['analysisAction'])
 
 const alertStore = useAlertsStore()
-const analysisStore = useAnalysisStore()
 const thumbnailsStore = useThumbnailsStore()
 const configurationStore = useConfigurationStore()
 
@@ -102,7 +108,7 @@ function downloadFile(file, filename, fileType='file'){
         key="4"
         class="file-download"
         text="Scaled .JPG"
-        @click="$emit('analysisAction', 'get-jpg', {'basename': props.imageName, 'zmin': analysisStore.zmin, 'zmax': analysisStore.zmax}, downloadBase64File)"
+        @click="$emit('analysisAction', 'get-jpg', {'basename': props.imageName, 'zmin': props.zMin, 'zmax': props.zMax}, downloadBase64File)"
       />
     </template>
   </v-speed-dial>
