@@ -9,7 +9,6 @@ const APERTURE_INPUT_KEYS = {
   annulusOuterRadius: 'annulus_outer_radius',
 }
 const TARGET_POSITIONS_TYPE = 'target_positions'
-const TARGET_POSITION_ACTION = 'target-position'
 const TABS = {
   SELECT_IMAGES: 'select-images',
   APERTURE: 'aperture',
@@ -189,18 +188,20 @@ function updateTargetPosition(index, position) {
     </v-tabs>
 
     <div class="configure-tab-panel">
-      <multi-image-input-selector
-        v-if="activeTab === TABS.SELECT_IMAGES"
-        :input-descriptions="imageInputDescriptions"
-        :input-images="operationInputs"
-        :images="props.images"
-        :max-inputs="props.maxInputs"
-        :min-inputs="props.minInputs"
-        @set-images="setImages"
-        @insert-image="insertImage"
-        @remove-image="removeImage"
-        @select-image="selectPreviewImage"
-      />
+      <keep-alive>
+        <multi-image-input-selector
+          v-if="activeTab === TABS.SELECT_IMAGES"
+          :input-descriptions="imageInputDescriptions"
+          :input-images="operationInputs"
+          :images="props.images"
+          :max-inputs="props.maxInputs"
+          :min-inputs="props.minInputs"
+          @set-images="setImages"
+          @insert-image="insertImage"
+          @remove-image="removeImage"
+          @select-image="selectPreviewImage"
+        />
+      </keep-alive>
 
       <aperture-source-editor
         v-if="activeTab === TABS.APERTURE && usesHeaderPosition"
@@ -210,7 +211,6 @@ function updateTargetPosition(index, position) {
         :aperture-radii="apertureRadii"
         :centroid-region="centroidRegions.header"
         coordinate-read-only
-        :target-position-action="TARGET_POSITION_ACTION"
         @update-aperture-radii="updateApertureRadii"
         @update-centroid-region="updateCentroidRegion('header', $event)"
       />

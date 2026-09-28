@@ -493,9 +493,12 @@ function syncCentroidOverlay(region, useInputRadii = true) {
 
 function apertureDisplayRegion(region) {
   const baseRegion = apertureCenterRegion() || region
-  if (!baseRegion || !props.wcsSolution || (!props.apertureRadii && !props.aperturePixelRadii)) return baseRegion
+  if (!baseRegion || !props.wcsSolution) return null
 
   const scale = imagePixelScaleArcsec(props.wcsSolution, imageDimensions.value.width, imageDimensions.value.height)
+  const radii = props.aperturePixelRadii || props.apertureRadii
+  if (!Object.values(radii).every(Number.isFinite) || !Number.isFinite(scale)) return null
+
   const pixelRadii = props.aperturePixelRadii || {
     apertureRadius: props.apertureRadii.apertureRadius / scale,
     annulusInnerRadius: props.apertureRadii.annulusInnerRadius / scale,

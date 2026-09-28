@@ -68,11 +68,6 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
-  // it calls the target-position analysis endpoint. the response supplies the source's ra/dec (removing this comment --> backend has been updated to return the source's ra/dec directly)
-  targetPositionAction: {
-    type: String,
-    default: '',
-  },
 })
 
 const emit = defineEmits(['updateApertureRadii', 'updateAperturePixelRadii', 'updateCentroidRegion'])
@@ -139,11 +134,22 @@ async function loadImage(image) {
   localCentroidRegion.value = props.centroidRegion
   centroidResult.value = null
 
-  if (props.targetPositionAction) {
-    requestAnalysis(props.targetPositionAction)
+  if (props.coordinateReadOnly) {
+    const response = await configStore.loadHeaderData(image.id)
+    updateHeaderSource(response)
   }
 
   await loadScaledImage(image, imageUrl.value)
+}
+
+function updateHeaderSource(headerData) {
+  if (props.coordinateReadOnly && headerData) {
+    source.value = {
+      ...source.value,
+      ra: headerData['CAT-RA'],
+      dec: headerData['CAT-DEC'],
+    }
+  }
 }
 
 function requestAnalysis(action, input = {}) {
@@ -164,11 +170,6 @@ function handleAnalysisOutput(response, action) {
     wcsSolution.value = response
     syncCentroidRegionRadii()
     syncPixelRadiiFromInputs(props.apertureRadii)
-    return
-  }
-
-  if (action === props.targetPositionAction) {
-    source.value = { ...source.value, ra: response.ra, dec: response.dec }
     return
   }
 

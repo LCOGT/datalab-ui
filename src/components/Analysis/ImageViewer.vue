@@ -6,7 +6,6 @@ import '@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css'
 import 'leaflet/dist/leaflet.css'
 import '@/assets/css/image-viewer.css'
 import { useAlertsStore } from '@/stores/alerts'
-import { useAnalysisStore } from '@/stores/analysis'
 import { useImageMap } from '@/composables/useImageMap'
 import {
   apertureRingAtPoint,
@@ -26,6 +25,10 @@ import {
 } from '@/utils/coordinates'
 
 const props = defineProps({
+  imageUrl: {
+    type: String,
+    default: '',
+  },
   catalog: {
     type: Array,
     required: false,
@@ -73,7 +76,6 @@ const isHoveringLeaflet = ref(false)
 const raDec = ref({ ra: 0, dec: 0 })
 const isLeafletDrawToolActive = ref(false)
 const alerts = useAlertsStore()
-const analysisStore = useAnalysisStore()
 const {
   addImageOverlay,
   createImageMap,
@@ -88,8 +90,8 @@ onMounted(() => {
   createMap()
   addMapHandlers()
 
-  if (analysisStore.imageUrl) {
-    initImageOverlay(analysisStore.imageUrl)
+  if (props.imageUrl) {
+    initImageOverlay(props.imageUrl)
   }
 
   if (props.catalog?.length) {
@@ -132,7 +134,7 @@ watch(centroidToolActive, (newValue) => {
 }, { immediate: true })
 
 // update url property of the ImageOverlay Layer or create it
-watch(() => analysisStore.imageUrl, (newImageUrl) => {
+watch(() => props.imageUrl, (newImageUrl) => {
   if (!newImageUrl || !imageMap) return
 
   imageOverlay ? imageOverlay.setUrl(newImageUrl) : initImageOverlay(newImageUrl)
