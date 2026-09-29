@@ -9,7 +9,6 @@ import { vHide } from './directives/vHide'
 
 import 'leaflet/dist/leaflet.css'
 import './assets/css/ptr-extra.css'
-import 'bulma/css/bulma.css'
 import '@vue-flow/core/dist/style.css'
 import 'vue-easy-dnd/dist/dnd.css'
 

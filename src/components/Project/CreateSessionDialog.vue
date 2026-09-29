@@ -33,7 +33,7 @@ const emit = defineEmits(['update:modelValue'])
 async function addImagesToExistingSession(session){
   // fetches existing session data
   const sessionIdUrl = dataSessionsUrl + session.id + '/'
-  const existingSession = await fetchApiCall({ url: sessionIdUrl, method: 'GET' })
+  const existingSession = await fetchApiCall({ url: sessionIdUrl + '?response_fields=id,input_data', method: 'GET' })
 
   // TODO - Patch should be handled by the backend, add endpoint to support the merging of old and new images
   const inputData = [...existingSession.input_data, ...props.newImages.map(image => ({
@@ -51,7 +51,7 @@ async function addImagesToExistingSession(session){
   }
 
   // sending the PATCH request with the merged data
-  await fetchApiCall({ url: sessionIdUrl, method: 'PATCH', body: requestBody, successCallback: routeToDataSessionView })
+  await fetchApiCall({ url: sessionIdUrl + '?response_fields=id', method: 'PATCH', body: requestBody, successCallback: routeToDataSessionView })
 }
 
 // handles creation of a new session 

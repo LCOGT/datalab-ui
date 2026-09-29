@@ -69,7 +69,7 @@ const emit = defineEmits(['selectImage', 'launchAnalysis', 'removeImage'])
       v-if="props.enableImageCards"
       class="d-flex flex-row ga-2 align-center mt-2"
     >
-      <p class="text-subtitle-2 mr-auto prevent-select single-line-text">
+      <p class="text-title-small mr-auto prevent-select single-line-text">
         {{ props.image.target_name || props.image.operationName }}
       </p>
       <v-icon

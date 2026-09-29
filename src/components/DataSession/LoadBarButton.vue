@@ -107,10 +107,6 @@ const textClass = computed(() => {
   background-color: var(--primary-interactive);
 }
 
-.selected .good-progress-bar {
-  background-color: var(--secondary-interactive);
-}
-
 .operate-button-in-progress {
   background: linear-gradient(90deg, #227d35, #43ae30, var(--success));
   background-size: 200% auto;

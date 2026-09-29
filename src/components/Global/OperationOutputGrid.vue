@@ -147,5 +147,6 @@ watch(() => props.operationOutputs, () => {
 }
 .image-grid-col {
   max-width: 200px;
+  min-width: 120px;
 }
 </style>
