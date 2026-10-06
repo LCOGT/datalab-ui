@@ -28,6 +28,7 @@ const configurationStore = useConfigurationStore()
 const alertsStore = useAlertsStore()
 
 const showCreateSessionDialog = ref(false)
+const targetNameContains = ref(route.query.target_name != null)
 const imagesByProposal = ref({})
 const selectedImagesByProposal = ref({})
 const loadingProposals = ref(false)
@@ -64,12 +65,15 @@ const filters = ref({
     type: 'hidden',
   },
   target_name: {
-    value: route.query.target_name || '',
+    value: route.query.target_name_iexact || route.query.target_name || '',
     label: 'Target Name',
+    class: 'target-name-filter',
+    param: () => targetNameContains.value ? 'target_name' : 'target_name_iexact',
   },
   primary_optical_element: {
     value: route.query.primary_optical_element || null,
     label: 'Filter',
+    class: 'filter-select',
     options: ['Astrodon-Exo', 'B', 'gp', 'H-Alpha', 'ip', 'opaque', 'OIII', 'rp','SII', 'up','V', 'w', 'zs']
   },
   submitter: {
@@ -124,12 +128,16 @@ function deselectAllImages() {
   }
 }
 
+function filterParam(key, filter) {
+  return filter.param ? filter.param() : key
+}
+
 const routerQuery = computed(() => {
   return Object.entries(filters.value).reduce((query, [key, filter]) => {
   // Only add the filter to the query if it has a value
     if (filter.value) {
     // Use the toParam function for special formatting (like dates) if it exists
-      query[key] = filter.toParam ? filter.toParam(filter.value) : filter.value
+      query[filterParam(key, filter)] = filter.toParam ? filter.toParam(filter.value) : filter.value
     }
     return query
   }, {})
@@ -178,7 +186,7 @@ async function loadProposals(singleProposalID=null){
       if (key !== 'ra' && key !== 'dec') {
         const paramValue = filter.toParam ? filter.toParam(filter.value) : filter.value
         if (paramValue != null && paramValue != '') {
-          params.set(key, paramValue)
+          params.set(filterParam(key, filter), paramValue)
         }
       }
     }
@@ -236,7 +244,8 @@ function invalidFilters() {
 
 watch(() => Object.values(filters.value)
   .filter(filter => filter.label !== 'Simbad Lookup')
-  .map(filter => filter.value), async () => {
+  .map(filter => filter.value)
+  .concat(targetNameContains.value), async () => {
   clearTimeout(filtersDebounceTimer)
   filtersDebounceTimer = setTimeout(async () => {
     if(!invalidFilters()){
@@ -324,7 +333,11 @@ onMounted(() => {
       bg-color="var(--card-background)"
       variant="solo-filled"
     />
-    <span v-for="filter in Object.values(filters).filter(f => f.label && f.type !='hidden')" :key="filter.label" :class="filter.class || 'filter-field'">
+    <span
+      v-for="filter in Object.values(filters).filter(f => f.label && f.type !='hidden')"
+      :key="filter.label"
+      :class="filter.class || 'filter-field'"
+    >
       <v-select
         v-if="filter.options"
         v-model="filter.value"
@@ -346,7 +359,22 @@ onMounted(() => {
         color="var(--primary-interactive)"
         bg-color="var(--card-background)"
         variant="solo-filled"
-      />
+      >
+        <!-- we need this template here to display the button insite the text field -->
+        <template #append-inner>
+          <v-btn
+            v-if="filter === filters.target_name"
+            class="target-name-mode"
+            size="x-small"
+            color="var(--primary-interactive)"
+            :variant="targetNameContains ? 'flat' : 'outlined'"
+            aria-label="Contains"
+            @click="targetNameContains = !targetNameContains"
+          >
+            <span class="material-symbols-outlined">find_in_page</span>
+          </v-btn>
+        </template>
+      </v-text-field>
     </span>
     <inset-icon-switch
       v-model="userDataStore.coordsToggle"
@@ -472,6 +500,23 @@ onMounted(() => {
   flex-grow: 1;
 }
 .simbad-search {
+  flex-grow: 1;
+}
+.target-name-filter {
   flex-grow: 2;
+}
+.filter-select {
+  flex-grow: 0.5;
+}
+.target-name-mode {
+  min-height: 30px;
+}
+
+.material-symbols-outlined {
+  font-variation-settings:
+    'FILL' 0,
+    'wght' 400,
+    'GRAD' 0,
+    'opsz' 24;
 }
 </style>
