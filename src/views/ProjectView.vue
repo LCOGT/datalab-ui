@@ -128,7 +128,7 @@ function deselectAllImages() {
   }
 }
 
-function filterParam(key, filter) {
+function filterParamKey(key, filter) {
   return filter.param ? filter.param() : key
 }
 
@@ -137,7 +137,7 @@ const routerQuery = computed(() => {
   // Only add the filter to the query if it has a value
     if (filter.value) {
     // Use the toParam function for special formatting (like dates) if it exists
-      query[filterParam(key, filter)] = filter.toParam ? filter.toParam(filter.value) : filter.value
+      query[filterParamKey(key, filter)] = filter.toParam ? filter.toParam(filter.value) : filter.value
     }
     return query
   }, {})
@@ -186,7 +186,7 @@ async function loadProposals(singleProposalID=null){
       if (key !== 'ra' && key !== 'dec') {
         const paramValue = filter.toParam ? filter.toParam(filter.value) : filter.value
         if (paramValue != null && paramValue != '') {
-          params.set(filterParam(key, filter), paramValue)
+          params.set(filterParamKey(key, filter), paramValue)
         }
       }
     }
@@ -360,7 +360,6 @@ onMounted(() => {
         bg-color="var(--card-background)"
         variant="solo-filled"
       >
-        <!-- we need this template here to display the button insite the text field -->
         <template #append-inner>
           <v-btn
             v-if="filter === filters.target_name"
@@ -368,7 +367,7 @@ onMounted(() => {
             size="x-small"
             color="var(--primary-interactive)"
             :variant="targetNameContains ? 'flat' : 'outlined'"
-            aria-label="Contains"
+            :aria-label="targetNameContains ? 'Case-Insensitive Exact' : 'Contains'"
             @click="targetNameContains = !targetNameContains"
           >
             <span class="material-symbols-outlined">find_in_page</span>
@@ -510,13 +509,5 @@ onMounted(() => {
 }
 .target-name-mode {
   min-height: 30px;
-}
-
-.material-symbols-outlined {
-  font-variation-settings:
-    'FILL' 0,
-    'wght' 400,
-    'GRAD' 0,
-    'opsz' 24;
 }
 </style>
