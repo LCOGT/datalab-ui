@@ -370,7 +370,7 @@ onMounted(() => {
             :aria-label="targetNameContains ? 'Case-Insensitive Exact' : 'Contains'"
             @click="targetNameContains = !targetNameContains"
           >
-            <span class="material-symbols-outlined">find_in_page</span>
+            <v-icon icon="mdi-contain" size="28" />
           </v-btn>
         </template>
       </v-text-field>
