@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch, computed } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import OperationPipeline from './Operation/OperationPipeline.vue'
 import OperationPipelineFlow from './OperationGraph/OperationPipelineFlow.vue'
 import { fetchApiCall, handleError } from '@/utils/api.js'
@@ -12,10 +12,6 @@ import _ from 'lodash'
 const props = defineProps({
   data: {
     type: Object,
-    required: true
-  },
-  active: {
-    type: Boolean,
     required: true
   }
 })
@@ -43,6 +39,7 @@ const SNACKBAR_TIMEOUT = 5000
 
 // Transient messages drained by the snackbar queue at the bottom of the session
 const snackbarMessages = ref([])
+const isActive = ref(false)
 
 var operationMap = {}
 
@@ -154,7 +151,14 @@ function stopPollingById(operationIDs) {
     }
   })
 
-  refreshOperations()
+  if (isActive.value) refreshOperations()
+}
+
+function stopAllPolling() {
+  Object.keys(operationPollingTimers).forEach(operationID => {
+    clearInterval(operationPollingTimers[operationID])
+    delete operationPollingTimers[operationID]
+  })
 }
 
 function operationDeleted(operationIDs){
@@ -174,7 +178,7 @@ async function pollOperationCompletion(operation) {
     method: 'GET',
     failCallback: handleError
   })
-  if (response) {
+  if (response && isActive.value) {
     updateOperationStatus(response)
   }
 }
@@ -226,6 +230,8 @@ function updateOperationStatus(response) {
 
 // Kicks off the lifecycle function above for any operations that are not completed
 function startOperationPolling() {
+  if (!isActive.value) return
+
   operations.value.forEach(operation => {
     if (operation.status != 'COMPLETED' && operation.status != 'FAILED') {
       if (Array.from(operation.dependencies).every(id =>
@@ -243,7 +249,7 @@ function startOperationPolling() {
 async function refreshOperations() {
   const url = dataSessionsUrl + props.data.id + '/operations/'
   const response = await fetchApiCall({ url: url, method: 'GET', failCallback: handleError })
-  if (!response) return
+  if (!response || !isActive.value) return
   operations.value = response.results
   processOperations()
   operations.value.forEach(operation => {
@@ -275,21 +281,15 @@ function processOperations() {
   })
 }
 
-watch(
-  () => props.active, (active, previousActive) => {
-    if (active && !previousActive) {
-      // If this tab becomes active, begin our process of polling for
-      // non-completed operations. First get all the operations state.
-      refreshOperations()
-    }
-    else {
-      // Stop all polling timers for inactive tabs
-      Object.keys(operationPollingTimers).forEach(operationID => {
-        stopPollingById(operationID)
-      })
-    }
-  }, { immediate: true }
-)
+onMounted(() => {
+  isActive.value = true
+  refreshOperations()
+})
+
+onBeforeUnmount(() => {
+  isActive.value = false
+  stopAllPolling()
+})
 
 </script>
 
@@ -315,7 +315,6 @@ watch(
           :operations="operations"
           :selected-operation="selectedOperation"
           :images="items"
-          :active="props.active"
           @select-operation="selectOperation"
           @close-graph="tab = 'main'"
         />
@@ -352,7 +351,6 @@ watch(
           <operation-pipeline
             :session-id="data.id"
             :operations="operations"
-            :active="props.active"
             :selected-operation="selectedOperation"
             @select-operation="selectOperation"
             @operation-was-deleted="operationDeleted"
