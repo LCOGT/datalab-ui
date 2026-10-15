@@ -146,7 +146,6 @@ onMounted(() => {
         <v-text-field
           v-model="newSessionName"
           label="Create New Session"
-          class="new-session-field"
         />
         <v-btn
           text="Create"
@@ -167,6 +166,7 @@ onMounted(() => {
   width: 40vw;
   align-self: center;
   display: flex !important;
+  flex-direction: column;
   background-color: var(--primary-background);
   color: var(--text);
   padding: 1rem
@@ -176,7 +176,15 @@ onMounted(() => {
   font-weight: 600;
   letter-spacing: 0.05rem;
 }
+.card > .v-card-text {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
 .sessions-list {
+  flex: 1;
+  min-height: 0;
   overflow-y: scroll;
   font-size: 1.4rem;
   color: var(--text);
@@ -195,10 +203,15 @@ onMounted(() => {
   bottom: 10%;
 }
 .button-container {
+  position: sticky;
+  bottom: 0;
   margin: 1rem;
   flex-direction: row;
   justify-content: space-around;
   align-content: space-around;
+  flex-shrink: 0;
+  background-color: var(--primary-background);
+  z-index: 1;
 }
 .create_button {
   color: var(--primary-interactive);
