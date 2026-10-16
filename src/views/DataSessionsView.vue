@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useConfigurationStore } from '@/stores/configuration'
 import { useUserDataStore } from '@/stores/userData'
 import { fetchApiCall, handleError } from '../utils/api'
@@ -11,6 +11,7 @@ const userDataStore = useUserDataStore()
 const dataSessions = ref([])
 const deleteSessionId = ref(-1)
 const showDeleteDialog = ref(false)
+const activeSessionData = ref(null)
 const dataSessionsUrl = configurationStore.datalabApiBaseUrl + 'datasessions/'
 
 onMounted(async () => {
@@ -25,21 +26,41 @@ function onTabChange(newSessionId) {
   userDataStore.activeSessionId = newSessionId
 }
 
+watch(() => userDataStore.activeSessionId, async (sessionId) => {
+  activeSessionData.value = null
+  if (!sessionId) return
+
+  const session = await fetchApiCall({
+    url: dataSessionsUrl + sessionId + '/',
+    method: 'GET',
+    failCallback: handleError
+  })
+
+  if (userDataStore.activeSessionId === sessionId) {
+    activeSessionData.value = session
+  }
+}, { immediate: true })
+
 function openDeleteDialog(id) {
   deleteSessionId.value = id
   showDeleteDialog.value = true
 }
 
 async function loadSessions() {
-  await fetchApiCall({ url: dataSessionsUrl, method: 'GET', successCallback: updateData, failCallback: handleError })
+  await fetchApiCall({
+    url: dataSessionsUrl + '?response_fields=id,name',
+    method: 'GET',
+    successCallback: updateData,
+    failCallback: handleError
+  })
 }
 
 // if tab is not in new data default to displaying first tab
 function updateData(data) {
   dataSessions.value = data.results
-  if (!dataSessions.value.some(ds => ds.id == userDataStore.activeSessionId)) {
-    userDataStore.activeSessionId = dataSessions.value[0]?.id
-  }
+  const activeSession = dataSessions.value.find(ds => ds.id == userDataStore.activeSessionId)
+  // use active session if it exists, otherwise default to the first session
+  userDataStore.activeSessionId = activeSession?.id ?? dataSessions.value[0]?.id
 }
 
 function tabActive(index) {
@@ -82,18 +103,11 @@ function tabActive(index) {
         />
       </v-tab>
     </v-tabs>
-    <v-window v-model="userDataStore.activeSessionId">
-      <v-window-item
-        v-for="(ds, index) in dataSessions"
-        :key="ds.id"
-        :value="ds.id"
-      >
-        <data-session
-          :data="ds"
-          :active="tabActive(index)"
-        />
-      </v-window-item>
-    </v-window>
+    <data-session
+      v-if="activeSessionData"
+      :key="activeSessionData.id"
+      :data="activeSessionData"
+    />
     <delete-session-dialog
       v-model="showDeleteDialog"
       :session-id="deleteSessionId"
