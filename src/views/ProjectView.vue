@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import { VDateInput } from 'vuetify/labs/VDateInput'
+import { VDateInput } from 'vuetify/components/VDateInput'
 import ImageList from '@/components/Project/ImageList.vue'
 import ImageGrid from '@/components/Global/ImageGrid.vue'
 import InsetIconSwitch from '@/components/Global/InsetIconSwitch.vue'
