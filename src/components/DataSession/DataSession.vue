@@ -39,7 +39,6 @@ const SNACKBAR_TIMEOUT = 5000
 
 // Transient messages drained by the snackbar queue at the bottom of the session
 const snackbarMessages = ref([])
-const isActive = ref(false)
 
 var operationMap = {}
 
@@ -151,7 +150,7 @@ function stopPollingById(operationIDs) {
     }
   })
 
-  if (isActive.value) refreshOperations()
+  refreshOperations()
 }
 
 function stopAllPolling() {
@@ -178,7 +177,7 @@ async function pollOperationCompletion(operation) {
     method: 'GET',
     failCallback: handleError
   })
-  if (response && isActive.value) {
+  if (response) {
     updateOperationStatus(response)
   }
 }
@@ -230,7 +229,6 @@ function updateOperationStatus(response) {
 
 // Kicks off the lifecycle function above for any operations that are not completed
 function startOperationPolling() {
-  if (!isActive.value) return
 
   operations.value.forEach(operation => {
     if (operation.status != 'COMPLETED' && operation.status != 'FAILED') {
@@ -249,7 +247,7 @@ function startOperationPolling() {
 async function refreshOperations() {
   const url = dataSessionsUrl + props.data.id + '/operations/'
   const response = await fetchApiCall({ url: url, method: 'GET', failCallback: handleError })
-  if (!response || !isActive.value) return
+  if (!response) return
   operations.value = response.results
   processOperations()
   operations.value.forEach(operation => {
@@ -282,12 +280,10 @@ function processOperations() {
 }
 
 onMounted(() => {
-  isActive.value = true
   refreshOperations()
 })
 
 onBeforeUnmount(() => {
-  isActive.value = false
   stopAllPolling()
 })
 
