@@ -248,7 +248,7 @@ async function refreshOperations() {
   const response = await fetchApiCall({ url: url, method: 'GET', failCallback: handleError })
   if (!response) return
   operations.value = response.results
-  processOperations()
+  initializeOperations()
   operations.value.forEach(operation => {
     if (operation.status == 'COMPLETED') {
       addCompletedOperation(operation)
