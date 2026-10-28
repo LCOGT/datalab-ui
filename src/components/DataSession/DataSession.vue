@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import OperationPipeline from './Operation/OperationPipeline.vue'
 import OperationPipelineFlow from './OperationGraph/OperationPipelineFlow.vue'
 import { fetchApiCall, handleError } from '@/utils/api.js'
@@ -229,7 +229,6 @@ function updateOperationStatus(response) {
 
 // Kicks off the lifecycle function above for any operations that are not completed
 function startOperationPolling() {
-
   operations.value.forEach(operation => {
     if (operation.status != 'COMPLETED' && operation.status != 'FAILED') {
       if (Array.from(operation.dependencies).every(id =>
@@ -278,6 +277,20 @@ function processOperations() {
     })
   })
 }
+
+watch(() => props.data.id, async (newSessionId, previousSessionId) => {
+  if (!previousSessionId || newSessionId === previousSessionId) return
+
+  stopAllPolling()
+  operations.value = [...props.data.operations]
+  items.value = sortByObservationDate(props.data.input_data)
+  persist.value = props.data.persist
+  selectedOperation.value = -1
+  tab.value = 'main'
+  operationMap = {}
+
+  await refreshOperations()
+})
 
 onMounted(() => {
   refreshOperations()
