@@ -249,12 +249,6 @@ async function refreshOperations() {
   if (!response) return
   operations.value = response.results
   initializeOperations()
-  operations.value.forEach(operation => {
-    if (operation.status == 'COMPLETED') {
-      addCompletedOperation(operation)
-    }
-  })
-  startOperationPolling()
 }
 
 function processOperations() {
