@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch, computed } from 'vue'
+import { ref, computed, onBeforeUnmount, onMounted, watch } from 'vue'
 import OperationPipeline from './Operation/OperationPipeline.vue'
 import OperationPipelineFlow from './OperationGraph/OperationPipelineFlow.vue'
 import { fetchApiCall, handleError } from '@/utils/api.js'
@@ -12,10 +12,6 @@ import _ from 'lodash'
 const props = defineProps({
   data: {
     type: Object,
-    required: true
-  },
-  active: {
-    type: Boolean,
     required: true
   }
 })
@@ -157,6 +153,13 @@ function stopPollingById(operationIDs) {
   refreshOperations()
 }
 
+function stopAllPolling() {
+  Object.keys(operationPollingTimers).forEach(operationID => {
+    clearInterval(operationPollingTimers[operationID])
+    delete operationPollingTimers[operationID]
+  })
+}
+
 function operationDeleted(operationIDs){
   // Stop polling for deleted operations
   stopPollingById(operationIDs)
@@ -245,13 +248,7 @@ async function refreshOperations() {
   const response = await fetchApiCall({ url: url, method: 'GET', failCallback: handleError })
   if (!response) return
   operations.value = response.results
-  processOperations()
-  operations.value.forEach(operation => {
-    if (operation.status == 'COMPLETED') {
-      addCompletedOperation(operation)
-    }
-  })
-  startOperationPolling()
+  initializeOperations()
 }
 
 function processOperations() {
@@ -275,21 +272,38 @@ function processOperations() {
   })
 }
 
-watch(
-  () => props.active, (active, previousActive) => {
-    if (active && !previousActive) {
-      // If this tab becomes active, begin our process of polling for
-      // non-completed operations. First get all the operations state.
-      refreshOperations()
+function initializeOperations() {
+  processOperations()
+
+  operations.value.forEach(operation => {
+    if (operation.status === 'COMPLETED') {
+      addCompletedOperation(operation)
     }
-    else {
-      // Stop all polling timers for inactive tabs
-      Object.keys(operationPollingTimers).forEach(operationID => {
-        stopPollingById(operationID)
-      })
-    }
-  }, { immediate: true }
-)
+  })
+
+  startOperationPolling()
+}
+
+watch(() => props.data.id, (newSessionId, previousSessionId) => {
+  if (!previousSessionId || newSessionId === previousSessionId) return
+
+  stopAllPolling()
+  operations.value = [...props.data.operations]
+  items.value = sortByObservationDate(props.data.input_data)
+  persist.value = props.data.persist
+  selectedOperation.value = -1
+  tab.value = 'main'
+  initializeOperations()
+
+})
+
+onMounted(() => {
+  initializeOperations()
+})
+
+onBeforeUnmount(() => {
+  stopAllPolling()
+})
 
 </script>
 
@@ -315,7 +329,6 @@ watch(
           :operations="operations"
           :selected-operation="selectedOperation"
           :images="items"
-          :active="props.active"
           @select-operation="selectOperation"
           @close-graph="tab = 'main'"
         />
@@ -352,7 +365,6 @@ watch(
           <operation-pipeline
             :session-id="data.id"
             :operations="operations"
-            :active="props.active"
             :selected-operation="selectedOperation"
             @select-operation="selectOperation"
             @operation-was-deleted="operationDeleted"

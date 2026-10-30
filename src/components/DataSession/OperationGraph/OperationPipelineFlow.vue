@@ -23,10 +23,6 @@ const props = defineProps({
   selectedOperation: {
     type: Number,
     required: true
-  },
-  active: {
-    type: Boolean,
-    required: true
   }
 })
 
@@ -63,36 +59,34 @@ function nodeUpdate() {
 }
 
 function updateNodesAndEdges() {
-  if (props.active) {
-    nodes.value = []
-    edges.value = []
+  nodes.value = []
+  edges.value = []
 
-    // Operations should have a dependencies property set which helps us build the edges of the graph
-    props.operations.forEach((operation) => {
-      nodes.value.push({
-        id: operation.id.toString(),
-        type: 'operation',
-        data: operation,
-        position: {x: 0, y: 50}  // Initial position must be provided or layout freaks out
+  // Operations should have a dependencies property set which helps us build the edges of the graph
+  props.operations.forEach((operation) => {
+    nodes.value.push({
+      id: operation.id.toString(),
+      type: 'operation',
+      data: operation,
+      position: {x: 0, y: 50}  // Initial position must be provided or layout freaks out
+    })
+  })
+  props.operations.forEach((operation) => {
+    operation.dependencies.forEach((dependency) => {
+      let edgeId = 'e' + dependency + '->' + operation.id
+      edges.value.push({
+        id: edgeId,
+        source: dependency.toString(),
+        target: operation.id.toString(),
+        type: 'smoothstep',
+        ...getEdgeProps(dependency.toString(), operation.id.toString())
       })
     })
-    props.operations.forEach((operation) => {
-      operation.dependencies.forEach((dependency) => {
-        let edgeId = 'e' + dependency + '->' + operation.id
-        edges.value.push({
-          id: edgeId,
-          source: dependency.toString(),
-          target: operation.id.toString(),
-          type: 'smoothstep',
-          ...getEdgeProps(dependency.toString(), operation.id.toString())
-        })
-      })
-    })
-    // Must let VuewFlow have a cycle to setup initial positions of nodes before laying out
-    nextTick(() =>{
-      nodeUpdate()
-    })
-  }
+  })
+  // Must let VuewFlow have a cycle to setup initial positions of nodes before laying out
+  nextTick(() =>{
+    nodeUpdate()
+  })
 }
 
 watch(() => props.operations, () => {

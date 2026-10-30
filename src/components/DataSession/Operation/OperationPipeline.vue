@@ -17,10 +17,6 @@ const props = defineProps({
   selectedOperation: {
     type: Number,
     required: true
-  },
-  active: {
-    type: Boolean,
-    required: true
   }
 })
 
